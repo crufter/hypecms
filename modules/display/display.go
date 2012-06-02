@@ -30,7 +30,7 @@ import(
 	func DisplayTemplate(uni *context.Uni, filep string) string {
 		tpl, has_tpl := uni.Opt["Template"]
 		if !has_tpl {
-			return "there is no template"
+			tpl = "default"
 		}
 		templ := tpl.(string)
 		_, priv := uni.Opt["TplIsPrivate"]
@@ -69,7 +69,7 @@ import(
 			}
 			return "fallback filep is too long"
 		}
-		return "fallback filep contains no slash"
+		return "fallback filep contains no slash, so there nothing to fall back"
 	}
 	
 // Beolvassa a filet és kiírja képernyőre, de előtte a lefuttatja rajta a "require" modult, és a Go template modulját is.

@@ -1,3 +1,3 @@
 {{require header.t}}
-Index
+Index<br />
 {{require footer.t}}

@@ -24,7 +24,7 @@ const(
 	inv_userspace 				= "Userspace options string is not a valid JSON"
 	site_not_found				= "site can not be found"
 	userspace_not_set 			= "Userspace options are not set at all"
-	front_hook_not_set			= "front hooks are not set properly"
+	// front_hook_not_set			= "front hooks are not set properly"
 	back_hook_not_set			= "back hooks are not set properly (either unset or empy slice)"
 	unexported_front			= " module does not export Front hook"
 	unexported_back				= "module's Back hook has bad signature"
@@ -36,7 +36,7 @@ var DB_ADDR = "127.0.0.1:27017"
 var DEBUG = *flag.Bool("debug", true, "debug mode")
 var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
 var PORT_NUM = *flag.String("p", "80", "port to listen on")
-var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
+var ABSOLUTE_PATH = "c:/gosrc/src/github.com/opesun/hypecms"
 // Http válaszban képernyőre írja az paramétereket.
 var Put func(...interface{})
 type m map[string]interface{}
@@ -54,14 +54,11 @@ type m map[string]interface{}
 					return
 				}
 				if _, ok := uni.Dat["_hijacked"]; ok {
-					display.D(uni)
-					return
+					break
 				}
 			}
-			display.D(uni)
-		} else {
-			Put(front_hook_not_set)
 		}
+		display.D(uni)
 	}
 		
 		// A back hook lefutása után a handleBacks intézi vagy a JSON képernyőre írását, vagy a http redirectelést.
@@ -137,7 +134,6 @@ type m map[string]interface{}
 	
 // A runSite-ban van egy két hardcore-olt dolog (lásd forrást)
 func runSite(uni *context.Uni) {
-	fmt.Println(uni.Dat["_user"])
 	buildUser(uni)
 	switch uni.Paths[1] {
 		// a backhookot azért hoztuk a "/b" mögé, hogy ne foglalja fölöslegesen a sok modulnév a névteret.
@@ -211,14 +207,11 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		uni.Opt = v.(map[string]interface{})
 	} else {
 		var res interface{}
-		db.C("options").Find(m{"Host": host}).Sort(m{"created":-1}).Limit(1).One(&res)
-		if res == nil {
-			Put(site_not_found)
-			return
-		} else {
+		db.C("options").Find(nil).Sort(m{"created":-1}).Limit(1).One(&res)
+		if res != nil {
 			s, hasU := res.(bson.M)["Userspace"]
 			if hasU {
-				str := s.(string)
+				str := s.(string)	// TODO: If niemeyer updates the MGO pkg, we will store the config as a map[string]interface{}. Currently, it gives back a bson.M which wrecks our logic.
 				set(cache, host, str)
 				var v interface{}
 				json.Unmarshal([]byte(str), &v)
