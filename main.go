@@ -211,7 +211,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		if res != nil {
 			s, hasU := res.(bson.M)["Userspace"]
 			if hasU {
-				str := s.(string)	// TODO: If niemeyer updates the MGO pkg, we will store the config as a map[string]interface{}. Currently, it gives back a bson.M which wrecks our logic.
+				str := s.(string)
 				set(cache, host, str)
 				var v interface{}
 				json.Unmarshal([]byte(str), &v)
