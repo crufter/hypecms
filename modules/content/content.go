@@ -10,7 +10,9 @@ import(
 	"github.com/opesun/jsonp"
 )
 
-var Hooks = make(map[string]func(*context.Uni))
+var Hooks = map[string]func(*context.Uni){
+	"Test": Test,
+}
 
 	// megadott kulcs alapján keresi a slugot
 	func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, bool) {

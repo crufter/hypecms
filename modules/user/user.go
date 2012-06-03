@@ -12,6 +12,7 @@ import(
 var Hooks = map[string]func(*context.Uni) {
 	"BuildUser": BuildUser,
 	"Back": Back,
+	"Test": Test,
 }
 
 	func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {

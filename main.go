@@ -4,7 +4,6 @@ package main
 import(
 	"net/http"
 	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
 	"io"
 	"fmt"
 	"sync"
@@ -24,19 +23,20 @@ const(
 	inv_userspace 				= "Userspace options string is not a valid JSON"
 	site_not_found				= "site can not be found"
 	userspace_not_set 			= "Userspace options are not set at all"
-	// front_hook_not_set			= "front hooks are not set properly"
+	// front_hook_not_set		= "front hooks are not set properly"
 	back_hook_not_set			= "back hooks are not set properly (either unset or empy slice)"
 	unexported_front			= " module does not export Front hook"
 	unexported_back				= "module's Back hook has bad signature"
 	no_user_module_build_hook	= "user module does not export build hook"
 	no_back_hijacked			= "none of the back hooks hijacked control"
+	cant_encode_config			= "Can't encode config. - No way this should happen anyway."
 )
 
 var DB_ADDR = "127.0.0.1:27017"
 var DEBUG = *flag.Bool("debug", true, "debug mode")
 var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
 var PORT_NUM = *flag.String("p", "80", "port to listen on")
-var ABSOLUTE_PATH = "c:/gosrc/src/github.com/opesun/hypecms"
+var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
 // Http válaszban képernyőre írja az paramétereket.
 var Put func(...interface{})
 type m map[string]interface{}
@@ -118,7 +118,7 @@ type m map[string]interface{}
 	
 	// használat: /debug/modulnév és lefuttatja a modul tesztjét, ami összehasonlítja a jelenlegi opció állományt az elvárt, "papírforma szerintivel"
 	func runDebug(uni *context.Uni) {
-		mod.Test(uni, uni.Paths[2])
+		mod.GetHook(uni.Paths[2], "Test")(uni)
 		handleBacks(uni)
 	}
 
@@ -208,23 +208,24 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	} else {
 		var res interface{}
 		db.C("options").Find(nil).Sort(m{"created":-1}).Limit(1).One(&res)
-		if res != nil {
-			s, hasU := res.(bson.M)["Userspace"]
-			if hasU {
-				str := s.(string)
-				set(cache, host, str)
-				var v interface{}
-				json.Unmarshal([]byte(str), &v)
-				if v == nil {
-					Put(inv_userspace)
-					return
-				}
-				uni.Opt = v.(map[string]interface{})
-			} else {
-				Put(userspace_not_set)
-				return
-			}
+		if res == nil {
+			res = m{}
+			db.C("options").Insert(res)
 		}
+		enc, merr := json.Marshal(res)
+		if merr != nil {
+			Put(cant_encode_config)
+			return
+		}
+		str := string(enc)
+		set(cache, host, str)
+		var v interface{}
+		json.Unmarshal([]byte(str), &v)
+		if v == nil {
+			Put(inv_userspace)
+			return
+		}
+		uni.Opt = v.(map[string]interface{})
 	}
 	req.ParseForm()
 	runSite(uni)

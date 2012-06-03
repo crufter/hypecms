@@ -23,17 +23,3 @@ func GetHook(modname string, method string) func(*context.Uni) {
 	}
 	return r
 }
-
-// Kis kivételt képez a modulok teszt függvénye, azért van hardcore-olva, hogy rossz konfig fájl esetén is meg tudjuk hívni a teszteket.
-func Test(uni *context.Uni, modname string) {
-	switch modname {
-		case "content":
-			content.Test(uni)
-		case "tag":
-			//tag.Test(uni)
-		case "shop":
-			//shop.Test(uni)
-		case "user":
-			user.Test(uni)
-	}
-}
