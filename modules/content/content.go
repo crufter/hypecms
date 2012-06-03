@@ -1,30 +1,30 @@
 package content
 
-import(
+import (
 	//"nv/view"
 	//"fmt"
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
-	"github.com/opesun/jsonp"
 )
 
 var Hooks = map[string]func(*context.Uni){
 	"Test": Test,
 }
 
-	// megadott kulcs alapján keresi a slugot
-	func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, bool) {
-		query := make(bson.M)
-		query[key] = val
-		var v interface{}
-		db.C("contents").Find(query).One(&v)
-		if v == nil {
-			return nil, false
-		}
-		return context.Convert(v).(map[string]interface{}), true
+// megadott kulcs alapján keresi a slugot
+func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, bool) {
+	query := make(bson.M)
+	query[key] = val
+	var v interface{}
+	db.C("contents").Find(query).One(&v)
+	if v == nil {
+		return nil, false
 	}
+	return context.Convert(v).(map[string]interface{}), true
+}
 
 func HookFront(uni *context.Uni) {
 	//uni.Put("article module runs")
@@ -38,11 +38,11 @@ func HookFront(uni *context.Uni) {
 			uni.Dat["content"] = content
 		}
 	}
-	
+
 }
 
 func ArticleView() {
-	
+
 }
 
 func EditView() {

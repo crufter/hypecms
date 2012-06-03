@@ -1,30 +1,30 @@
 package user
 
-import(
+import (
 	"github.com/opesun/hypecms/api/context"
-	"net/http"
-	"github.com/opesun/routep"
 	"github.com/opesun/jsonp"
+	"github.com/opesun/routep"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
+	"net/http"
 )
 
-var Hooks = map[string]func(*context.Uni) {
+var Hooks = map[string]func(*context.Uni){
 	"BuildUser": BuildUser,
-	"Back": Back,
-	"Test": Test,
+	"Back":      Back,
+	"Test":      Test,
 }
 
-	func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
-		var v interface{}
-		db.C("users").Find(bson.M{"_id":bson.ObjectIdHex(id)}).One(&v)
-		if v != nil {
-			val, _ := context.Convert(v).(map[string]interface{})
-			delete(val, "password")
-			return val, true
-		}
-		return nil, false
+func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
+	var v interface{}
+	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+	if v != nil {
+		val, _ := context.Convert(v).(map[string]interface{})
+		delete(val, "password")
+		return val, true
 	}
+	return nil, false
+}
 
 func BuildUser(uni *context.Uni) {
 	c, err := uni.Req.Cookie("user")
@@ -42,22 +42,22 @@ func BuildUser(uni *context.Uni) {
 	}
 }
 
-	func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
-		var v interface{}
-		db.C("users").Find(bson.M{"name":name, "password":encoded_pass}).One(&v)
-		if v != nil {
-			return v.(bson.M)["_id"].(bson.ObjectId).Hex(), true
-		}
-		return "", false
+func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
+	var v interface{}
+	db.C("users").Find(bson.M{"name": name, "password": encoded_pass}).One(&v)
+	if v != nil {
+		return v.(bson.M)["_id"].(bson.ObjectId).Hex(), true
 	}
-	
+	return "", false
+}
+
 func Register(uni *context.Uni) {
 	post := uni.Req.Form
 	res := make(map[string]interface{})
 	name, name_ok := post["name"]
 	pass, pass_ok := post["password"]
 	if name_ok && pass_ok && len(name) > 0 && len(pass) > 0 {
-		u := bson.M{"name": name[0], "password":pass[0]}
+		u := bson.M{"name": name[0], "password": pass[0]}
 		// Ide jön, hogy kiszedjük opciókból hogy miket pakoljunk még bele etc...
 		err := uni.Db.C("users").Insert(u)
 		if err != nil {
@@ -84,7 +84,7 @@ func Login(uni *context.Uni) {
 		name_str := name[0]
 		pass_str := pass[0]
 		if id, ok := FindLogin(uni.Db, name_str, pass_str); ok {
-			c := &http.Cookie{Name:"user", Value:id, MaxAge:3600000, Path:"/"}
+			c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
 			http.SetCookie(uni.W, c)
 			succ = true
 		} else {
@@ -111,20 +111,20 @@ func Login(uni *context.Uni) {
 
 func Logout(uni *context.Uni) {
 	res := make(map[string]interface{})
-	c := &http.Cookie{Name:"user", Value:"", Path:"/"}
+	c := &http.Cookie{Name: "user", Value: "", Path: "/"}
 	http.SetCookie(uni.W, c)
 	res["succ"] = true
 	uni.Dat["_cont"] = res
 }
 
-	func TestRaw(opt map[string]interface{}) map[string]interface{} {
-		msg := make(map[string]interface{})
-		//_, has := jsonp.Get(opt, "BuildUser")
-		//msg["BuildUser"] = has
-		has := jsonp.HasVal(opt, "Hooks.Back", "user")
-		msg["Back"] = has
-		return msg
-	}
+func TestRaw(opt map[string]interface{}) map[string]interface{} {
+	msg := make(map[string]interface{})
+	//_, has := jsonp.Get(opt, "BuildUser")
+	//msg["BuildUser"] = has
+	has := jsonp.HasVal(opt, "Hooks.Back", "user")
+	msg["Back"] = has
+	return msg
+}
 
 func Test(uni *context.Uni) {
 	uni.Dat["_cont"] = TestRaw(uni.Opt)
@@ -139,12 +139,12 @@ func Back(uni *context.Uni) {
 	}
 	had_action := true
 	switch r["action"] {
-		case "login":
-			Login(uni)
-		case "logout":
-		case "register":
-		default:
-			had_action = false
+	case "login":
+		Login(uni)
+	case "logout":
+	case "register":
+	default:
+		had_action = false
 	}
 	if !had_action {
 		uni.Put("cant find action named \"" + r["action"] + "\" in user module")
