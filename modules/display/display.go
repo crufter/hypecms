@@ -1,6 +1,8 @@
-// A display egy megjelenítési pontot ("entry") próbál lefuttatni. Ez gyakorlatilag a rendszer view/nézet része.
-// Bármi ami megjelenik a képernyőn egy átlagos felhasználó számára (leszámítva a hibaüzeneteket, vagy a kontrollerek eredményét, ha nem redirectelünk, hane json=true-val kiíratjuk azt)
-// ezen keresztül jelenítődik meg.
+// Module Display will execute the given "Display Points" ([]string found in uni.Dat["_points"]).
+// If there is no "_points" set in uni.Dat, then it will execute the Display Point which name matches the http Request Path.
+// A given Display Point can contain queries, they will be run, after that, a tpl file which matches the name of the Display Point will be executed.
+//
+// TODO: use error troughout the package instead of a string error.
 package display
 
 import (
@@ -11,9 +13,9 @@ import (
 	"html/template"
 	"path/filepath"
 	"strings"
+	//"io/ioutil"
 )
 
-// Lefut, ha hiba történik a template file értelmezése/megjelenítése közben.
 func displErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
@@ -21,12 +23,7 @@ func displErr(uni *context.Uni) {
 	}
 }
 
-// "user/search" 	oldal templatejében keres először, ha nincs felülírva akkor előszedi az alapot user modul tpl mappájából
-// "content"		csak az oldal templatejében
-// Ez amúgy nem olyan jó: pl "rolunk/lali" is úgy néz ki, mint egy adminos gecmájer.
-
-// Megjeleníti az adott template filet. Ha a template file filep-ja "rolunk/lali" akkor is működik, de a require-él vegyük figyelembe azt, hogy
-// a require header.t nem a "rolunk/header.t"-t fogja betölteni, hanem a sima "header.t"-t.
+// Executes filep.tpl of a given template.
 func DisplayTemplate(uni *context.Uni, filep string) string {
 	tpl, has_tpl := uni.Opt["Template"]
 	if !has_tpl {
@@ -50,14 +47,11 @@ func DisplayTemplate(uni *context.Uni, filep string) string {
 	return "cant find template file " + `"` + filep + `"`
 }
 
-// A fallback function megpróbálja előbányászni a nem található template filet a modulok/pl mappából. Ez csak admin fájloknál használatos efektíven,
-// Mert így az admin felületet is felül tudja írni egy adott template. "Rendes" template fájloknál kevésbé hasznos egy callback, mivel nincs header-je, vagy különbözik
-// a template által használatosnál.
+// If a given .tpl can not be found in the template folder, it will try identify the module which can have that .tpl file. 
 func DisplayFallback(uni *context.Uni, filep string) string {
 	if strings.Index(filep, "/") != -1 {
 		p := strings.Split(filep, "/")
 		if len(p) >= 2 {
-			// csúnya duplikació
 			file, err := require.RSimple(filepath.Join(uni.Root, "modules", p[0], "tpl"), strings.Join(p[1:], "/")+".tpl")
 			if err == "" {
 				uni.Dat["_tpl"] = "/modules/" + p[0] + "/tpl/"
@@ -72,7 +66,6 @@ func DisplayFallback(uni *context.Uni, filep string) string {
 	return "fallback filep contains no slash, so there nothing to fall back"
 }
 
-// Beolvassa a filet és kiírja képernyőre, de előtte a lefuttatja rajta a "require" modult, és a Go template modulját is.
 func DisplayFile(uni *context.Uni, filep string) {
 	defer displErr(uni)
 	err := DisplayTemplate(uni, filep)
@@ -84,15 +77,13 @@ func DisplayFile(uni *context.Uni, filep string) {
 	}
 }
 
-// Ha hiba történik a queryk futtatása közben...
 func queryErr(uni *context.Uni) {
 	r := recover()
 	fmt.Println(r)
 	uni.Put("shit happened while running queries")
 }
 
-// A runQueries a megjelenítési ponthoz ("entry"), az adatbázisban letárolt lekérdezéseket lefuttatja.
-// Ez egyelőre akkora runtime panicet dob ha nem megfelelő az adat az adatbázisban hogy leszakad a fejed, ezért is van defer... todo: javítani
+// Runs the queries associated with a given Display Point.
 func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 	defer queryErr(uni)
 	qs := make(map[string]interface{})
@@ -114,9 +105,7 @@ func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 	uni.Dat["queries"] = qs
 }
 
-// Itt keződik a package futása, megpróbál elővenni egy megjelenítési pontot, ha nem találja, akkor viszont csak simán a megjelenítési pont nevével megegyező .tpl filet fog képernyőre íratni.
-// Kivétel: "/" file, mert az "/index"-re fog módosulni
-// Változni fog, nagyon.
+// This is where this module starts.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
 	var point, filep string

@@ -1,7 +1,6 @@
 package content
 
 import (
-	//"nv/view"
 	//"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
@@ -14,7 +13,7 @@ var Hooks = map[string]func(*context.Uni){
 	"Test": Test,
 }
 
-// megadott kulcs alapján keresi a slugot
+// Find slug value be given key.
 func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, bool) {
 	query := make(bson.M)
 	query[key] = val
@@ -39,19 +38,6 @@ func HookFront(uni *context.Uni) {
 		}
 	}
 
-}
-
-func ArticleView() {
-
-}
-
-func EditView() {
-}
-
-func edit() {
-}
-
-func Edit() {
 }
 
 func Test(uni *context.Uni) {

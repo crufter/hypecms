@@ -1,3 +1,6 @@
+// Package user implements some basic user functionality.
+// - Registration, deletion, update, login, logout of users.
+// - Building the user itself (if logged in), and putting it to uni.Dat["_user"].
 package user
 
 import (
@@ -119,8 +122,8 @@ func Logout(uni *context.Uni) {
 
 func TestRaw(opt map[string]interface{}) map[string]interface{} {
 	msg := make(map[string]interface{})
-	//_, has := jsonp.Get(opt, "BuildUser")
-	//msg["BuildUser"] = has
+	// _, has := jsonp.Get(opt, "BuildUser")
+	// msg["BuildUser"] = has
 	has := jsonp.HasVal(opt, "Hooks.Back", "user")
 	msg["Back"] = has
 	return msg

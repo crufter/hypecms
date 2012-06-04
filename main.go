@@ -1,4 +1,5 @@
-// Tudod mi a fasz ez, így van?
+// HypeCMS is a CMS and/or framework for webb applications, and more.
+// Copyright OPESUN TECHNOLOGIES Kft. 2012. Authors: Donronszki János, Kapusi Lajos
 package main
 
 import (
@@ -38,12 +39,12 @@ var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
 var PORT_NUM = *flag.String("p", "80", "port to listen on")
 var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
 
-// Http válaszban képernyőre írja az paramétereket.
+// Quickly print the data to http response.
 var Put func(...interface{})
 
 type m map[string]interface{}
 
-// A front hook egy olyan beépülési pont, ami látható kimenetet (viewt, azaz nézetet) fog produkálni. A runFronHooks az ide beépülő függvényeket futtatja.
+// All views are going to use this hook.
 func runFrontHooks(uni *context.Uni) {
 	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Front")
 	if ok && len(top_hooks) > 0 {
@@ -63,7 +64,7 @@ func runFrontHooks(uni *context.Uni) {
 	display.D(uni)
 }
 
-// A back hook lefutása után a handleBacks intézi vagy a JSON képernyőre írását, vagy a http redirectelést.
+// After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
 func handleBacks(uni *context.Uni) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
@@ -84,7 +85,7 @@ func handleBacks(uni *context.Uni) {
 	}
 }
 
-// A back hookokba iratkozik minden, ami legfelsőbb szintre akar feliratkozni, nem nézet/view.
+// Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Back")
 	if ok && len(top_hooks) > 0 {
@@ -107,7 +108,6 @@ func runBackHooks(uni *context.Uni) {
 	}
 }
 
-// alap konvenció a dispatchhez valószínűleg az lesz h, "admin", "admin/modulnév"
 func runAdminHooks(uni *context.Uni) {
 	if len(uni.Paths) > 2 && uni.Paths[2] == "b" {
 		admin.AB(uni)
@@ -118,7 +118,7 @@ func runAdminHooks(uni *context.Uni) {
 	}
 }
 
-// használat: /debug/modulnév és lefuttatja a modul tesztjét, ami összehasonlítja a jelenlegi opció állományt az elvárt, "papírforma szerintivel"
+// Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
 func runDebug(uni *context.Uni) {
 	mod.GetHook(uni.Paths[2], "Test")(uni)
 	handleBacks(uni)
@@ -138,13 +138,13 @@ func buildUser(uni *context.Uni) {
 func runSite(uni *context.Uni) {
 	buildUser(uni)
 	switch uni.Paths[1] {
-	// a backhookot azért hoztuk a "/b" mögé, hogy ne foglalja fölöslegesen a sok modulnév a névteret.
+	// Back hooks are put behind "/b/" to avoid eating up the namespace.
 	case "b":
 		runBackHooks(uni)
-	// admin azért csókos, mert beszart opciókkal is működik így
+	// Admin is a VIP module, to allow bootstrapping a site even if the option document is empty.
 	case "admin":
 		runAdminHooks(uni)
-	// debug szintén, szétbaszcsizott opciókkal is megy
+	// Debug is VIP to allow debugging even with a messed up option document.
 	case "debug":
 		runDebug(uni)
 	default:
@@ -159,8 +159,7 @@ func set(c map[string]string, key, val string) {
 	mut.Unlock()
 }
 
-// Egyszerűsítő függvény, hogy teszteljük hogy egy map tartalmaz-e egy adott kulcsot, plusz ezt még egy mutex lockkal le is védi, hogy párhuzamosan futó
-// goroutine-okból is meghívhassuk.
+// mutex locked map get
 func has(c map[string]string, str string) (interface{}, bool) {
 	mut := new(sync.Mutex)
 	mut.Lock()
@@ -169,7 +168,7 @@ func has(c map[string]string, str string) (interface{}, bool) {
 	return v, ok
 }
 
-// Ha bárhol befagy a rendszer, és felbuborékol egészen a getSite-ig, ez kiírja a http válaszban a hibát, és a stack tracet.
+// Just printing the stack trace to http response if a panic bubbles up all the way to top.
 func err() {
 	if r := recover(); r != nil && r != "controlled" {
 		fmt.Println(r)
@@ -183,8 +182,7 @@ func err() {
 
 var cache = make(map[string]string)
 
-// A getSite előszedi az oldalhoz tartozó legfrissebb opciót az options kollecióból, aztán átadja a vezérlést a runSite-nak.
-// Cachel is, és ő hozza létre a *context.Uni egy példányát is, amit az egész rendszer használ.
+// A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
 func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	Put = func(a ...interface{}) {
 		io.WriteString(w, fmt.Sprint(a...)+"\n")

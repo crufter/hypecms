@@ -1,4 +1,8 @@
-// Ez a package nagyon alap default admin funkcionalitást implementál.
+// This package implements basic admin functionality.
+// - Admin login, or even register if the site has no admin.
+// - Installation/uninstallation of modules.
+// - Editing of the currently used options document (available under uni.Opts)
+// - A view containing links to installed modules.
 package admin
 
 import (
@@ -16,9 +20,9 @@ import (
 
 type m map[string]interface{}
 
-func AdErr(uni *context.Uni) {
+func adErr(uni *context.Uni) {
 	if r := recover(); r != nil {
-		uni.Put("hiba történt az admin modul futtatása közben", r)
+		uni.Put("There was an error runningg the admin module.\n", r)
 	}
 }
 
@@ -28,7 +32,7 @@ func SiteHasAdmin(db *mgo.Database) bool {
 	return v != nil
 }
 
-// Regging yourself as admin is possible if the site has no admin yet.
+// Registering yourself as admin is possible if the site has no admin yet.
 func RegAdmin(uni *context.Uni) {
 	res := map[string]interface{}{}
 	if SiteHasAdmin(uni.Db) {
@@ -74,10 +78,10 @@ func Index(uni *context.Uni) {
 				adm["menu"] = append(adm["menu"].([]string), val.(string))
 			}
 		} else {
-			adm["error"] = "Modules in options is not a slice"
+			adm["error"] = "Modules in options is not a slice."
 		}
 	} else {
-		adm["error"] = "no_module_installed"
+		adm["error"] = "No module installed."
 	}
 	uni.Dat["admin"] = adm
 }
@@ -98,7 +102,7 @@ func SaveConfig(uni *context.Uni) {
 	var v interface{}
 	uni.Db.C("options").Find(nil).Sort(bson.M{"date": -1}).Limit(1).One(&v)
 	if v == nil {
-		uni.Put("something is real fucked up")
+		uni.Put("Can't find the options document. (It's impossible by the way.)")
 		return
 	}
 	m := map[string]interface{}(v.(bson.M))
@@ -109,7 +113,7 @@ func SaveConfig(uni *context.Uni) {
 }
 
 func AD(uni *context.Uni) {
-	defer AdErr(uni)
+	defer adErr(uni)
 	if lev, k := jsonp.Get(uni.Dat, "_user.level"); k == false || lev.(int) < 300 {
 		if SiteHasAdmin(uni.Db) {
 			uni.Dat["_points"] = []string{"admin/login"}
@@ -149,7 +153,7 @@ func AD(uni *context.Uni) {
 
 func AB(uni *context.Uni) {
 	m, k := routep.Comp("/admin/b/{action}", uni.P)
-	if k == "" { // admin saját eseményei
+	if k == "" {
 		switch m["action"] {
 		case "regadmin":
 			RegAdmin(uni)
@@ -163,6 +167,6 @@ func AB(uni *context.Uni) {
 			uni.Put("Unknown admin action.")
 		}
 	} else {
-		uni.Put("Control is routed to Admin back, but it does not like the url structure.")
+		uni.Put("Control is routed to Admin back, but it does not like the url structure somehow.")
 	}
 }
