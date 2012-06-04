@@ -4,7 +4,7 @@ A CMS written in Go, using MongoDB as a backend. (Work in progress, heavily.)
 
 Design goals
 =======
-We hope we can write a system which can be used by Go based startups as a starting point/framework for developement.
+We hope we can write a system which can be used by Go based startups as a starting point/framework for development.
 We try to build a system which is more oriented toward complete and unique web applications, rather than blogs or bussiness card web pages.
 However at the same time, we try to keep the inner workings of it as simple as possible.
 The CMS itself is just a thin layer above specific modules.
@@ -27,7 +27,7 @@ The architecture is lousely based on the MVC pattern. Basically whenever the sys
 - Anything else will be handled as a "View" which will be displayed by either the builtin Display module or an explicitly stated one.
 
 Some of the following things are awaiting implementation
----
+-------
 
 ### The admin module
 There is a builtin editor of the currently used option document, so you can configure any option or package by hand even if it has no graphical setup.
