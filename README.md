@@ -50,6 +50,8 @@ For more reusable code, try to avoid doing bussiness logic in functions which ha
 Since there is no dynamic code loading in Go (yet), we must require all packages here.
 Later if there will be a great number of modules we can compile with only the required modules.
 
+(More things to come here...)
+
 History
 =======
 HypeCMS is a port of an unreleased CMS written in Node.js.
