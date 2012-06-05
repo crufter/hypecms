@@ -105,7 +105,7 @@ func Login(uni *context.Uni) {
 			reason = append(reason, "improper pass")
 		}
 	}
-	res["succ"] = succ
+	res["success"] = succ
 	if !succ {
 		res["reason"] = reason
 	}
@@ -116,7 +116,7 @@ func Logout(uni *context.Uni) {
 	res := make(map[string]interface{})
 	c := &http.Cookie{Name: "user", Value: "", Path: "/"}
 	http.SetCookie(uni.W, c)
-	res["succ"] = true
+	res["success"] = true
 	uni.Dat["_cont"] = res
 }
 

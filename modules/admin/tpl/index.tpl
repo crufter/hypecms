@@ -5,10 +5,15 @@
 
 
 Installed modules:
+
 {{if .admin.error}}
 	{{.admin.error}}
 {{else}}
-	{{range .admin.menu}}
-		{{.dot}}
+	<ul>
+		<li>
+		{{range .admin.menu}}
+			<a href="/admin/{{.}}">{{.}}</a>
+		{{end}}
+		</li>
 	{{end}}
-{{end}}
+</li>

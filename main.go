@@ -14,6 +14,7 @@ import (
 	"io"
 	"launchpad.net/mgo"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ var DEBUG = *flag.Bool("debug", true, "debug mode")
 var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
 var PORT_NUM = *flag.String("p", "80", "port to listen on")
 var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
+var OPT_CACHE = *flag.Bool("opt_cache", false, "cache option document")
 
 // Quickly print the data to http response.
 var Put func(...interface{})
@@ -64,6 +66,37 @@ func runFrontHooks(uni *context.Uni) {
 	display.D(uni)
 }
 
+// This is real basic yet, it would be cool to include all elements of result.
+func appendParams(str string, result map[string]interface{}) string {
+	p := strings.Split(str, "?")
+	var inp string
+	if len(p) > 1 {
+		inp = p[1]
+	} else {
+		inp = ""
+	}
+	v, parserr := url.ParseQuery(inp)
+	if parserr == nil {
+		succ, ok := result["success"]
+		if ok {
+			if succ == true {
+				v.Set("success", "true")
+			} else {
+				v.Set("success", "false")
+				reason, has_r := result["reason"]
+				if has_r {
+					v.Set("reason", reason.(string))
+				}
+			}
+		}
+		quer := v.Encode()
+		if len(quer) > 0 {
+			return p[0] + "?" + quer
+		}
+	}
+	return p[0]
+}
+
 // After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
 func handleBacks(uni *context.Uni) {
 	if DEBUG {
@@ -81,6 +114,7 @@ func handleBacks(uni *context.Uni) {
 		} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
 			redir = post_red[1]
 		}
+		redir = appendParams(redir, uni.Dat["_cont"].(map[string]interface{}))
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
 }
@@ -198,7 +232,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		Root: ABSOLUTE_PATH, P: req.URL.Path,
 		Paths: strings.Split(req.URL.Path, "/"),
 	}
-	if val, ok := has(cache, host); ok {
+	if val, ok := has(cache, host); OPT_CACHE && ok {
 		var v interface{}
 		json.Unmarshal([]byte(val.(string)), &v)
 		if v == nil {
@@ -206,6 +240,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		uni.Opt = v.(map[string]interface{})
+		delete(uni.Opt, "_id")
 	} else {
 		var res interface{}
 		db.C("options").Find(nil).Sort(m{"created": -1}).Limit(1).One(&res)
@@ -227,6 +262,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		uni.Opt = v.(map[string]interface{})
+		delete(uni.Opt, "_id")
 	}
 	req.ParseForm()
 	runSite(uni)

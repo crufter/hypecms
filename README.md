@@ -22,7 +22,7 @@ Anything a site does, must be explicitly stated in this option document, with on
 /debug
 	- The debug module is hardcoded, so we can analyize the state of the site even with an empty or messed up option document.
 
-The architecture is lousely based on the MVC pattern. Basically whenever the system recieves a http request, it routes the given request according to the next rule:
+The architecture is lousely based on the MVC pattern. Basically whenever the system receives a http request, it routes the given request according to the next rule:
 - If the path of the request matches "/b/{modulename}", it will be routed to the given module, and the system expects a background operation to be called.
 - Anything else will be handled as a "View" which will be displayed by either the builtin Display module or an explicitly stated one.
 
@@ -36,7 +36,7 @@ There is a builtin editor of the currently used option document, so you can conf
 Every view function specifies a "Display Point". This display point contains information about what template file to execute (it contains this information implicitly, since the filename is the name of the display point itself).
 Also, it can contain queries to be run. The queries are stored in the option document.
 If the display module senses the Get parameter "json", it will not output the html as response, only a JSON encoded string containing the map[string]interface{} uni.Dat, which is the context of the template execution. (Not implemented yet.)
-(Similarly, a background operation can recieve "json" as a parameter, and instead of redirecting the user back to a view, it will print out the JSON encoded result of that background operation. Useful if we want ot build AJAX-based web applications.)
+(Similarly, a background operation can receive "json" as a parameter, and instead of redirecting the user back to a view, it will print out the JSON encoded result of that background operation. Useful if we want ot build AJAX-based web applications.)
 
 ### The Content module (soon to come)
 Every content in this module has a type, with user defined fields. For example, you can define a "blogpost" type and a "product" type, and install a webshop module to the "product" content type only.

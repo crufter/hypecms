@@ -22,7 +22,7 @@ type m map[string]interface{}
 
 func adErr(uni *context.Uni) {
 	if r := recover(); r != nil {
-		uni.Put("There was an error runningg the admin module.\n", r)
+		uni.Put("There was an error running the admin module.\n", r)
 	}
 }
 
@@ -72,13 +72,13 @@ func Index(uni *context.Uni) {
 	uni.Dat["_points"] = []string{"admin/index"}
 	adm := map[string]interface{}{}
 	if v, ok := uni.Opt["Modules"]; ok {
-		if slice, k := v.([]interface{}); k {
+		if mapi, k := v.(map[string]interface{}); k {
 			adm["menu"] = []string{}
-			for _, val := range slice {
-				adm["menu"] = append(adm["menu"].([]string), val.(string))
+			for ind, _ := range mapi {
+				adm["menu"] = append(adm["menu"].([]string), ind)
 			}
 		} else {
-			adm["error"] = "Modules in options is not a slice."
+			adm["error"] = "Modules in options is not a map[string]interface{}."
 		}
 	} else {
 		adm["error"] = "No module installed."
@@ -89,6 +89,7 @@ func Index(uni *context.Uni) {
 func EditConfig(uni *context.Uni) {
 	uni.Dat["_points"] = []string{"admin/edit-config"}
 	adm := map[string]interface{}{}
+	delete(uni.Opt, "created")
 	v, err := json.MarshalIndent(uni.Opt, "", "    ")
 	if err == nil {
 		adm["options_json"] = string(v)
@@ -99,17 +100,32 @@ func EditConfig(uni *context.Uni) {
 }
 
 func SaveConfig(uni *context.Uni) {
-	var v interface{}
-	uni.Db.C("options").Find(nil).Sort(bson.M{"date": -1}).Limit(1).One(&v)
-	if v == nil {
-		uni.Put("Can't find the options document. (It's impossible by the way.)")
-		return
+	res := map[string]interface{}{}
+	jsonenc, ok := uni.Req.Form["option"]
+	if ok {
+		if len(jsonenc) == 1 {
+			var v interface{}
+			json.Unmarshal([]byte(jsonenc[0]), &v)
+			if v != nil {
+				m := v.(map[string]interface{})
+				// Just in case
+				delete(m, "_id")
+				m["created"] = time.Now().Unix()
+				uni.Db.C("options").Insert(m)
+				res["success"] = true
+			} else {
+				res["success"] = false
+				res["reason"] = "invalid json"
+			}
+		} else {
+			res["success"] = false
+			res["reason"] = "multiple option strings received"
+		}
+	} else {
+		res["success"] = false
+		res["reason"] = "no option string received"
 	}
-	m := map[string]interface{}(v.(bson.M))
-	delete(m, "_id")
-	m["date"] = time.Now().Unix()
-	uni.Db.C("options").Insert(m)
-	uni.Dat["_cont"] = map[string]interface{}{"success": true}
+	uni.Dat["_cont"] = res
 }
 
 func AD(uni *context.Uni) {

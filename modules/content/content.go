@@ -10,7 +10,12 @@ import (
 )
 
 var Hooks = map[string]func(*context.Uni){
-	"Test": Test,
+	"AD":			AD,
+	"Front":		Front,
+	"Back":			Back,
+	"Install":		Install,
+	"Uninstall":	Uninstall,
+	"Test":			Test,
 }
 
 // Find slug value be given key.
@@ -25,7 +30,7 @@ func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, boo
 	return context.Convert(v).(map[string]interface{}), true
 }
 
-func HookFront(uni *context.Uni) {
+func Front(uni *context.Uni) {
 	//uni.Put("article module runs")
 	m, err := routep.Comp("/{slug}", uni.Req.URL.Path)
 	if err == "" {
@@ -47,14 +52,17 @@ func Test(uni *context.Uni) {
 }
 
 func Install(uni *context.Uni) {
-	//etries, ok := jsonp.Get(uni.Opt, "Modules.Display.Entries")
-	//if !ok {
-	//	uni.Put("there no entry points in display module")
-	//	return
-	//}
-	//entries := map[string]interface{}{"file":"content"}
+
 }
 
-func init() {
-	Hooks["Front"] = HookFront
+func Uninstall(uni *context.Uni) {
+	
+}
+
+func AD(uni *context.Uni) {
+	
+}
+
+func Back(uni *context.Uni) {
+
 }
