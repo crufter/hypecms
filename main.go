@@ -21,17 +21,17 @@ import (
 )
 
 const (
-	unfortunate_error = "an unfortunate error has happened. we are deeply sorry for the inconvenience."
-	inv_userspace     = "Userspace options string is not a valid JSON"
-	site_not_found    = "site can not be found"
-	userspace_not_set = "Userspace options are not set at all"
+	unfortunate_error 			= "an unfortunate error has happened. we are deeply sorry for the inconvenience."
+	inv_userspace     			= "Userspace options string is not a valid JSON"
+	site_not_found    			= "site can not be found"
+	userspace_not_set			= "Userspace options are not set at all"
 	// front_hook_not_set		= "front hooks are not set properly"
-	back_hook_not_set         = "back hooks are not set properly (either unset or empy slice)"
-	unexported_front          = " module does not export Front hook"
-	unexported_back           = "module's Back hook has bad signature"
-	no_user_module_build_hook = "user module does not export build hook"
-	no_back_hijacked          = "none of the back hooks hijacked control"
-	cant_encode_config        = "Can't encode config. - No way this should happen anyway."
+	back_hook_not_set			= "back hooks are not set properly (either unset or empy slice)"
+	unexported_front          	= " module does not export Front hook"
+	unexported_back          	= "module's Back hook has bad signature"
+	no_user_module_build_hook 	= "user module does not export build hook"
+	no_back_hijacked          	= "none of the back hooks hijacked control"
+	cant_encode_config        	= "Can't encode config. - No way this should happen anyway."
 )
 
 var DB_ADDR = "127.0.0.1:27017"
@@ -79,7 +79,8 @@ func appendParams(str string, result map[string]interface{}) string {
 	if parserr == nil {
 		succ, ok := result["success"]
 		if ok {
-			if succ == true {
+			v.Del("reason")		// When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
+			if succ == true {	// operation, you will be redirected to the same page. Result will be success=true,reason=x, to avoid it we do v.Del("reason")
 				v.Set("success", "true")
 			} else {
 				v.Set("success", "false")
@@ -90,6 +91,7 @@ func appendParams(str string, result map[string]interface{}) string {
 			}
 		}
 		quer := v.Encode()
+		fmt.Println(quer, len(quer))
 		if len(quer) > 0 {
 			return p[0] + "?" + quer
 		}
@@ -219,7 +221,7 @@ var cache = make(map[string]string)
 // A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
 func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	Put = func(a ...interface{}) {
-		io.WriteString(w, fmt.Sprint(a...)+"\n")
+		io.WriteString(w, fmt.Sprint(a...) + "\n")
 	}
 	defer err()
 	host := req.Host
@@ -229,7 +231,8 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		Req:  req,
 		Put:  Put,
 		Dat:  make(map[string]interface{}),
-		Root: ABSOLUTE_PATH, P: req.URL.Path,
+		Root: ABSOLUTE_PATH,
+		P:	  req.URL.Path,
 		Paths: strings.Split(req.URL.Path, "/"),
 	}
 	if val, ok := has(cache, host); OPT_CACHE && ok {

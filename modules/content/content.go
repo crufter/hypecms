@@ -9,6 +9,7 @@ import (
 	"launchpad.net/mgo/bson"
 )
 
+type m map[string]interface{}
 var Hooks = map[string]func(*context.Uni){
 	"AD":			AD,
 	"Front":		Front,
@@ -52,7 +53,11 @@ func Test(uni *context.Uni) {
 }
 
 func Install(uni *context.Uni) {
-
+	id := uni.Dat["_option_id"].(bson.ObjectId)
+	content_options := m{
+		"hello": 1,
+	}
+	uni.Db.C("options").Update(m{"_id": id}, m{ "$addToSet": m{ "Hooks.Front": "Content"}, "$set": m{"Modules.Content": content_options }})
 }
 
 func Uninstall(uni *context.Uni) {

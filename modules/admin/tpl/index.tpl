@@ -2,7 +2,7 @@
 <a href="/admin/edit-config">Edit config</a>
 <a href="/admin/b/logout">Logout</a>
 </div>
-
+<br />
 
 Installed modules:
 
@@ -15,5 +15,5 @@ Installed modules:
 			<a href="/admin/{{.}}">{{.}}</a>
 		{{end}}
 		</li>
-	{{end}}
-</li>
+	</ul>
+{{end}}
