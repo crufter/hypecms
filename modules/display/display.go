@@ -28,13 +28,11 @@ func displErr(uni *context.Uni) {
 // TODO: Implement file caching here.
 func getFile(abs, fi string, uni *context.Uni) ([]byte, error) {
 	p := getTPath(fi, uni)
-	fmt.Println(p)
 	b, err := ioutil.ReadFile(filepath.Join(p[0], p[1]))
 	if err == nil {
 		return b, nil
 	}
 	p = getModPath(fi, uni)
-	fmt.Println(p)
 	return ioutil.ReadFile(filepath.Join(p[0], p[1]))
 }
 
@@ -78,8 +76,7 @@ func getModPath(s string, uni *context.Uni) []string {
 
 // Executes filep.tpl of a given template.
 func DisplayTemplate(uni *context.Uni, filep string) string {
-	p := getTPath(filep+".tpl", uni)
-	file, err := require.R(p[0], p[1],
+	file, err := require.R("", filep+".tpl",
 		func(abs, fi string) ([]byte, error) {
 			return getFile(abs, fi, uni)
 		})
@@ -96,13 +93,12 @@ func DisplayTemplate(uni *context.Uni, filep string) string {
 func DisplayFallback(uni *context.Uni, filep string) string {
 	if strings.Index(filep, "/") != -1 {
 		if len(strings.Split(filep, "/")) >= 2 {
-			p := getModPath(filep+".tpl", uni)
-			file, err := require.R(p[0], filep,			// Tricky, care.
+			file, err := require.R("", filep+".tpl",			// Tricky, care.
 				func(abs, fi string) ([]byte, error) {
 					return getFile(abs, fi, uni)
 				})
 			if err == "" {
-				uni.Dat["_tpl"] = "/modules/" + p[0] + "/tpl/"
+				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
 				_ = t.Execute(uni.W, uni.Dat)
 				return ""
