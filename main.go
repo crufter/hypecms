@@ -21,14 +21,14 @@ import (
 )
 
 const (
-	unfortunate_error 			= "An unfortunate error has happened. we are deeply sorry for the inconvenience."
-	inv_userspace     			= "Userspace options string is not a valid JSON"	// TODO: Maybe we should try to recover from here.
-	userspace_not_set			= "Userspace options are not set at all."
-	unexported_front          	= " module does not export Front hook."
-	unexported_back          	= " module does not export Back hook."
-	no_user_module_build_hook 	= "user module does not export build hook"
-	cant_encode_config        	= "Can't encode config. - No way this should happen anyway."
-	no_module_at_back			= "Tried to run a back hook, but no module was specified."
+	unfortunate_error         = "An unfortunate error has happened. we are deeply sorry for the inconvenience."
+	inv_userspace             = "Userspace options string is not a valid JSON" // TODO: Maybe we should try to recover from here.
+	userspace_not_set         = "Userspace options are not set at all."
+	unexported_front          = " module does not export Front hook."
+	unexported_back           = " module does not export Back hook."
+	no_user_module_build_hook = "user module does not export build hook"
+	cant_encode_config        = "Can't encode config. - No way this should happen anyway."
+	no_module_at_back         = "Tried to run a back hook, but no module was specified."
 )
 
 var DB_ADDR = "127.0.0.1:27017"
@@ -76,8 +76,8 @@ func appendParams(str string, result map[string]interface{}) string {
 	if parserr == nil {
 		succ, ok := result["success"]
 		if ok {
-			v.Del("reason")		// When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
-			if succ == true {	// operation, you will be redirected to the same page. Result will be success=true,reason=x, to avoid it we do v.Del("reason")
+			v.Del("reason")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
+			if succ == true { // operation, you will be redirected to the same page. Result will be success=true,reason=x, to avoid it we do v.Del("reason")
 				v.Set("success", "true")
 			} else {
 				v.Set("success", "false")
@@ -126,7 +126,7 @@ func handleBacks(uni *context.Uni) {
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	if len(uni.Paths) > 2 {
-		modname := uni.Paths[2]		// TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
+		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 		if h := mod.GetHook(modname, "Back"); h != nil {
 			h(uni)
 		} else {
@@ -219,18 +219,18 @@ var cache = make(map[string]string)
 // A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
 func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	Put = func(a ...interface{}) {
-		io.WriteString(w, fmt.Sprint(a...) + "\n")
+		io.WriteString(w, fmt.Sprint(a...)+"\n")
 	}
 	defer err()
 	host := req.Host
 	uni := &context.Uni{
-		Db:   db,
-		W:    w,
-		Req:  req,
-		Put:  Put,
-		Dat:  make(map[string]interface{}),
-		Root: ABSOLUTE_PATH,
-		P:	  req.URL.Path,
+		Db:    db,
+		W:     w,
+		Req:   req,
+		Put:   Put,
+		Dat:   make(map[string]interface{}),
+		Root:  ABSOLUTE_PATH,
+		P:     req.URL.Path,
 		Paths: strings.Split(req.URL.Path, "/"),
 	}
 	if val, ok := has(cache, host); OPT_CACHE && ok {

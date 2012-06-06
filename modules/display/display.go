@@ -6,15 +6,15 @@
 package display
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/require"
 	"html/template"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
-	"io/ioutil"
-	"encoding/json"
 )
 
 func displErr(uni *context.Uni) {
@@ -75,11 +75,11 @@ func getModPath(s string, uni *context.Uni) []string {
 
 // Executes filep.tpl of a given template.
 func DisplayTemplate(uni *context.Uni, filep string) string {
-	p := getTPath(filep + ".tpl", uni)
+	p := getTPath(filep+".tpl", uni)
 	file, err := require.R(p[0], p[1],
-	func(abs, fi string) ([]byte, error) {
-		return getFile(abs, fi, uni)
-	})
+		func(abs, fi string) ([]byte, error) {
+			return getFile(abs, fi, uni)
+		})
 	if err == "" {
 		uni.Dat["_tpl"] = "/templates/" + templateType(uni.Opt) + "/" + templateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
@@ -93,11 +93,11 @@ func DisplayTemplate(uni *context.Uni, filep string) string {
 func DisplayFallback(uni *context.Uni, filep string) string {
 	if strings.Index(filep, "/") != -1 {
 		if len(strings.Split(filep, "/")) >= 2 {
-			p := getModPath(filep + ".tpl", uni)
+			p := getModPath(filep+".tpl", uni)
 			file, err := require.R(p[0], p[1],
-			func(abs, fi string) ([]byte, error) {
-				return getFile(abs, fi, uni)
-			})
+				func(abs, fi string) ([]byte, error) {
+					return getFile(abs, fi, uni)
+				})
 			if err == "" {
 				uni.Dat["_tpl"] = "/modules/" + p[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
@@ -156,7 +156,7 @@ func D(uni *context.Uni) {
 	var point, filep string
 	if points_exist {
 		point = points.([]string)[0]
-		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points." + point + ".queries")
+		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points."+point+".queries")
 		if queries_exists {
 			qslice, ok := queries.([]map[string]interface{})
 			if ok {

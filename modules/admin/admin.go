@@ -12,12 +12,12 @@ import (
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
+	"io/ioutil"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
+	"path/filepath"
 	"strings"
 	"time"
-	"io/ioutil"
-	"path/filepath"
 )
 
 type m map[string]interface{}
@@ -167,13 +167,13 @@ func createCopy(db *mgo.Database) bson.ObjectId {
 // InstallB handles both installing and uninstalling.
 func InstallB(uni *context.Uni) {
 	mode := ""
-	if _, k := uni.Dat["_install"]; k{
+	if _, k := uni.Dat["_install"]; k {
 		mode = "install"
 	} else {
 		mode = "uninstall"
 	}
 	res := map[string]interface{}{}
-	ma, k := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
+	ma, k := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
 	if k != "" {
 		res["success"] = false
 		res["reason"] = "bad url at " + mode
@@ -185,7 +185,7 @@ func InstallB(uni *context.Uni) {
 		res["reason"] = "no modulename at " + mode
 		return
 	}
-	if _, already := jsonp.Get(uni.Opt, "Modules." + strings.Title(modn)); mode == "install" && already {
+	if _, already := jsonp.Get(uni.Opt, "Modules."+strings.Title(modn)); mode == "install" && already {
 		res["sucess"] = false
 		res["reason"] = "Module " + strings.Title(modn) + " is already installed."
 	} else if mode == "uninstall" && !already {
@@ -196,15 +196,15 @@ func InstallB(uni *context.Uni) {
 		uni.Dat["_option_id"] = createCopy(uni.Db)
 		if h != nil {
 			h(uni)
-			if _, ok := uni.Dat["_" + mode + "_error"]; ok {
+			if _, ok := uni.Dat["_"+mode+"_error"]; ok {
 				res["success"] = false
-				res["reason"] = uni.Dat["_" + mode + "_reason"]
+				res["reason"] = uni.Dat["_"+mode+"_reason"]
 			} else {
 				res["success"] = true
 			}
 		} else {
 			res["success"] = false
-			res["reason"] = "Module " + strings.Title(modn) + " does not export the Hook " + strings.Title(mode) + "." 
+			res["reason"] = "Module " + strings.Title(modn) + " does not export the Hook " + strings.Title(mode) + "."
 		}
 	}
 	uni.Dat["_cont"] = res
@@ -236,7 +236,7 @@ func AD(uni *context.Uni) {
 		case "uninstall":
 			Uninstall(uni)
 		default:
-			_, installed := jsonp.Get(uni.Opt, "Modules." + module)
+			_, installed := jsonp.Get(uni.Opt, "Modules."+module)
 			if installed {
 				f := mod.GetHook(module, "AD")
 				if f != nil {

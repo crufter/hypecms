@@ -10,13 +10,14 @@ import (
 )
 
 type m map[string]interface{}
+
 var Hooks = map[string]func(*context.Uni){
-	"AD":			AD,
-	"Front":		Front,
-	"Back":			Back,
-	"Install":		Install,
-	"Uninstall":	Uninstall,
-	"Test":			Test,
+	"AD":        AD,
+	"Front":     Front,
+	"Back":      Back,
+	"Install":   Install,
+	"Uninstall": Uninstall,
+	"Test":      Test,
 }
 
 // Find slug value be given key.
@@ -59,12 +60,12 @@ func Install(uni *context.Uni) {
 	content_options := m{
 		"hello": 1,
 	}
-	uni.Db.C("options").Update(m{"_id": id}, m{ "$addToSet": m{ "Hooks.Front": "content"}, "$set": m{"Modules.content": content_options }})
+	uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "content"}, "$set": m{"Modules.content": content_options}})
 }
 
 func Uninstall(uni *context.Uni) {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	uni.Db.C("options").Update(m{"_id": id}, m{ "$pull": m{ "Hooks.Front": "content"}, "$unset": m{"Modules.content": 1 }})
+	uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "content"}, "$unset": m{"Modules.content": 1}})
 }
 
 func AD(uni *context.Uni) {
