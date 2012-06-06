@@ -13,7 +13,8 @@ import (
 	"html/template"
 	"path/filepath"
 	"strings"
-	//"io/ioutil"
+	"io/ioutil"
+	"encoding/json"
 )
 
 func displErr(uni *context.Uni) {
@@ -23,23 +24,64 @@ func displErr(uni *context.Uni) {
 	}
 }
 
-// Executes filep.tpl of a given template.
-func DisplayTemplate(uni *context.Uni, filep string) string {
-	tpl, has_tpl := uni.Opt["Template"]
-	if !has_tpl {
-		tpl = "default"
+// TODO: Implement file caching here.
+func getFile(abs, fi string, uni *context.Uni) ([]byte, error) {
+	p := getTPath(fi, uni)
+	b, err := ioutil.ReadFile(filepath.Join(p[0], p[1]))
+	if err == nil {
+		return b, nil
 	}
-	templ := tpl.(string)
-	_, priv := uni.Opt["TplIsPrivate"]
+	p = getModPath(fi, uni)
+	return ioutil.ReadFile(filepath.Join(p[0], p[1]))
+}
+
+func templateType(opt map[string]interface{}) string {
+	_, priv := opt["TplIsPrivate"]
 	var ttype string
 	if priv {
 		ttype = "private"
 	} else {
 		ttype = "public"
 	}
-	file, err := require.RSimple(filepath.Join(uni.Root, "templates", ttype, templ), filep+".tpl")
+	return ttype
+}
+
+func templateName(opt map[string]interface{}) string {
+	tpl, has_tpl := opt["Template"]
+	if !has_tpl {
+		tpl = "default"
+	}
+	return tpl.(string)
+}
+
+// [0]: abs_folder, [1]: relative_path
+func getTPath(s string, uni *context.Uni) []string {
+	sl := []string{}
+	templ := templateName(uni.Opt)
+	ttype := templateType(uni.Opt)
+	sl = append(sl, filepath.Join(uni.Root, "templates", ttype, templ))
+	sl = append(sl, s)
+	return sl
+}
+
+// [0]: abs_folder, [1]: relative_path
+func getModPath(s string, uni *context.Uni) []string {
+	sl := []string{}
+	p := strings.Split(s, "/")
+	sl = append(sl, filepath.Join(uni.Root, "modules", p[0], "tpl"))
+	sl = append(sl, strings.Join(p[1:], "/"))
+	return sl
+}
+
+// Executes filep.tpl of a given template.
+func DisplayTemplate(uni *context.Uni, filep string) string {
+	p := getTPath(filep + ".tpl", uni)
+	file, err := require.R(p[0], p[1],
+	func(abs, fi string) ([]byte, error) {
+		return getFile(abs, fi, uni)
+	})
 	if err == "" {
-		uni.Dat["_tpl"] = "/templates/" + ttype + "/" + templ + "/"
+		uni.Dat["_tpl"] = "/templates/" + templateType(uni.Opt) + "/" + templateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
 		_ = t.Execute(uni.W, uni.Dat)
 		return ""
@@ -50,9 +92,12 @@ func DisplayTemplate(uni *context.Uni, filep string) string {
 // If a given .tpl can not be found in the template folder, it will try identify the module which can have that .tpl file. 
 func DisplayFallback(uni *context.Uni, filep string) string {
 	if strings.Index(filep, "/") != -1 {
-		p := strings.Split(filep, "/")
-		if len(p) >= 2 {
-			file, err := require.RSimple(filepath.Join(uni.Root, "modules", p[0], "tpl"), strings.Join(p[1:], "/")+".tpl")
+		if len(strings.Split(filep, "/")) >= 2 {
+			p := getModPath(filep + ".tpl", uni)
+			file, err := require.R(p[0], p[1],
+			func(abs, fi string) ([]byte, error) {
+				return getFile(abs, fi, uni)
+			})
 			if err == "" {
 				uni.Dat["_tpl"] = "/modules/" + p[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
@@ -111,7 +156,7 @@ func D(uni *context.Uni) {
 	var point, filep string
 	if points_exist {
 		point = points.([]string)[0]
-		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.Display.Points."+point+".queries")
+		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points." + point + ".queries")
 		if queries_exists {
 			qslice, ok := queries.([]map[string]interface{})
 			if ok {
@@ -128,5 +173,15 @@ func D(uni *context.Uni) {
 			filep = p
 		}
 	}
-	DisplayFile(uni, filep)
+	if _, isjson := uni.Req.Form["json"]; isjson {
+		var v []byte
+		if _, fmt := uni.Req.Form["fmt"]; fmt {
+			v, _ = json.MarshalIndent(uni.Dat["_cont"], "", "    ")
+		} else {
+			v, _ = json.Marshal(uni.Dat["_cont"])
+		}
+		uni.Put(v)
+	} else {
+		DisplayFile(uni, filep)
+	}
 }

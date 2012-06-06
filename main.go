@@ -21,17 +21,14 @@ import (
 )
 
 const (
-	unfortunate_error 			= "an unfortunate error has happened. we are deeply sorry for the inconvenience."
-	inv_userspace     			= "Userspace options string is not a valid JSON"
-	site_not_found    			= "site can not be found"
-	userspace_not_set			= "Userspace options are not set at all"
-	// front_hook_not_set		= "front hooks are not set properly"
-	back_hook_not_set			= "back hooks are not set properly (either unset or empy slice)"
-	unexported_front          	= " module does not export Front hook"
-	unexported_back          	= "module's Back hook has bad signature"
+	unfortunate_error 			= "An unfortunate error has happened. we are deeply sorry for the inconvenience."
+	inv_userspace     			= "Userspace options string is not a valid JSON"	// TODO: Maybe we should try to recover from here.
+	userspace_not_set			= "Userspace options are not set at all."
+	unexported_front          	= " module does not export Front hook."
+	unexported_back          	= " module does not export Back hook."
 	no_user_module_build_hook 	= "user module does not export build hook"
-	no_back_hijacked          	= "none of the back hooks hijacked control"
 	cant_encode_config        	= "Can't encode config. - No way this should happen anyway."
+	no_module_at_back			= "Tried to run a back hook, but no module was specified."
 )
 
 var DB_ADDR = "127.0.0.1:27017"
@@ -51,11 +48,11 @@ func runFrontHooks(uni *context.Uni) {
 	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Front")
 	if ok && len(top_hooks) > 0 {
 		for _, v := range top_hooks {
-			vs := v.(string)
-			if h := mod.GetHook(vs, "Front"); h != nil {
+			modname := v.(string)
+			if h := mod.GetHook(modname, "Front"); h != nil {
 				h(uni)
 			} else {
-				Put(vs + unexported_front)
+				Put(modname + unexported_front)
 				return
 			}
 			if _, ok := uni.Dat["_hijacked"]; ok {
@@ -107,7 +104,12 @@ func handleBacks(uni *context.Uni) {
 	}
 	_, is_json := uni.Req.Form["json"]
 	if is_json {
-		v, _ := json.Marshal(uni.Dat["_cont"])
+		var v []byte
+		if _, fmt := uni.Req.Form["fmt"]; fmt {
+			v, _ = json.MarshalIndent(uni.Dat["_cont"], "", "    ")
+		} else {
+			v, _ = json.Marshal(uni.Dat["_cont"])
+		}
 		uni.Put(string(v))
 	} else {
 		redir := uni.Req.Referer()
@@ -123,24 +125,20 @@ func handleBacks(uni *context.Uni) {
 
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
-	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Back")
-	if ok && len(top_hooks) > 0 {
-		for _, v := range top_hooks {
-			vs := v.(string)
-			if h := mod.GetHook(vs, "Back"); h != nil {
-				h(uni)
-			} else {
-				Put(vs + unexported_back)
-				return
-			}
-			if _, ok := uni.Dat["_hijacked"]; ok {
-				handleBacks(uni)
-				return
-			}
+	if len(uni.Paths) > 2 {
+		modname := uni.Paths[2]		// TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
+		if h := mod.GetHook(modname, "Back"); h != nil {
+			h(uni)
+		} else {
+			Put(modname + unexported_back)
+			return
 		}
-		Put(no_back_hijacked)
+		if _, ok := uni.Dat["_hijacked"]; ok {
+			handleBacks(uni)
+			return
+		}
 	} else {
-		Put(back_hook_not_set)
+		Put(no_module_at_back)
 	}
 }
 

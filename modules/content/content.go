@@ -49,6 +49,8 @@ func Front(uni *context.Uni) {
 func Test(uni *context.Uni) {
 	res := make(map[string]interface{})
 	res["Front"] = jsonp.HasVal(uni.Opt, "Hooks.Front", "content")
+	_, ok := jsonp.Get(uni.Opt, "Modules.Content")
+	res["Modules"] = ok
 	uni.Dat["_cont"] = res
 }
 
@@ -57,15 +59,16 @@ func Install(uni *context.Uni) {
 	content_options := m{
 		"hello": 1,
 	}
-	uni.Db.C("options").Update(m{"_id": id}, m{ "$addToSet": m{ "Hooks.Front": "Content"}, "$set": m{"Modules.Content": content_options }})
+	uni.Db.C("options").Update(m{"_id": id}, m{ "$addToSet": m{ "Hooks.Front": "content"}, "$set": m{"Modules.content": content_options }})
 }
 
 func Uninstall(uni *context.Uni) {
-	
+	id := uni.Dat["_option_id"].(bson.ObjectId)
+	uni.Db.C("options").Update(m{"_id": id}, m{ "$pull": m{ "Hooks.Front": "content"}, "$unset": m{"Modules.content": 1 }})
 }
 
 func AD(uni *context.Uni) {
-	
+	uni.Dat["_points"] = []string{"content/admin-index"}
 }
 
 func Back(uni *context.Uni) {

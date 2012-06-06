@@ -5,6 +5,7 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/modules/content"
 	"github.com/opesun/hypecms/modules/user"
+	"github.com/opesun/hypecms/modules/skeleton"
 )
 
 func GetHook(modname string, method string) func(*context.Uni) {
@@ -13,11 +14,11 @@ func GetHook(modname string, method string) func(*context.Uni) {
 	case "content":
 		r = content.Hooks[method]
 	case "tag":
-
-	case "shop":
-
+		
 	case "user":
 		r = user.Hooks[method]
+	case "skeleton":
+		r = skeleton.Hooks[method]
 	}
 	return r
 }

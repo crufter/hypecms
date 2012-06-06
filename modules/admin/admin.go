@@ -236,7 +236,7 @@ func AD(uni *context.Uni) {
 		case "uninstall":
 			Uninstall(uni)
 		default:
-			_, installed := jsonp.Get(uni.Opt, "Modules." + strings.Title(module))
+			_, installed := jsonp.Get(uni.Opt, "Modules." + module)
 			if installed {
 				f := mod.GetHook(module, "AD")
 				if f != nil {
