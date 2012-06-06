@@ -1,0 +1,1 @@
+Yo, this is skeleton index.
