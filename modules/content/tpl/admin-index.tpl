@@ -1,1 +1,0 @@
-Yo, this is it here, content admin index.

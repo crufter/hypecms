@@ -1,5 +1,4 @@
-// A contextus gyakorlatilag a rendszer lelke, mindent el tudunk ez alól érni, ám csak a kontrollereknak adjuk tovább,
-// tartózkodjunk attól, hogy a modell rétegnek továbbpasszoljuk.
+// Context contains thy type Uni. An instance of this type is passed to the modules when routing the control to them.
 package context
 
 import (

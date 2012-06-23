@@ -34,16 +34,8 @@ func SiteHasAdmin(db *mgo.Database) bool {
 	return v != nil
 }
 
-// Registering yourself as admin is possible if the site has no admin yet.
-func RegAdmin(uni *context.Uni) {
+func regUser(db *mgo.Database, post map[string][]string) map[string]interface{} {
 	res := map[string]interface{}{}
-	if SiteHasAdmin(uni.Db) {
-		res["success"] = false
-		res["reason"] = "site already has an admin"
-		uni.Dat["_cont"] = res
-		return
-	}
-	post := uni.Req.Form
 	pass, pass_ok := post["password"]
 	pass_again, pass_again_ok := post["password_again"]
 	if !pass_ok || !pass_again_ok || len(pass) < 1 || len(pass_again) < 1 || pass[0] != pass_again[0] {
@@ -51,7 +43,7 @@ func RegAdmin(uni *context.Uni) {
 		res["reason"] = "improper passwords"
 	} else {
 		a := bson.M{"name": "admin", "level": 300, "password": pass[0]}
-		err := uni.Db.C("users").Insert(a)
+		err := db.C("users").Insert(a)
 		if err != nil {
 			res["success"] = false
 			res["reason"] = "name is not unique"
@@ -59,7 +51,30 @@ func RegAdmin(uni *context.Uni) {
 			res["success"] = true
 		}
 	}
-	uni.Dat["_cont"] = res
+	return res
+}
+
+// Registering yourself as admin is possible if the site has no admin yet.
+func RegAdmin(uni *context.Uni) {
+	if SiteHasAdmin(uni.Db) {
+		res := map[string]interface{}{}
+		res["success"] = false
+		res["reason"] = "site already has an admin"
+		uni.Dat["_cont"] = res
+		return
+	}
+	uni.Dat["_cont"] = regUser(uni.Db, uni.Req.Form)
+}
+
+func RegUser(uni *context.Uni) {
+	res := map[string]interface{}{}
+	if !requireLev(uni.Dat["_user"], 300) {
+		res["success"] = false
+		res["reason"] = "no rights"
+		uni.Dat["_cont"] = res
+		return
+	}
+	uni.Dat["_cont"] = regUser(uni.Db, uni.Req.Form)
 }
 
 func Login(uni *context.Uni) {
@@ -101,8 +116,24 @@ func EditConfig(uni *context.Uni) {
 	uni.Dat["admin"] = adm
 }
 
+func requireLev(usr interface{}, lev int) bool {
+	if val, ok := jsonp.GetI(usr, "level"); ok {
+		if val >= lev {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
 func SaveConfig(uni *context.Uni) {
 	res := map[string]interface{}{}
+	if !requireLev(uni.Dat["_user"], 300) {
+		res["success"] = false
+		res["reason"] = "no rights"
+		uni.Dat["_cont"] = res
+		return
+	}
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
 		if len(jsonenc) == 1 {
@@ -166,15 +197,21 @@ func createCopy(db *mgo.Database) bson.ObjectId {
 
 // InstallB handles both installing and uninstalling.
 func InstallB(uni *context.Uni) {
+	res := map[string]interface{}{}
+	if !requireLev(uni.Dat["_user"], 300) {
+		res["success"] = false
+		res["reason"] = "no rights"
+		uni.Dat["_cont"] = res
+		return
+	}
 	mode := ""
 	if _, k := uni.Dat["_install"]; k {
 		mode = "install"
 	} else {
 		mode = "uninstall"
 	}
-	res := map[string]interface{}{}
-	ma, k := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
-	if k != "" {
+	ma, err := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
+	if err != nil {
 		res["success"] = false
 		res["reason"] = "bad url at " + mode
 		return
@@ -220,8 +257,8 @@ func AD(uni *context.Uni) {
 		}
 		return
 	}
-	front, k := routep.Comp("/admin/{module}", uni.P)
-	if k == "" { // It should be always
+	front, err := routep.Comp("/admin/{module}", uni.P)
+	if err == nil { // It should be always
 		module, ok := front["module"]
 		if !ok {
 			module = ""
@@ -255,10 +292,12 @@ func AD(uni *context.Uni) {
 
 func AB(uni *context.Uni) {
 	m, k := routep.Comp("/admin/b/{action}", uni.P)
-	if k == "" {
+	if k == nil {
 		switch m["action"] {
 		case "regadmin":
 			RegAdmin(uni)
+		case "reguser":
+			RegUser(uni)
 		case "adminlogin":
 			Login(uni)
 		case "logout":
@@ -266,7 +305,6 @@ func AB(uni *context.Uni) {
 		case "save-config":
 			SaveConfig(uni)
 		case "install":
-			uni.Dat["_install"] = true
 			InstallB(uni)
 		case "uninstall":
 			uni.Dat["_uninstall"] = true

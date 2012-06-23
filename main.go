@@ -1,5 +1,5 @@
-// HypeCMS is a CMS and/or framework for webb applications, and more.
-// Copyright OPESUN TECHNOLOGIES Kft. 2012. Authors: Donronszki János, Kapusi Lajos
+// HypeCMS is a CMS and/or framework for web applications, and more.
+// Copyright Opesun Technologies Kft. 2012. See license.txt.
 package main
 
 import (

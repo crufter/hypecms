@@ -1,4 +1,4 @@
-{{require admin/adminheader.t}}
+{{require admin/header.t}}
 
 Installed modules:
 
@@ -13,3 +13,5 @@ Installed modules:
 		</li>
 	</ul>
 {{end}}
+
+{{require admin/footer.t}}

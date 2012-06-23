@@ -35,7 +35,7 @@ func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, boo
 func Front(uni *context.Uni) {
 	//uni.Put("article module runs")
 	m, err := routep.Comp("/{slug}", uni.Req.URL.Path)
-	if err == "" {
+	if err == nil {
 		content, found := FindContent(uni.Db, "slug", m["slug"])
 		if found {
 			uni.Put("found this shit")
@@ -69,7 +69,7 @@ func Uninstall(uni *context.Uni) {
 }
 
 func AD(uni *context.Uni) {
-	uni.Dat["_points"] = []string{"content/admin-index"}
+	uni.Dat["_points"] = []string{"content/index"}
 }
 
 func Back(uni *context.Uni) {

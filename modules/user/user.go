@@ -1,4 +1,4 @@
-// Package user implements some basic user functionality.
+// Package user implements basic user functionality.
 // - Registration, deletion, update, login, logout of users.
 // - Building the user itself (if logged in), and putting it to uni.Dat["_user"].
 package user
@@ -135,7 +135,7 @@ func Test(uni *context.Uni) {
 
 func Back(uni *context.Uni) {
 	r, err := routep.Comp("/b/user/{action}", uni.Req.URL.Path)
-	if err == "" {
+	if err == nil {
 		uni.Dat["_hijacked"] = true
 	} else {
 		return

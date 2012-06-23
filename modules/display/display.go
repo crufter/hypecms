@@ -75,7 +75,7 @@ func getModPath(s string, uni *context.Uni) []string {
 }
 
 // Executes filep.tpl of a given template.
-func DisplayTemplate(uni *context.Uni, filep string) string {
+func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
 		func(abs, fi string) ([]byte, error) {
 			return getFile(abs, fi, uni)
@@ -84,13 +84,13 @@ func DisplayTemplate(uni *context.Uni, filep string) string {
 		uni.Dat["_tpl"] = "/templates/" + templateType(uni.Opt) + "/" + templateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
 		_ = t.Execute(uni.W, uni.Dat)
-		return ""
+		return nil
 	}
-	return "cant find template file " + `"` + filep + `"`
+	return fmt.Errorf("cant find template file ", `"`, filep, `"`)
 }
 
 // If a given .tpl can not be found in the template folder, it will try identify the module which can have that .tpl file. 
-func DisplayFallback(uni *context.Uni, filep string) string {
+func DisplayFallback(uni *context.Uni, filep string) error {
 	if strings.Index(filep, "/") != -1 {
 		if len(strings.Split(filep, "/")) >= 2 {
 			file, err := require.R("", filep+".tpl",			// Tricky, care.
@@ -101,21 +101,21 @@ func DisplayFallback(uni *context.Uni, filep string) string {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
 				_ = t.Execute(uni.W, uni.Dat)
-				return ""
+				return nil
 			}
-			return "cant find fallback template file " + `"` + filep + `"`
+			return fmt.Errorf("cant find fallback template file ", `"`, filep, `"`)
 		}
-		return "fallback filep is too long"
+		return fmt.Errorf("fallback filep is too long")
 	}
-	return "fallback filep contains no slash, so there nothing to fall back"
+	return fmt.Errorf("fallback filep contains no slash, so there nothing to fall back")
 }
 
 func DisplayFile(uni *context.Uni, filep string) {
 	defer displErr(uni)
 	err := DisplayTemplate(uni, filep)
-	if err != "" {
+	if err != nil {
 		err_f := DisplayFallback(uni, filep)
-		if err_f != "" {
+		if err_f != nil {
 			uni.Put(err, "\n", err_f)
 		}
 	}
