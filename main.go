@@ -166,17 +166,14 @@ func runBackHooks(uni *context.Uni) {
 			Put(modname + unexported_back)
 			return
 		}
-		if _, ok := uni.Dat["_hijacked"]; ok {
-			if _, has := uni.Dat["_cont"]; !has {
-				uni.Put(no_cont + modname)	// Maybe the success could be implicit.
-				return
-			} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
-				uni.Put(bad_cont + modname + ": " + fmt_err.Error())
-				return
-			}
-			handleBacks(uni)
+		if _, has := uni.Dat["_cont"]; !has {
+			uni.Put(no_cont + modname)	// Maybe the success could be implicit.
+			return
+		} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
+			uni.Put(bad_cont + modname + ": " + fmt_err.Error())
 			return
 		}
+		handleBacks(uni)
 	} else {
 		Put(no_module_at_back)
 	}

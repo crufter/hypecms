@@ -89,7 +89,8 @@ func getSidebar(uni *context.Uni) []string {
 
 func Index(uni *context.Uni) {
 	uni.Dat["content_menu"] = getSidebar(uni)
-	v := uni.Db.C("contents").Find(nil).Sort(m{"_created":-1})
+	var v []interface{}
+	uni.Db.C("contents").Find(nil).Sort(m{"_created":-1}).All(&v)
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
 }
@@ -104,7 +105,8 @@ func List(uni *context.Uni) {
 	if !has {
 		uni.Put("Can not extract typ at list."); return
 	}
-	v := uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1})
+	var v []interface{}
+	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
 }
@@ -142,7 +144,7 @@ func Config(uni *context.Uni) {
 
 func Edit(uni *context.Uni) {
 	uni.Dat["content_menu"] = getSidebar(uni)
-	ma, err := routep.Comp("/admin/content/edit/{type}", uni.Req.URL.Path)
+	ma, err := routep.Comp("/admin/content/edit/{type}/{id}", uni.Req.URL.Path)
 	if err != nil {
 		uni.Put("Bad url at edit."); return
 	}
@@ -158,7 +160,23 @@ func Edit(uni *context.Uni) {
 		return
 	}
 	uni.Dat["type"] = typ
-	uni.Dat["rules"] = rules
+	id, hasid := ma["id"]
+	var indb interface{}
+	if hasid {
+		uni.Dat["op"] = "update"
+		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
+	} else {
+		uni.Dat["op"] = "insert"
+	}
+	rs := []interface{}{}
+	for i, v := range rules.(map[string]interface{}) {
+		field := map[string]interface{}{"field":i,"v":v}
+		if indb != nil {
+			field["value"] = indb.(map[string]interface{})[i]
+		}
+		rs = append(rs, field)
+	}
+	uni.Dat["rules"] = rs
 	uni.Dat["_points"] = []string{"content/edit"}
 }
 
@@ -175,6 +193,8 @@ func AD(uni *context.Uni) {
 		Edit(uni)
 	case "list":
 		List(uni)
+	default:
+		uni.Put("Unkown content view.")
 	}
 }
 
@@ -197,22 +217,23 @@ func Ins(uni *context.Uni) {
 	if !hasrule {
 		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
 	}
-	dat, err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	if err != nil {
-		res["success"] = false
-		res["reason"] = err.Error()
-		uni.Dat["_cont"] = res
-		return
+	ins_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
+	ins_dat["type"] = typ
+	if extr_err != nil {
+		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
 	}
-	id := uni.Req.Form["_id"][0]
-	err = scut.Inud(uni, dat, &res, "contents", "update", id)
+	ins_err := scut.Inud(uni, ins_dat, &res, "contents", "insert", "")
+	if ins_err != nil {
+		res["success"] = false; res["reason"] = ins_err.Error(); uni.Dat["_cont"] = res; return
+	}
+	res["success"] = true
 	uni.Dat["_cont"] = res
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Upd(uni *context.Uni) {
 	res := map[string]interface{}{}
-	_, hasid := uni.Req.Form["_id"]
+	id, hasid := uni.Req.Form["_id"]
 	if !hasid {
 		res["success"] = false; res["reason"] = "No id sent from form when updating content."; uni.Dat["_cont"] = res; return
 	}
@@ -224,15 +245,16 @@ func Upd(uni *context.Uni) {
 	if !hasrule {
 		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
 	}
-	dat, err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	if err != nil {
-		res["success"] = false
-		res["reason"] = err.Error()
-		uni.Dat["_cont"] = res
-		return
+	upd_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
+	upd_dat["type"] = typ
+	if extr_err != nil {
+		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
 	}
-	id := uni.Req.Form["_id"][0]
-	err = scut.Inud(uni, dat, &res, "contents", "update", id)
+	upd_err := scut.Inud(uni, upd_dat, &res, "contents", "update", id[0])
+	if upd_err != nil {
+		res["success"] = false; res["reason"] = upd_err.Error(); uni.Dat["_cont"] = res; return
+	}
+	res["success"] = true
 	uni.Dat["_cont"] = res
 }
 
@@ -269,7 +291,6 @@ func Back(uni *context.Uni) {
 		uni.Dat["_cont"] = res
 		return
 	}
-	had_action := true
 	switch action {
 	case "insert":
 		Ins(uni)
@@ -280,9 +301,6 @@ func Back(uni *context.Uni) {
 	case "save_config":
 		SaveTypeConfig(uni)
 	default:
-		had_action = false
-	}
-	if !had_action {
 		uni.Put("Can't find action named \"" + action + "\" in user module.")
 	}
 }

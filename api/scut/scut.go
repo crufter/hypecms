@@ -13,8 +13,8 @@ import(
 // Insert, update, delete.
 func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interface{}, coll, op, id string) error {
 	var err error
-	if (op == "update" || op == "delete") || len(id) == 0 {
-		return fmt.Errorf("Length of id is 0 az updating/deleting.")
+	if (op == "update" || op == "delete") && len(id) == 0 {
+		return fmt.Errorf("Length of id is 0 at updating or deleting.")
 	}
 	switch op {
 	case "insert":

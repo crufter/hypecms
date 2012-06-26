@@ -6,11 +6,11 @@ Installed modules:
 	{{.admin.error}}
 {{else}}
 	<ul>
-		<li>
 		{{range .admin.menu}}
+		<li>
 			<a href="/admin/{{.}}">{{.}}</a>
-		{{end}}
 		</li>
+		{{end}}
 	</ul>
 {{end}}
 
