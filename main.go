@@ -21,16 +21,22 @@ import (
 )
 
 const (
-	unfortunate_error         = "An unfortunate error has happened. we are deeply sorry for the inconvenience."
-	inv_userspace             = "Userspace options string is not a valid JSON" // TODO: Maybe we should try to recover from here.
+	unfortunate_error         = "An unfortunate error has happened. We are deeply sorry for the inconvenience."
+	inv_userspace             = "Userspace options string is not a valid JSON." // TODO: Maybe we should try to recover from here.
 	userspace_not_set         = "Userspace options are not set at all."
 	unexported_front          = " module does not export Front hook."
 	unexported_back           = " module does not export Back hook."
 	no_user_module_build_hook = "user module does not export build hook"
 	cant_encode_config        = "Can't encode config. - No way this should happen anyway."
 	no_module_at_back         = "Tried to run a back hook, but no module was specified."
+	no_action				  = "No action specified when accessing module "
+	adminback_no_module		  = "No module specified when accessing admin back."
+	no_cont					  = "No _cont in Dat coming back from "
+	bad_cont				  = "Bad _cont format coming back from "
 )
 
+var DB_USER = ""
+var DB_PASS = ""
 var DB_ADDR = "127.0.0.1:27017"
 var DEBUG = *flag.Bool("debug", true, "debug mode")
 var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
@@ -77,7 +83,7 @@ func appendParams(str string, result map[string]interface{}) string {
 		succ, ok := result["success"]
 		if ok {
 			v.Del("reason")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
-			if succ == true { // operation, you will be redirected to the same page. Result will be success=true,reason=x, to avoid it we do v.Del("reason")
+			if succ == true { // operation after that, you will be redirected to the same page. Result would be success=true,reason=x, to avoid it we do v.Del("reason")
 				v.Set("success", "true")
 			} else {
 				v.Set("success", "false")
@@ -123,17 +129,51 @@ func handleBacks(uni *context.Uni) {
 	}
 }
 
+func resFormatErr(cont interface{}) error {
+	contm, ok := cont.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("_cont is not map[string]interface{}.")
+	}
+	su, hsu := contm["success"]
+	if !hsu {
+		return fmt.Errorf("_cont has no member \"success\".")
+	}
+	suv, ok := su.(bool)
+	if !ok {
+		return fmt.Errorf("_cont member \"success\" is not a bool.")
+	}
+	if suv == false {
+		_, hre := contm["reason"]
+		if !hre {
+			return fmt.Errorf("_cont failure reason missing.")
+		}
+	}
+	return nil
+}
+
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	if len(uni.Paths) > 2 {
 		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 		if h := mod.GetHook(modname, "Back"); h != nil {
+			if len(uni.Paths) > 3 {
+				uni.Dat["_action"] = uni.Paths[3]
+			} else {
+				uni.Put(no_action + modname)
+			}
 			h(uni)
 		} else {
 			Put(modname + unexported_back)
 			return
 		}
 		if _, ok := uni.Dat["_hijacked"]; ok {
+			if _, has := uni.Dat["_cont"]; !has {
+				uni.Put(no_cont + modname)	// Maybe the success could be implicit.
+				return
+			} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
+				uni.Put(bad_cont + modname + ": " + fmt_err.Error())
+				return
+			}
 			handleBacks(uni)
 			return
 		}
@@ -143,9 +183,22 @@ func runBackHooks(uni *context.Uni) {
 }
 
 func runAdminHooks(uni *context.Uni) {
-	if len(uni.Paths) > 2 && uni.Paths[2] == "b" {
-		admin.AB(uni)
-		handleBacks(uni)
+	l := len(uni.Paths)
+	if l > 2 && uni.Paths[2] == "b" {
+		if l > 3 {
+			uni.Dat["_action"] = uni.Paths[3]
+			admin.AB(uni)
+			if _, has := uni.Dat["_cont"]; !has {
+				uni.Put(no_cont + "admin action " + uni.Paths[3])	// Maybe the success could be implicit.
+				return
+			} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
+				uni.Put(bad_cont + "admin action " + uni.Paths[3] + ": " + fmt_err.Error())
+				return
+			}
+			handleBacks(uni)
+		} else {
+			uni.Put(adminback_no_module)
+		}
 	} else {
 		admin.AD(uni)
 		display.D(uni)
@@ -271,12 +324,22 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	flag.Parse()
-	fmt.Println("server has started")
+	fmt.Println("Server has started.")
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 		}
 	}()
+	dial := DB_ADDR
+	if len(DB_USER) != 0 || len(DB_PASS) != 0 {
+		if len(DB_USER) == 0 {
+			panic("Database password provided but username is missing.")
+		}
+		if len(DB_PASS) == 0 {
+			panic("Database username is provided but password is missing.")
+		}
+		dial = DB_USER + ":" + DB_PASS + "@" + dial
+	}
 	session, err := mgo.Dial(DB_ADDR)
 	db := session.DB(DB_NAME)
 	if err != nil {

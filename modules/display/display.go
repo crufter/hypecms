@@ -110,15 +110,16 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 	return fmt.Errorf("fallback filep contains no slash, so there nothing to fall back")
 }
 
-func DisplayFile(uni *context.Uni, filep string) {
+func DisplayFile(uni *context.Uni, filep string) error {
 	defer displErr(uni)
 	err := DisplayTemplate(uni, filep)
 	if err != nil {
 		err_f := DisplayFallback(uni, filep)
 		if err_f != nil {
-			uni.Put(err, "\n", err_f)
+			return fmt.Errorf("Can't find file or fallback.")
 		}
 	}
+	return nil
 }
 
 func queryErr(uni *context.Uni) {
@@ -152,7 +153,7 @@ func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 // This is where this module starts.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
-	var point, filep string
+	var point, filep string		// filep = file path
 	if points_exist {
 		point = points.([]string)[0]
 		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points."+point+".queries")
@@ -175,12 +176,19 @@ func D(uni *context.Uni) {
 	if _, isjson := uni.Req.Form["json"]; isjson {
 		var v []byte
 		if _, fmt := uni.Req.Form["fmt"]; fmt {
-			v, _ = json.MarshalIndent(uni.Dat["_cont"], "", "    ")
+			v, _ = json.MarshalIndent(uni.Dat, "", "    ")
 		} else {
-			v, _ = json.Marshal(uni.Dat["_cont"])
+			v, _ = json.Marshal(uni.Dat)
 		}
-		uni.Put(v)
+		uni.Put(string(v))
 	} else {
-		DisplayFile(uni, filep)
+		err := DisplayFile(uni, filep)
+		if err != nil {
+			uni.Dat["missing_file"] = filep
+			err_404 := DisplayFile(uni, "404")
+			if err_404 != nil {
+				uni.Put("Cant find file: ", filep)
+			}
+		}
 	}
 }

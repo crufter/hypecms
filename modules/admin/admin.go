@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
+	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"runtime/debug"
 )
 
 type m map[string]interface{}
@@ -25,6 +27,7 @@ type m map[string]interface{}
 func adErr(uni *context.Uni) {
 	if r := recover(); r != nil {
 		uni.Put("There was an error running the admin module.\n", r)
+		debug.PrintStack()
 	}
 }
 
@@ -181,18 +184,15 @@ func Install(uni *context.Uni) {
 }
 
 func Uninstall(uni *context.Uni) {
+	installed_mods := []string{}
+	modules, has := uni.Opt["Modules"]
+	if has {
+		for i, _ := range modules.(map[string]interface{}) {
+			installed_mods = append(installed_mods, i)
+		}
+	}
+	uni.Dat["installed_modules"] = installed_mods
 	uni.Dat["_points"] = []string{"admin/uninstall"}
-	uni.Dat["admin"] = map[string]interface{}{}
-}
-
-func createCopy(db *mgo.Database) bson.ObjectId {
-	var v interface{}
-	db.C("options").Find(nil).Sort(bson.M{"created": -1}).Limit(1).One(&v)
-	ma := v.(bson.M)
-	ma["_id"] = bson.NewObjectId()
-	ma["created"] = time.Now().Unix()
-	db.C("options").Insert(ma)
-	return ma["_id"].(bson.ObjectId)
 }
 
 // InstallB handles both installing and uninstalling.
@@ -200,48 +200,50 @@ func InstallB(uni *context.Uni) {
 	res := map[string]interface{}{}
 	if !requireLev(uni.Dat["_user"], 300) {
 		res["success"] = false
-		res["reason"] = "no rights"
+		res["reason"] = "No rights"
 		uni.Dat["_cont"] = res
 		return
 	}
 	mode := ""
-	if _, k := uni.Dat["_install"]; k {
-		mode = "install"
-	} else {
+	if _, k := uni.Dat["_uninstall"]; k {
 		mode = "uninstall"
+	} else {
+		mode = "install"
 	}
-	ma, err := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
+	ma, err := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
 	if err != nil {
 		res["success"] = false
-		res["reason"] = "bad url at " + mode
+		res["reason"] = "Bad url at " + mode
+		uni.Dat["_cont"] = res
 		return
 	}
 	modn, has := ma["modulename"]
 	if !has {
 		res["success"] = false
-		res["reason"] = "no modulename at " + mode
+		res["reason"] = "No modulename at " + mode
+		uni.Dat["_cont"] = res
 		return
 	}
-	if _, already := jsonp.Get(uni.Opt, "Modules."+strings.Title(modn)); mode == "install" && already {
-		res["sucess"] = false
-		res["reason"] = "Module " + strings.Title(modn) + " is already installed."
+	if _, already := jsonp.Get(uni.Opt, "Modules." + modn); mode == "install" && already {
+		res["success"] = false
+		res["reason"] = "Module " + modn + " is already installed."
 	} else if mode == "uninstall" && !already {
-		res["sucess"] = false
-		res["reason"] = "Module " + strings.Title(modn) + " is not installed."
+		res["success"] = false
+		res["reason"] = "Module " + modn + " is not installed."
 	} else {
 		h := mod.GetHook(modn, strings.Title(mode))
-		uni.Dat["_option_id"] = createCopy(uni.Db)
+		uni.Dat["_option_id"] = scut.CreateOptCopy(uni.Db)
 		if h != nil {
 			h(uni)
-			if _, ok := uni.Dat["_"+mode+"_error"]; ok {
+			if _, ok := uni.Dat["_" + mode + "_error"]; ok {
 				res["success"] = false
-				res["reason"] = uni.Dat["_"+mode+"_reason"]
+				res["reason"] = uni.Dat["_" + mode + "_reason"]
 			} else {
 				res["success"] = true
 			}
 		} else {
 			res["success"] = false
-			res["reason"] = "Module " + strings.Title(modn) + " does not export the Hook " + strings.Title(mode) + "."
+			res["reason"] = "Module " + modn + " does not export the Hook " + mode + "."
 		}
 	}
 	uni.Dat["_cont"] = res
@@ -258,7 +260,7 @@ func AD(uni *context.Uni) {
 		return
 	}
 	front, err := routep.Comp("/admin/{module}", uni.P)
-	if err == nil { // It should be always
+	if err == nil { // It should be always nil anyway.
 		module, ok := front["module"]
 		if !ok {
 			module = ""
@@ -291,28 +293,24 @@ func AD(uni *context.Uni) {
 }
 
 func AB(uni *context.Uni) {
-	m, k := routep.Comp("/admin/b/{action}", uni.P)
-	if k == nil {
-		switch m["action"] {
-		case "regadmin":
-			RegAdmin(uni)
-		case "reguser":
-			RegUser(uni)
-		case "adminlogin":
-			Login(uni)
-		case "logout":
-			Logout(uni)
-		case "save-config":
-			SaveConfig(uni)
-		case "install":
-			InstallB(uni)
-		case "uninstall":
-			uni.Dat["_uninstall"] = true
-			InstallB(uni)
-		default:
-			uni.Put("Unknown admin action.")
-		}
-	} else {
-		uni.Put("Control is routed to Admin back, but it does not like the url structure somehow.")
+	action := uni.Dat["_action"].(string)
+	switch action {
+	case "regadmin":
+		RegAdmin(uni)
+	case "reguser":
+		RegUser(uni)
+	case "adminlogin":
+		Login(uni)
+	case "logout":
+		Logout(uni)
+	case "save-config":
+		SaveConfig(uni)
+	case "install":
+		InstallB(uni)
+	case "uninstall":
+		uni.Dat["_uninstall"] = true
+		InstallB(uni)
+	default:
+		uni.Put("Unknown admin action.")
 	}
 }

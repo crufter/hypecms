@@ -1,4 +1,4 @@
-// Context contains thy type Uni. An instance of this type is passed to the modules when routing the control to them.
+// Context contains the type Uni. An instance of this type is passed to the modules when routing the control to them.
 package context
 
 import (
@@ -7,22 +7,21 @@ import (
 	"net/http"
 )
 
-// Univerzum, csak és kizárólag kontrollereknek szabad elérniük.
-// Tartózkodjunk attól, hogy a modell rétegik lepasszoljuk, esetleg csak a DB-t, ahol szükséges.
+// General context for the application.
 type Uni struct {
 	Db    *mgo.Database
 	W     http.ResponseWriter
 	Req   *http.Request
-	Paths []string // Path slice, értéke Req.URL.Path "/"-enként szétszplitelt
-	P     string
-	Opt   map[string]interface{} // Az adatbázisban tárolt beállításokat itt érjük el. (Minden modul minden beállítása itt van egyben)
-	Dat   map[string]interface{} // Mivel a rendszer moduláris, kell egy kommunikációs csatorna, amiből minden modul ír/olvas. A Dat erre van fenntartva.
-	Put   func(...interface{})   // kényelmi funkció fejlesztéshez http kimenet egyszerűsítve, gyorsan...
-	Root  string                 // Abszolút elérési útvonala a project mappának.
+	P     string					// Path string
+	Paths []string 					// Path slice, contains the url (after the domain) splitted by "/"
+	Opt   map[string]interface{}	// Freshest options from database.
+	Dat   map[string]interface{} 	// General communication channel.
+	Put   func(...interface{})   	// Just a convenienc function to allow fast output to http response.
+	Root  string                 	// Absolute path of the application.
 }
 
-// Rekurzívan, többszörösen egymásba ágyazott bson.M-eket átalakít sima map[string]interface{}-re.
-// Rog Peppe írta
+// Convert multiply nested bson.M-s to map[string]interface{}
+// Written by Rog Peppe.
 func Convert(x interface{}) interface{} {
 	if x, ok := x.(bson.M); ok {
 		for key, val := range x {

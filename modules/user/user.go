@@ -6,7 +6,6 @@ package user
 import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/routep"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
 	"net/http"
@@ -134,14 +133,9 @@ func Test(uni *context.Uni) {
 }
 
 func Back(uni *context.Uni) {
-	r, err := routep.Comp("/b/user/{action}", uni.Req.URL.Path)
-	if err == nil {
-		uni.Dat["_hijacked"] = true
-	} else {
-		return
-	}
+	action := uni.Dat["_action"].(string)
 	had_action := true
-	switch r["action"] {
+	switch action {
 	case "login":
 		Login(uni)
 	case "logout":
@@ -150,6 +144,6 @@ func Back(uni *context.Uni) {
 		had_action = false
 	}
 	if !had_action {
-		uni.Put("cant find action named \"" + r["action"] + "\" in user module")
+		uni.Put("Can't find action named \"" + action + "\" in user module.")
 	}
 }

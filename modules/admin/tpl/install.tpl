@@ -1,3 +1,4 @@
+{{require admin/header.t}}
 <div></div>
 {{if .error}}
 There was an error getting the modules: {{.err}}
@@ -9,3 +10,4 @@ There was an error getting the modules: {{.err}}
 	{{end}}
 	</ul>
 {{end}}
+{{require admin/footer.t}}
