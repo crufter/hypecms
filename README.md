@@ -12,7 +12,7 @@ If you are running mongo on a different machine or port, modify the values in ma
 	* github.com/opesun/extract
 	* github.com/opesun/jsonp
 	* github.com/opesun/require
-	* github.com/opesun/routep
+	* github.com/opesun/routep  
 (Or anything else it whines for ;)
 
 Demo
@@ -35,9 +35,9 @@ The system handles option documents as immutable values. This allows easy backup
 Anything a site does, must be explicitly stated in this option document, with only two exceptions:
 
 /admin  
-	- The admin module is hardcoded to avoid bootstrapping issues, eg. when a fresh site is born, we can issue basic commands and install modules trough it, even with an empty option document.
+	- The admin module is hardcoded to avoid bootstrapping issues, eg. when a fresh site is born, we can issue basic commands and install modules trough it, even with an empty option document.  
 /debug  
-	- The debug module is hardcoded, so we can analyize the state of the site even with an empty or messed up option document.
+	- The debug module is hardcoded, so we can analyize the state of the site even with an empty or messed up option document.  
 
 The architecture is lousely based on the MVC pattern. Basically whenever the system receives a http request, it routes the given request according to the next rule:
 - If the path of the request matches "/b/{modulename}", it will be routed to the given module, and the system expects a background operation to be called.
