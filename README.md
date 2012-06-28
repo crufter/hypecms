@@ -1,6 +1,23 @@
 HypeCMS
-===
+=======
 A CMS written in Go, using MongoDB as a backend. (Work in progress, heavily.)
+
+Installation
+=======
+- A MongoDB server running on the default port 27017. HypeCMS can start with an empty database, it will create everything it needs.
+If you are running mongo on a different machine or port, modify the values in main.go.
+- Install the next modules into your go environment:
+	github.com/opesun/hypecms
+	launchpad.net/mgo
+	github.com/opesun/extract
+	github.com/opesun/jsonp
+	github.com/opesun/require
+	github.com/opesun/routep
+(Or anything else it whines for ;)
+
+Demo
+=======
+Soon (in a week) you can test drive your own instance at hypecms.com (will be highly experimental though).
 
 Design goals
 =======

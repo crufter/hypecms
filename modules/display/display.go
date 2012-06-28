@@ -157,7 +157,7 @@ func D(uni *context.Uni) {
 	var point, filep string		// filep = file path
 	if points_exist {
 		point = points.([]string)[0]
-		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points."+point+".queries")
+		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points." + point + ".queries")
 		if queries_exists {
 			qslice, ok := queries.([]map[string]interface{})
 			if ok {
@@ -165,7 +165,6 @@ func D(uni *context.Uni) {
 			}
 		}
 		filep = point
-		// Ha nincs point
 	} else {
 		p := uni.Req.URL.Path
 		if p == "/" {
