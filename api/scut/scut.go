@@ -11,7 +11,7 @@ import(
 )
 
 // Insert, update, delete.
-func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interface{}, coll, op, id string) error {
+func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) error {
 	var err error
 	if (op == "update" || op == "delete") && len(id) != 24 {
 		if len(id) == 39 {
@@ -48,10 +48,8 @@ func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interfac
 		// Not implemented yet.
 	}
 	if err != nil {
-		(*res)["success"] = false
-		(*res)["reason"] = err.Error()
+		return err
 	} else {
-		(*res)["success"] = true
 		hooks, has := jsonp.Get(uni.Opt, "Hooks." + coll + "." + op)
 		if has {
 			for _, v := range hooks.([]string) {

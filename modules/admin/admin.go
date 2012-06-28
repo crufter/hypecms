@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 	"runtime/debug"
+	"fmt"
 )
 
 type m map[string]interface{}
@@ -37,55 +38,42 @@ func SiteHasAdmin(db *mgo.Database) bool {
 	return v != nil
 }
 
-func regUser(db *mgo.Database, post map[string][]string) map[string]interface{} {
-	res := map[string]interface{}{}
+func regUser(db *mgo.Database, post map[string][]string) error {
 	pass, pass_ok := post["password"]
 	pass_again, pass_again_ok := post["password_again"]
 	if !pass_ok || !pass_again_ok || len(pass) < 1 || len(pass_again) < 1 || pass[0] != pass_again[0] {
-		res["success"] = false
-		res["reason"] = "improper passwords"
+		return fmt.Errorf("improper passwords")
 	} else {
 		a := bson.M{"name": "admin", "level": 300, "password": pass[0]}
 		err := db.C("users").Insert(a)
 		if err != nil {
-			res["success"] = false
-			res["reason"] = "name is not unique"
-		} else {
-			res["success"] = true
+			return fmt.Errorf("name is not unique")
 		}
 	}
-	return res
+	return nil
 }
 
 // Registering yourself as admin is possible if the site has no admin yet.
-func RegAdmin(uni *context.Uni) {
+func RegAdmin(uni *context.Uni) error {
 	if SiteHasAdmin(uni.Db) {
-		res := map[string]interface{}{}
-		res["success"] = false
-		res["reason"] = "site already has an admin"
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("site already has an admin")
 	}
-	uni.Dat["_cont"] = regUser(uni.Db, uni.Req.Form)
+	return regUser(uni.Db, uni.Req.Form)
 }
 
-func RegUser(uni *context.Uni) {
-	res := map[string]interface{}{}
+func RegUser(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
-		res["success"] = false
-		res["reason"] = "no rights"
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("No rights")
 	}
-	uni.Dat["_cont"] = regUser(uni.Db, uni.Req.Form)
+	return regUser(uni.Db, uni.Req.Form)
 }
 
-func Login(uni *context.Uni) {
-	user.Login(uni)
+func Login(uni *context.Uni) error {
+	return user.Login(uni)
 }
 
-func Logout(uni *context.Uni) {
-	user.Logout(uni)
+func Logout(uni *context.Uni) error {
+	return user.Logout(uni)
 }
 
 func Index(uni *context.Uni) {
@@ -129,13 +117,9 @@ func requireLev(usr interface{}, lev int) bool {
 	return false
 }
 
-func SaveConfig(uni *context.Uni) {
-	res := map[string]interface{}{}
+func SaveConfig(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
-		res["success"] = false
-		res["reason"] = "no rights"
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("No rights to update options collection.")
 	}
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
@@ -148,20 +132,16 @@ func SaveConfig(uni *context.Uni) {
 				delete(m, "_id")
 				m["created"] = time.Now().Unix()
 				uni.Db.C("options").Insert(m)
-				res["success"] = true
 			} else {
-				res["success"] = false
-				res["reason"] = "invalid json"
+				return fmt.Errorf("Invalid json.")
 			}
 		} else {
-			res["success"] = false
-			res["reason"] = "multiple option strings received"
+			return fmt.Errorf("Multiple option strings received.")
 		}
 	} else {
-		res["success"] = false
-		res["reason"] = "no option string received"
+		return fmt.Errorf("No option string received.")
 	}
-	uni.Dat["_cont"] = res
+	return nil
 }
 
 // TODO: Highlight already installed packages.
@@ -196,13 +176,9 @@ func Uninstall(uni *context.Uni) {
 }
 
 // InstallB handles both installing and uninstalling.
-func InstallB(uni *context.Uni) {
-	res := map[string]interface{}{}
+func InstallB(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
-		res["success"] = false
-		res["reason"] = "No rights"
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("No rights")
 	}
 	mode := ""
 	if _, k := uni.Dat["_uninstall"]; k {
@@ -212,41 +188,29 @@ func InstallB(uni *context.Uni) {
 	}
 	ma, err := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
 	if err != nil {
-		res["success"] = false
-		res["reason"] = "Bad url at " + mode
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("Bad url at " + mode)
 	}
 	modn, has := ma["modulename"]
 	if !has {
-		res["success"] = false
-		res["reason"] = "No modulename at " + mode
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("No modulename at " + mode)
 	}
 	if _, already := jsonp.Get(uni.Opt, "Modules." + modn); mode == "install" && already {
-		res["success"] = false
-		res["reason"] = "Module " + modn + " is already installed."
+		return fmt.Errorf("Module " + modn + " is already installed.")
 	} else if mode == "uninstall" && !already {
-		res["success"] = false
-		res["reason"] = "Module " + modn + " is not installed."
+		return fmt.Errorf("Module " + modn + " is not installed.")
 	} else {
 		h := mod.GetHook(modn, strings.Title(mode))
 		uni.Dat["_option_id"] = scut.CreateOptCopy(uni.Db)
 		if h != nil {
-			h(uni)
-			if _, ok := uni.Dat["_" + mode + "_error"]; ok {
-				res["success"] = false
-				res["reason"] = uni.Dat["_" + mode + "_reason"]
-			} else {
-				res["success"] = true
+			inst_err := h(uni)
+			if inst_err != nil {
+				return inst_err
 			}
 		} else {
-			res["success"] = false
-			res["reason"] = "Module " + modn + " does not export the Hook " + mode + "."
+			return fmt.Errorf("Module " + modn + " does not export the Hook " + mode + ".")
 		}
 	}
-	uni.Dat["_cont"] = res
+	return nil
 }
 
 func AD(uni *context.Uni) {
@@ -292,25 +256,27 @@ func AD(uni *context.Uni) {
 	}
 }
 
-func AB(uni *context.Uni) {
+func AB(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
+	var r error
 	switch action {
 	case "regadmin":
-		RegAdmin(uni)
+		r = RegAdmin(uni)
 	case "reguser":
-		RegUser(uni)
+		r = RegUser(uni)
 	case "adminlogin":
-		Login(uni)
+		r = Login(uni)
 	case "logout":
-		Logout(uni)
+		r = Logout(uni)
 	case "save-config":
-		SaveConfig(uni)
+		r = SaveConfig(uni)
 	case "install":
-		InstallB(uni)
+		r = InstallB(uni)
 	case "uninstall":
 		uni.Dat["_uninstall"] = true
-		InstallB(uni)
+		r = InstallB(uni)
 	default:
-		uni.Put("Unknown admin action.")
+		return fmt.Errorf("Unknown admin action.")
 	}
+	return r
 }

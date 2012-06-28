@@ -9,9 +9,10 @@ import (
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
 	"net/http"
+	"fmt"
 )
 
-var Hooks = map[string]func(*context.Uni){
+var Hooks = map[string]func(*context.Uni) error {
 	"BuildUser": BuildUser,
 	"Back":      Back,
 	"Test":      Test,
@@ -28,7 +29,7 @@ func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
 	return nil, false
 }
 
-func BuildUser(uni *context.Uni) {
+func BuildUser(uni *context.Uni) error {
 	c, err := uni.Req.Cookie("user")
 	var user map[string]interface{}
 	var ok bool
@@ -42,6 +43,7 @@ func BuildUser(uni *context.Uni) {
 		m["level"] = 0
 		uni.Dat["_user"] = m
 	}
+	return nil
 }
 
 func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
@@ -53,9 +55,8 @@ func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
 	return "", false
 }
 
-func Register(uni *context.Uni) {
+func Register(uni *context.Uni) error {
 	post := uni.Req.Form
-	res := make(map[string]interface{})
 	name, name_ok := post["name"]
 	pass, pass_ok := post["password"]
 	if name_ok && pass_ok && len(name) > 0 && len(pass) > 0 {
@@ -63,21 +64,16 @@ func Register(uni *context.Uni) {
 		// Ide jön, hogy kiszedjük opciókból hogy miket pakoljunk még bele etc...
 		err := uni.Db.C("users").Insert(u)
 		if err != nil {
-			res["success"] = false
-			res["reason"] = "name is not unique"
-		} else {
-			res["success"] = true
+			return fmt.Errorf("name is not unique")
 		}
 	} else {
-		res["success"] = false
-		res["reason"] = "no name given"
+		return fmt.Errorf("no name given")
 	}
-	uni.Dat["_cont"] = res
+	return nil
 }
 
-func Login(uni *context.Uni) {
+func Login(uni *context.Uni) error {
 	// There could be a check here to not log in somebody who is already logged in.
-	res := make(map[string]interface{})
 	name, name_ok := uni.Req.Form["name"]
 	pass, pass_ok := uni.Req.Form["password"]
 	succ := false
@@ -104,19 +100,16 @@ func Login(uni *context.Uni) {
 			reason = append(reason, "improper pass")
 		}
 	}
-	res["success"] = succ
 	if !succ {
-		res["reason"] = reason[0]	// Ugly hack now, because main.handleBacks expects a string, not a []string.
+		return fmt.Errorf(reason[0])	// Ugly hack now, because main.handleBacks expects a string, not a []string.
 	}
-	uni.Dat["_cont"] = res
+	return nil
 }
 
-func Logout(uni *context.Uni) {
-	res := make(map[string]interface{})
+func Logout(uni *context.Uni) error {
 	c := &http.Cookie{Name: "user", Value: "", Path: "/"}
 	http.SetCookie(uni.W, c)
-	res["success"] = true
-	uni.Dat["_cont"] = res
+	return nil
 }
 
 func TestRaw(opt map[string]interface{}) map[string]interface{} {
@@ -128,11 +121,12 @@ func TestRaw(opt map[string]interface{}) map[string]interface{} {
 	return msg
 }
 
-func Test(uni *context.Uni) {
+func Test(uni *context.Uni) error {
 	uni.Dat["_cont"] = TestRaw(uni.Opt)
+	return nil
 }
 
-func Back(uni *context.Uni) {
+func Back(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
 	had_action := true
 	switch action {
@@ -146,4 +140,5 @@ func Back(uni *context.Uni) {
 	if !had_action {
 		uni.Put("Can't find action named \"" + action + "\" in user module.")
 	}
+	return nil
 }

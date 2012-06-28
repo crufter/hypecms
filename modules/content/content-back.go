@@ -7,11 +7,12 @@ import (
 	"github.com/opesun/extract"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
+	"fmt"
 )
 
 type m map[string]interface{}
 
-var Hooks = map[string]func(*context.Uni){
+var Hooks = map[string]func(*context.Uni) error {
 	"AD":        AD,
 	"Front":     Front,
 	"Back":      Back,
@@ -32,15 +33,16 @@ func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, boo
 	return context.Convert(v).(map[string]interface{}), true
 }
 
-func Test(uni *context.Uni) {
+func Test(uni *context.Uni) error {
 	res := make(map[string]interface{})
 	res["Front"] = jsonp.HasVal(uni.Opt, "Hooks.Front", "content")
 	_, ok := jsonp.Get(uni.Opt, "Modules.Content")
 	res["Modules"] = ok
 	uni.Dat["_cont"] = res
+	return nil
 }
 
-func Install(uni *context.Uni) {
+func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
 	content_options := m{
 		"types": m {
@@ -51,83 +53,71 @@ func Install(uni *context.Uni) {
 			},
 		},
 	}
-	uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "content"}, "$set": m{"Modules.content": content_options}})
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "content"}, "$set": m{"Modules.content": content_options}})
 }
 
-func Uninstall(uni *context.Uni) {
+func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "content"}, "$unset": m{"Modules.content": 1}})
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "content"}, "$unset": m{"Modules.content": 1}})
 }
 
-func SaveTypeConfig(uni *context.Uni) {
+func SaveTypeConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
+	return nil
 }
 
-func SaveConfig(uni *context.Uni) {
+func SaveConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
+	return nil
 }
 
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
-func Ins(uni *context.Uni) {
-	res := map[string]interface{}{}
+func Ins(uni *context.Uni) error {
 	typ, hastype := uni.Req.Form["type"]
 	if !hastype {
-		res["success"] = false; res["reason"] = "No type sent from form when inserting content."; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("No type sent from form when inserting content.")
 	}
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
 	if !hasrule {
-		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("Can't find content type " + typ[0])
 	}
 	ins_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
 	ins_dat["type"] = typ[0]
 	if extr_err != nil {
-		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
+		return extr_err
 	}
-	ins_err := scut.Inud(uni, ins_dat, &res, "contents", "insert", "")
-	if ins_err != nil {
-		res["success"] = false; res["reason"] = ins_err.Error(); uni.Dat["_cont"] = res; return
-	}
-	res["success"] = true
-	uni.Dat["_cont"] = res
+	return scut.Inud(uni, ins_dat, "contents", "insert", "")
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
-func Upd(uni *context.Uni) {
-	res := map[string]interface{}{}
+func Upd(uni *context.Uni) error {
 	id, hasid := uni.Req.Form["id"]
 	if !hasid {
-		res["success"] = false; res["reason"] = "No id sent from form when updating content."; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("No id sent from form when updating content.")
 	}
 	typ, hastype := uni.Req.Form["type"]
 	if !hastype {
-		res["success"] = false; res["reason"] = "No type sent from form when updating content."; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("No type sent from form when updating content.")
 	}
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
 	if !hasrule {
-		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("Can't find content type " + typ[0])
 	}
 	upd_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
 	upd_dat["type"] = typ[0]
 	if extr_err != nil {
-		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
+		return extr_err
 	}
-	upd_err := scut.Inud(uni, upd_dat, &res, "contents", "update", id[0])
-	if upd_err != nil {
-		res["success"] = false; res["reason"] = upd_err.Error(); uni.Dat["_cont"] = res; return
-	}
-	res["success"] = true
-	uni.Dat["_cont"] = res
+	return scut.Inud(uni, upd_dat, "contents", "update", id[0])
 }
 
-func Del(uni *context.Uni) {
-	res := map[string]interface{}{}
+func Del(uni *context.Uni) error {
 	id, has := uni.Req.Form["id"]
 	if !has {
-		res["success"] = false; res["reason"] = "No id sent from form when deleting content."; uni.Dat["_cont"] = res; return
+		return fmt.Errorf("No id sent from form when deleting content.")
 	}
-	scut.Inud(uni, nil, &res, "contents", "delete", id[0])
-	uni.Dat["_cont"] = res
+	return scut.Inud(uni, nil, "contents", "delete", id[0])
 }
 
 func minLev(opt map[string]interface{}, op string) int {
@@ -137,31 +127,28 @@ func minLev(opt map[string]interface{}, op string) int {
 	return 300	// This is sparta.
 }
 
-func Back(uni *context.Uni) {
+func Back(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
 	_, ok := jsonp.Get(uni.Opt, "Modules.content")
 	if !ok {
-		uni.Put("No content options.")
-		return
+		return fmt.Errorf("No content options.")
 	}
 	level := uni.Dat["_user"].(map[string]interface{})["level"].(int)
 	if minLev(uni.Opt, action) > level {
-		res := map[string]interface{}{}
-		res["success"] = false
-		res["reason"] = "You have no rights to do content action " + action
-		uni.Dat["_cont"] = res
-		return
+		return fmt.Errorf("You have no rights to do content action " + action)
 	}
+	var r error
 	switch action {
 	case "insert":
-		Ins(uni)
+		r = Ins(uni)
 	case "update":
-		Upd(uni)
+		r = Upd(uni)
 	case "delete":
-		Del(uni)
+		r = Del(uni)
 	case "save_config":
-		SaveTypeConfig(uni)
+		r = SaveTypeConfig(uni)
 	default:
-		uni.Put("Can't find action named \"" + action + "\" in user module.")
+		return fmt.Errorf("Can't find action named \"" + action + "\" in user module.")
 	}
+	return r 
 }

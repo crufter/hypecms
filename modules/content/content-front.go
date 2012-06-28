@@ -11,26 +11,26 @@ import(
 	"reflect"
 )
 
-func Front(uni *context.Uni) {
+func Front(uni *context.Uni) error {
 	ed, ed_err := routep.Comp("/admin/content/edit/{type}/{id}", uni.P)
 	if ed_err == nil {
 		ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
 		if !hasu {
 			panic("No user level found, or it is not an integer.")
-			return
+			return nil
 		}
 		_, hasid := ed["id"]
 		if hasid && ulev < minLev(uni.Opt, "edit") {
 			panic("You have no rights to edit a content.")
-			return
+			return nil
 		} else if ulev < minLev(uni.Opt, "insert") {
 			panic("You have no rights to insert a content.")
-			return
+			return nil
 		}
 		uni.Dat["_hijacked"] = true
 		Edit(uni, ed)
 		uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
-		return
+		return nil
 	}
 	m, err := routep.Comp("/{slug}", uni.P)
 	if err == nil {
@@ -41,6 +41,7 @@ func Front(uni *context.Uni) {
 			uni.Dat["content"] = content
 		}
 	}
+	return nil
 }
 
 func getSidebar(uni *context.Uni) []string {
@@ -151,7 +152,7 @@ func AEdit(uni *context.Uni) {
 	uni.Dat["_points"] = []string{"content/edit"}
 }
 
-func AD(uni *context.Uni) {
+func AD(uni *context.Uni) error {
 	m, _ := routep.Comp("/admin/content/{view}", uni.Req.URL.Path)
 	uni.Dat["content_menu"] = getSidebar(uni)
 	switch m["view"] {
@@ -168,4 +169,5 @@ func AD(uni *context.Uni) {
 	default:
 		uni.Put("Unkown content view.")
 	}
+	return nil
 }

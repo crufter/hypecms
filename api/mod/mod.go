@@ -8,8 +8,8 @@ import (
 	"github.com/opesun/hypecms/modules/user"
 )
 
-func GetHook(modname string, method string) func(*context.Uni) {
-	var r func(*context.Uni)
+func GetHook(modname string, method string) func(*context.Uni) error {
+	var r func(*context.Uni) error
 	switch modname {
 	case "content":
 		r = content.Hooks[method]

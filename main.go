@@ -70,7 +70,7 @@ func runFrontHooks(uni *context.Uni) {
 }
 
 // This is real basic yet, it would be cool to include all elements of result.
-func appendParams(str string, result map[string]interface{}) string {
+func appendParams(str string, err error) string {
 	p := strings.Split(str, "?")
 	var inp string
 	if len(p) > 1 {
@@ -80,18 +80,11 @@ func appendParams(str string, result map[string]interface{}) string {
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
-		succ, ok := result["success"]
-		if ok {
-			v.Del("reason")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
-			if succ == true { // operation after that, you will be redirected to the same page. Result would be success=true,reason=x, to avoid it we do v.Del("reason")
-				v.Set("success", "true")
-			} else {
-				v.Set("success", "false")
-				reason, has_r := result["reason"]
-				if has_r {
-					v.Set("reason", reason.(string))
-				}
-			}
+		v.Del("reason")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
+		if err == nil { // operation after that, you will be redirected to the same page. Result would be success=true,reason=x, to avoid it we do v.Del("reason")
+			v.Set("ok", "true")
+		} else {
+			v.Set("error", err.Error())
 		}
 		quer := v.Encode()
 		if len(quer) > 0 {
@@ -102,7 +95,7 @@ func appendParams(str string, result map[string]interface{}) string {
 }
 
 // After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
-func handleBacks(uni *context.Uni) {
+func handleBacks(uni *context.Uni, err error) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
 		fmt.Println("	", uni.Dat["_cont"])
@@ -123,36 +116,15 @@ func handleBacks(uni *context.Uni) {
 		} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
 			redir = post_red[1]
 		}
-		redir = appendParams(redir, uni.Dat["_cont"].(map[string]interface{}))
+		redir = appendParams(redir, err)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
-}
-
-func resFormatErr(cont interface{}) error {
-	contm, ok := cont.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("_cont is not map[string]interface{}.")
-	}
-	su, hsu := contm["success"]
-	if !hsu {
-		return fmt.Errorf("_cont has no member \"success\".")
-	}
-	suv, ok := su.(bool)
-	if !ok {
-		return fmt.Errorf("_cont member \"success\" is not a bool.")
-	}
-	if suv == false {
-		_, hre := contm["reason"]
-		if !hre {
-			return fmt.Errorf("_cont failure reason missing.")
-		}
-	}
-	return nil
 }
 
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	if len(uni.Paths) > 2 {
+		var err error
 		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 		if h := mod.GetHook(modname, "Back"); h != nil {
 			if len(uni.Paths) > 3 {
@@ -160,19 +132,12 @@ func runBackHooks(uni *context.Uni) {
 			} else {
 				uni.Put(no_action + modname)
 			}
-			h(uni)
+			err = h(uni)
 		} else {
 			Put(modname + unexported_back)
 			return
 		}
-		if _, has := uni.Dat["_cont"]; !has {
-			uni.Put(no_cont + modname)	// Maybe the success could be implicit.
-			return
-		} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
-			uni.Put(bad_cont + modname + ": " + fmt_err.Error())
-			return
-		}
-		handleBacks(uni)
+		handleBacks(uni, err)
 	} else {
 		Put(no_module_at_back)
 	}
@@ -183,15 +148,8 @@ func runAdminHooks(uni *context.Uni) {
 	if l > 2 && uni.Paths[2] == "b" {
 		if l > 3 {
 			uni.Dat["_action"] = uni.Paths[3]
-			admin.AB(uni)
-			if _, has := uni.Dat["_cont"]; !has {
-				uni.Put(no_cont + "admin action " + uni.Paths[3])	// Maybe the success could be implicit.
-				return
-			} else if fmt_err := resFormatErr(uni.Dat["_cont"]); fmt_err != nil {
-				uni.Put(bad_cont + "admin action " + uni.Paths[3] + ": " + fmt_err.Error())
-				return
-			}
-			handleBacks(uni)
+			err := admin.AB(uni)
+			handleBacks(uni, err)
 		} else {
 			uni.Put(adminback_no_module)
 		}
@@ -203,8 +161,8 @@ func runAdminHooks(uni *context.Uni) {
 
 // Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
 func runDebug(uni *context.Uni) {
-	mod.GetHook(uni.Paths[2], "Test")(uni)
-	handleBacks(uni)
+	err := mod.GetHook(uni.Paths[2], "Test")(uni)
+	handleBacks(uni, err)
 }
 
 func buildUser(uni *context.Uni) {
