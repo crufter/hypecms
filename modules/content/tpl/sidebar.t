@@ -1,5 +1,6 @@
 <div style="float: left; width: 20%;">
 <ul>
+<a href="/admin/content">All</a>
 {{range .content_menu}}
 	<li>
 	<a href="/admin/content/list/{{.}}">{{.}}</a>

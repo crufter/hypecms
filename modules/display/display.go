@@ -22,6 +22,7 @@ func displErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
 		uni.Put("The template file is a pile of shit and contains malformed data what the html/template pkg can't handle.")
+		fmt.Println("problem with template: ", r)
 	}
 }
 
@@ -80,7 +81,7 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 		func(abs, fi string) ([]byte, error) {
 			return getFile(abs, fi, uni)
 		})
-	if err == "" {
+	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + templateType(uni.Opt) + "/" + templateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
 		_ = t.Execute(uni.W, uni.Dat)
@@ -97,7 +98,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 				func(abs, fi string) ([]byte, error) {
 					return getFile(abs, fi, uni)
 				})
-			if err == "" {
+			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
 				_ = t.Execute(uni.W, uni.Dat)

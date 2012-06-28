@@ -4,11 +4,9 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/routep"
 	"github.com/opesun/extract"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
-	"encoding/json"
 )
 
 type m map[string]interface{}
@@ -32,20 +30,6 @@ func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, boo
 		return nil, false
 	}
 	return context.Convert(v).(map[string]interface{}), true
-}
-
-func Front(uni *context.Uni) {
-	//uni.Put("article module runs")
-	m, err := routep.Comp("/{slug}", uni.Req.URL.Path)
-	if err == nil {
-		content, found := FindContent(uni.Db, "slug", m["slug"])
-		if found {
-			uni.Dat["_hijacked"] = true
-			uni.Dat["_points"] = []string{"content"}
-			uni.Dat["content"] = content
-		}
-	}
-
 }
 
 func Test(uni *context.Uni) {
@@ -75,129 +59,6 @@ func Uninstall(uni *context.Uni) {
 	uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "content"}, "$unset": m{"Modules.content": 1}})
 }
 
-func getSidebar(uni *context.Uni) []string {
-	menu := []string{}
-	types, has := jsonp.Get(uni.Opt, "Modules.content.types")
-	if !has {
-		panic("There are no content types.")
-	}
-	for i, _ := range types.(map[string]interface{}) {
-		menu = append(menu, i)
-	}
-	return menu
-}
-
-func Index(uni *context.Uni) {
-	uni.Dat["content_menu"] = getSidebar(uni)
-	var v []interface{}
-	uni.Db.C("contents").Find(nil).Sort(m{"_created":-1}).All(&v)
-	uni.Dat["latest"] = v
-	uni.Dat["_points"] = []string{"content/index"}
-}
-
-func List(uni *context.Uni) {
-	uni.Dat["content_menu"] = getSidebar(uni)
-	ma, err := routep.Comp("/admin/content/list/{type}", uni.Req.URL.Path)
-	if err != nil {
-		uni.Put("Bad url at list."); return
-	}
-	typ, has := ma["type"]
-	if !has {
-		uni.Put("Can not extract typ at list."); return
-	}
-	var v []interface{}
-	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
-	uni.Dat["latest"] = v
-	uni.Dat["_points"] = []string{"content/list"}
-}
-
-func TypeConfig(uni *context.Uni) {
-	uni.Dat["content_menu"] = getSidebar(uni)
-	ma, err := routep.Comp("/admin/content/type-config/{type}", uni.Req.URL.Path)
-	if err != nil {
-		uni.Put("Bad url at type config."); return
-	}
-	typ, has := ma["type"]
-	if !has {
-		uni.Put("Can not extract typ at type config."); return
-	}
-	op, ok := jsonp.Get(uni.Opt, "Modules.content.types." + typ)
-	if !ok {
-		uni.Put("Can not find content type " + typ + " in options."); return
-	}
-	uni.Dat["type"] = typ
-	uni.Dat["type_options"], _ = json.MarshalIndent(op, "", "    ")
-	uni.Dat["_points"] = []string{"content/type-config"}
-}
-
-func Config(uni *context.Uni) {
-	uni.Dat["content_menu"] = getSidebar(uni)
-	op, _ := jsonp.Get(uni.Opt, "Modules.content")
-	v, err := json.MarshalIndent(op, "", "    ")
-	if err != nil {
-		uni.Put("Can't marshal content options.")
-		return
-	}
-	uni.Dat["content_options"] = string(v)
-	uni.Dat["_points"] = []string{"content/config"}
-}
-
-func Edit(uni *context.Uni) {
-	uni.Dat["content_menu"] = getSidebar(uni)
-	ma, err := routep.Comp("/admin/content/edit/{type}/{id}", uni.Req.URL.Path)
-	if err != nil {
-		uni.Put("Bad url at edit."); return
-	}
-	typ, hast := ma["type"]
-	if !hast {
-		uni.Put("Can't extract type at edit.")
-		return
-	}
-	uni.Dat["content_type"] = typ
-	rules, has := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
-	if !has {
-		uni.Put("Can't find rules of " + typ)
-		return
-	}
-	uni.Dat["type"] = typ
-	id, hasid := ma["id"]
-	var indb interface{}
-	if hasid {
-		uni.Dat["op"] = "update"
-		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
-	} else {
-		uni.Dat["op"] = "insert"
-	}
-	rs := []interface{}{}
-	for i, v := range rules.(map[string]interface{}) {
-		field := map[string]interface{}{"field":i,"v":v}
-		if indb != nil {
-			field["value"] = indb.(map[string]interface{})[i]
-		}
-		rs = append(rs, field)
-	}
-	uni.Dat["rules"] = rs
-	uni.Dat["_points"] = []string{"content/edit"}
-}
-
-func AD(uni *context.Uni) {
-	m, _ := routep.Comp("/admin/content/{view}", uni.Req.URL.Path)
-	switch m["view"] {
-	case "":
-		Index(uni)
-	case "config":
-		Config(uni)
-	case "type-config":
-		TypeConfig(uni)
-	case "edit":
-		Edit(uni)
-	case "list":
-		List(uni)
-	default:
-		uni.Put("Unkown content view.")
-	}
-}
-
 func SaveTypeConfig(uni *context.Uni) {
 	// id := scut.CreateOptCopy(uni.Db)
 }
@@ -206,6 +67,7 @@ func SaveConfig(uni *context.Uni) {
 	// id := scut.CreateOptCopy(uni.Db)
 }
 
+// TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Ins(uni *context.Uni) {
 	res := map[string]interface{}{}
@@ -218,7 +80,7 @@ func Ins(uni *context.Uni) {
 		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
 	}
 	ins_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	ins_dat["type"] = typ
+	ins_dat["type"] = typ[0]
 	if extr_err != nil {
 		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
 	}
@@ -233,7 +95,7 @@ func Ins(uni *context.Uni) {
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Upd(uni *context.Uni) {
 	res := map[string]interface{}{}
-	id, hasid := uni.Req.Form["_id"]
+	id, hasid := uni.Req.Form["id"]
 	if !hasid {
 		res["success"] = false; res["reason"] = "No id sent from form when updating content."; uni.Dat["_cont"] = res; return
 	}
@@ -246,7 +108,7 @@ func Upd(uni *context.Uni) {
 		res["success"] = false; res["reason"] = "Can't find content type " + typ[0]; uni.Dat["_cont"] = res; return
 	}
 	upd_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	upd_dat["type"] = typ
+	upd_dat["type"] = typ[0]
 	if extr_err != nil {
 		res["success"] = false; res["reason"] = extr_err.Error(); uni.Dat["_cont"] = res; return
 	}
@@ -260,12 +122,11 @@ func Upd(uni *context.Uni) {
 
 func Del(uni *context.Uni) {
 	res := map[string]interface{}{}
-	_, has := uni.Req.Form["_id"]
+	id, has := uni.Req.Form["id"]
 	if !has {
 		res["success"] = false; res["reason"] = "No id sent from form when deleting content."; uni.Dat["_cont"] = res; return
 	}
-	id := uni.Req.Form["_id"][0]
-	scut.Inud(uni, nil, &res, "contents", "delete", id)
+	scut.Inud(uni, nil, &res, "contents", "delete", id[0])
 	uni.Dat["_cont"] = res
 }
 

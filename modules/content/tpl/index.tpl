@@ -2,11 +2,7 @@
 {{require content/sidebar.t}}
 
 {{range .latest}}
-	{{if .title}}
-		{{.title}}
-	{{else}}
-		{{.name}}
-	{{end}}<br />
+	{{require content/listing.t}}
 {{end}}
 
 {{require content/footer.t}}

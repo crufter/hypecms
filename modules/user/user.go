@@ -106,7 +106,7 @@ func Login(uni *context.Uni) {
 	}
 	res["success"] = succ
 	if !succ {
-		res["reason"] = reason
+		res["reason"] = reason[0]	// Ugly hack now, because main.handleBacks expects a string, not a []string.
 	}
 	uni.Dat["_cont"] = res
 }

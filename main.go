@@ -94,7 +94,6 @@ func appendParams(str string, result map[string]interface{}) string {
 			}
 		}
 		quer := v.Encode()
-		fmt.Println(quer, len(quer))
 		if len(quer) > 0 {
 			return p[0] + "?" + quer
 		}

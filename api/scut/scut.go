@@ -13,8 +13,12 @@ import(
 // Insert, update, delete.
 func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interface{}, coll, op, id string) error {
 	var err error
-	if (op == "update" || op == "delete") && len(id) == 0 {
-		return fmt.Errorf("Length of id is 0 at updating or deleting.")
+	if (op == "update" || op == "delete") && len(id) != 24 {
+		if len(id) == 39 {
+			id = id[13:37]
+		} else {
+			return fmt.Errorf("Length of id is 0 at updating or deleting.")
+		}
 	}
 	switch op {
 	case "insert":
@@ -22,7 +26,26 @@ func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interfac
 	case "update":
 		err = uni.Db.C(coll).Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": dat})
 	case "delete":
+		var v interface{}
+		err = uni.Db.C(coll).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+		if v == nil {
+			return fmt.Errorf("Can't find document " + id + " in " + coll)
+		}
+		if err != nil {
+			return err
+		}
+		// Transactions would not hurt here, but maybe we can get away with upserts.
+		_, err = uni.Db.C(coll + "_deleted").Upsert(bson.M{"_id": bson.ObjectIdHex(id)}, v)
+		if err != nil {
+			return err
+		}
 		err = uni.Db.C(coll).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+		if err != nil {
+			return err
+		}
+	case "restore":
+		// err = uni.Db.C(coll).Find
+		// Not implemented yet.
 	}
 	if err != nil {
 		(*res)["success"] = false
@@ -37,7 +60,14 @@ func Inud(uni *context.Uni, dat map[string]interface{}, res *map[string]interfac
 			}
 		}
 	}
-	return err
+	return nil
+}
+
+// Iterates a [] coming from a mgo query and converts the "_id" members from bson.ObjectId to string.
+func Strify(v []interface{}) {
+	for _, val := range v {
+		val.(bson.M)["_id"] = val.(bson.M)["_id"].(bson.ObjectId).Hex()
+	}
 }
 
 func CreateOptCopy(db *mgo.Database) bson.ObjectId {

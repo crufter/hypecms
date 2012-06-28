@@ -1,13 +1,9 @@
 {{require admin/header.t}}
 {{require content/sidebar.t}}
 
-You gotta see a list of {{.type}} content here.
+You gotta see a list of {{.type}} content here.<br />
 {{range .latest}}
-	{{if .title}}
-		{{.title}}
-	{{else}}
-		{{.name}}
-	{{end}}<br />
+	{{require content/listing.t}}
 {{end}}
 
 {{require content/footer.t}}
