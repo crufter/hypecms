@@ -83,10 +83,10 @@ func Ins(uni *context.Uni) error {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
 	ins_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	ins_dat["type"] = typ[0]
 	if extr_err != nil {
 		return extr_err
 	}
+	ins_dat["type"] = typ[0]
 	return scut.Inud(uni, ins_dat, "contents", "insert", "")
 }
 
@@ -105,10 +105,10 @@ func Upd(uni *context.Uni) error {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
 	upd_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	upd_dat["type"] = typ[0]
 	if extr_err != nil {
 		return extr_err
 	}
+	upd_dat["type"] = typ[0]
 	return scut.Inud(uni, upd_dat, "contents", "update", id[0])
 }
 

@@ -1,7 +1,7 @@
 <form action="/b/content/{{.op}}" method="post">
 {{range .fields}}
 	{{.fieldname}}<br />
-	<input name="{{.field}}" value="{{.value}}" /><br />
+	<input name="{{.fieldname}}" value="{{.value}}" /><br />
 	<br />
 {{end}}
 <input type="hidden" name="type" value="{{.type}}" />

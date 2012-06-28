@@ -7,8 +7,6 @@ import(
 	"launchpad.net/mgo/bson"
 	"github.com/opesun/hypecms/api/scut"
 	"encoding/json"
-	"fmt"
-	"reflect"
 )
 
 func Front(uni *context.Uni) error {
@@ -76,7 +74,6 @@ func List(uni *context.Uni) {
 	var v []interface{}
 	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
 	scut.Strify(v)
-	fmt.Println(v[0], reflect.TypeOf(v[0].(bson.M)["_id"]))
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
 }
