@@ -7,12 +7,12 @@ Installation
 - A MongoDB server running on the default port 27017. HypeCMS can start with an empty database, it will create everything it needs.
 If you are running mongo on a different machine or port, modify the values in main.go.
 - Install the next modules into your go environment:
-	github.com/opesun/hypecms
-	launchpad.net/mgo
-	github.com/opesun/extract
-	github.com/opesun/jsonp
-	github.com/opesun/require
-	github.com/opesun/routep
+	* github.com/opesun/hypecms
+	* launchpad.net/mgo
+	* github.com/opesun/extract
+	* github.com/opesun/jsonp
+	* github.com/opesun/require
+	* github.com/opesun/routep
 (Or anything else it whines for ;)
 
 Demo
@@ -34,9 +34,9 @@ Any setup ever done to a site resides in the "Options" collection, the one with 
 The system handles option documents as immutable values. This allows easy backup and restoration of configuration. (You can switch back to any previous state, so there is no danger in installing or configuring plugins.)
 Anything a site does, must be explicitly stated in this option document, with only two exceptions:
 
-/admin
+/admin  
 	- The admin module is hardcoded to avoid bootstrapping issues, eg. when a fresh site is born, we can issue basic commands and install modules trough it, even with an empty option document.
-/debug
+/debug  
 	- The debug module is hardcoded, so we can analyize the state of the site even with an empty or messed up option document.
 
 The architecture is lousely based on the MVC pattern. Basically whenever the system receives a http request, it routes the given request according to the next rule:
