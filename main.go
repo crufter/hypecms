@@ -21,18 +21,18 @@ import (
 )
 
 const (
-	unfortunate_error         = "An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	inv_userspace             = "Userspace options string is not a valid JSON." // TODO: Maybe we should try to recover from here.
-	userspace_not_set         = "Userspace options are not set at all."
-	unexported_front          = " module does not export Front hook."
-	unexported_back           = " module does not export Back hook."
-	no_user_module_build_hook = "user module does not export build hook"
-	cant_encode_config        = "Can't encode config. - No way this should happen anyway."
-	no_module_at_back         = "Tried to run a back hook, but no module was specified."
-	no_action				  = "No action specified when accessing module "
-	adminback_no_module		  = "No module specified when accessing admin back."
-	no_cont					  = "No _cont in Dat coming back from "
-	bad_cont				  = "Bad _cont format coming back from "
+	unfortunate_error			= "An unfortunate error has happened. We are deeply sorry for the inconvenience."
+	cached_opt_inv				= "The cached options string is not a valid JSON." 									// TODO: Maybe we should try to recover from here.
+	cant_unmarshal				= "Can't unmarshal freshly encoded option document."
+	unexported_front			= " module does not export Front hook."
+	unexported_back				= " module does not export Back hook."
+	no_user_module_build_hook	= "user module does not export build hook"
+	cant_encode_config			= "Can't encode config. - No way this should happen anyway."
+	no_module_at_back			= "Tried to run a back hook, but no module was specified."
+	no_action					= "No action specified when accessing module "
+	adminback_no_module			= "No module specified when accessing admin back."
+	cant_run_back				= "Can't run back hook of not installed module "
+	cant_test					= "Can't test module because it is not even installed: "
 )
 
 var DB_USER = ""
@@ -80,7 +80,7 @@ func appendParams(str string, err error) string {
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
-		v.Del("reason")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
+		v.Del("error")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
 		if err == nil { // operation after that, you will be redirected to the same page. Result would be success=true,reason=x, to avoid it we do v.Del("reason")
 			v.Set("ok", "true")
 		} else {
@@ -98,7 +98,7 @@ func appendParams(str string, err error) string {
 func handleBacks(uni *context.Uni, err error) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
-		fmt.Println("	", uni.Dat["_cont"])
+		fmt.Println("	", err)
 	}
 	_, is_json := uni.Req.Form["json"]
 	if is_json {
@@ -123,36 +123,40 @@ func handleBacks(uni *context.Uni, err error) {
 
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
+	var err error
 	if len(uni.Paths) > 2 {
-		var err error
 		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
-		if h := mod.GetHook(modname, "Back"); h != nil {
-			if len(uni.Paths) > 3 {
-				uni.Dat["_action"] = uni.Paths[3]
-			} else {
-				uni.Put(no_action + modname)
-			}
-			err = h(uni)
+		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+			err = fmt.Errorf(cant_run_back + modname)
 		} else {
-			Put(modname + unexported_back)
-			return
+			if h := mod.GetHook(modname, "Back"); h != nil {
+				if len(uni.Paths) > 3 {
+					uni.Dat["_action"] = uni.Paths[3]
+					err = h(uni)
+				} else {
+					err = fmt.Errorf(no_action + modname)
+				}
+			} else {
+				err = fmt.Errorf(modname + unexported_back)
+			}
 		}
-		handleBacks(uni, err)
 	} else {
-		Put(no_module_at_back)
+		err = fmt.Errorf(no_module_at_back)
 	}
+	handleBacks(uni, err)
 }
 
 func runAdminHooks(uni *context.Uni) {
 	l := len(uni.Paths)
 	if l > 2 && uni.Paths[2] == "b" {
+		var err error
 		if l > 3 {
 			uni.Dat["_action"] = uni.Paths[3]
-			err := admin.AB(uni)
-			handleBacks(uni, err)
+			err = admin.AB(uni)
 		} else {
-			uni.Put(adminback_no_module)
+			err = fmt.Errorf(adminback_no_module)
 		}
+		handleBacks(uni, err)
 	} else {
 		admin.AD(uni)
 		display.D(uni)
@@ -161,7 +165,17 @@ func runAdminHooks(uni *context.Uni) {
 
 // Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
 func runDebug(uni *context.Uni) {
-	err := mod.GetHook(uni.Paths[2], "Test")(uni)
+	var err error
+	if len(uni.Paths) > 2 {
+		modname := uni.Paths[2]
+		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+			err = fmt.Errorf(cant_test + modname)
+		} else {
+			err = mod.GetHook(modname, "Test")(uni)
+		}
+	} else {
+		err = fmt.Errorf("No module specified to test.")
+	}
 	handleBacks(uni, err)
 }
 
@@ -211,13 +225,10 @@ func has(c map[string]string, str string) (interface{}, bool) {
 
 // Just printing the stack trace to http response if a panic bubbles up all the way to top.
 func err() {
-	if r := recover(); r != nil && r != "controlled" {
+	if r := recover(); r != nil {
 		fmt.Println(r)
 		Put(unfortunate_error)
 		Put(fmt.Sprint("\n", r, "\n\n"+string(debug.Stack())))
-	} else if r != nil && r == "controlled" {
-		fmt.Println(r)
-		Put(unfortunate_error)
 	}
 }
 
@@ -244,7 +255,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		var v interface{}
 		json.Unmarshal([]byte(val.(string)), &v)
 		if v == nil {
-			Put(inv_userspace)
+			Put(cached_opt_inv)
 			return
 		}
 		uni.Opt = v.(map[string]interface{})
@@ -266,7 +277,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		var v interface{}
 		json.Unmarshal([]byte(str), &v)
 		if v == nil {
-			Put(inv_userspace)
+			Put(cant_unmarshal)
 			return
 		}
 		uni.Opt = v.(map[string]interface{})

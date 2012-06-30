@@ -34,11 +34,10 @@ func FindContent(db *mgo.Database, key, val string) (map[string]interface{}, boo
 }
 
 func Test(uni *context.Uni) error {
-	res := make(map[string]interface{})
-	res["Front"] = jsonp.HasVal(uni.Opt, "Hooks.Front", "content")
-	_, ok := jsonp.Get(uni.Opt, "Modules.Content")
-	res["Modules"] = ok
-	uni.Dat["_cont"] = res
+	front := jsonp.HasVal(uni.Opt, "Hooks.Front", "content")
+	if !front {
+		return fmt.Errorf("Not subscribed to front hook.")
+	}
 	return nil
 }
 

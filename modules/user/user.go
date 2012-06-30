@@ -39,9 +39,9 @@ func BuildUser(uni *context.Uni) error {
 	if ok {
 		uni.Dat["_user"] = user
 	} else {
-		m := make(map[string]interface{})
-		m["level"] = 0
-		uni.Dat["_user"] = m
+		user = make(map[string]interface{})
+		user["level"] = 0
+		uni.Dat["_user"] = user
 	}
 	return nil
 }

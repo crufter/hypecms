@@ -6,6 +6,7 @@ import (
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"launchpad.net/mgo/bson"
+	"fmt"
 )
 
 // Create a type only to spare ourselves from typing map[string]interface{} every time.
@@ -42,11 +43,10 @@ func Back(uni *context.Uni) error {
 
 // main.runDebug invokes this trough mod.GetHook.
 func Test(uni *context.Uni) error {
-	res := map[string]interface{}{}
-	res["Front"] = jsonp.HasVal(uni.Opt, "Hooks.Front", "skeleton")
-	_, ok := jsonp.Get(uni.Opt, "Modules.Skeleton")
-	res["Modules"] = ok
-	uni.Dat["_cont"] = res
+	front := jsonp.HasVal(uni.Opt, "Hooks.Front", "skeleton")
+	if !front {
+		return fmt.Errorf("Not subscribed to front hook.")
+	}
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/opesun/hypecms/modules/content"
 	"github.com/opesun/hypecms/modules/skeleton"
 	"github.com/opesun/hypecms/modules/user"
+	"github.com/opesun/hypecms/modules/display_editor"
 )
 
 func GetHook(modname string, method string) func(*context.Uni) error {
@@ -19,6 +20,10 @@ func GetHook(modname string, method string) func(*context.Uni) error {
 		r = user.Hooks[method]
 	case "skeleton":
 		r = skeleton.Hooks[method]
+	case "display_editor":
+		r = display_editor.Hooks[method]
+	default:								// Such a crucial bug.
+		panic("Unkown module " + modname)
 	}
 	return r
 }
