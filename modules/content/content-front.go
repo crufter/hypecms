@@ -57,7 +57,7 @@ func getSidebar(uni *context.Uni) []string {
 func Index(uni *context.Uni) {
 	var v []interface{}
 	uni.Db.C("contents").Find(nil).Sort(m{"_created":-1}).All(&v)
-	scut.Strify(v)
+	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
 }
@@ -73,7 +73,7 @@ func List(uni *context.Uni) {
 	}
 	var v []interface{}
 	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
-	scut.Strify(v)
+	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
 }
@@ -130,15 +130,12 @@ func Edit(uni *context.Uni, ma map[string]string) {
 	} else {
 		uni.Dat["op"] = "insert"
 	}
-	rs := []interface{}{}
-	for i, v := range rules.(map[string]interface{}) {
-		field := map[string]interface{}{"fieldname":i,"v":v}
-		if indb != nil {
-			field["value"] = indb.(bson.M)[i]
-		}
-		rs = append(rs, field)
+	f, err := scut.RulesToFields(rules, context.Convert(indb))
+	if err != nil {
+		uni.Put(err.Error())
+		return
 	}
-	uni.Dat["fields"] = rs
+	uni.Dat["fields"] = f
 }
 
 func AEdit(uni *context.Uni) {

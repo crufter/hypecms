@@ -47,7 +47,7 @@ func Install(uni *context.Uni) error {
 		"types": m {
 			"blog": m{
 				"rules" : m{
-					"title": 1, "content": 1, "_created": 1,
+					"title": 1, "slug":1, "content": 1,
 				},
 			},
 		},
