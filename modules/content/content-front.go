@@ -126,6 +126,7 @@ func Edit(uni *context.Uni, ma map[string]string) {
 	if hasid {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
+		uni.Dat["content"] = indb
 	} else {
 		uni.Dat["op"] = "insert"
 	}
