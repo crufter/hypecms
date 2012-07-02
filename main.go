@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/api/mod"
 	"github.com/opesun/hypecms/modules/admin"
 	"github.com/opesun/hypecms/modules/display"
@@ -15,6 +16,7 @@ import (
 	"launchpad.net/mgo"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -43,6 +45,7 @@ var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
 var PORT_NUM = *flag.String("p", "80", "port to listen on")
 var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
 var OPT_CACHE = *flag.Bool("opt_cache", false, "cache option document")
+var SERVE_FILES = *flag.Bool("serve_files", true, "serve files from Go or not")
 
 // Quickly print the data to http response.
 var Put func(...interface{})
@@ -283,8 +286,33 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		uni.Opt = v.(map[string]interface{})
 		delete(uni.Opt, "_id")
 	}
+	first_p := uni.Paths[1]
+	last_p := uni.Paths[len(uni.Paths)-1]
+	if SERVE_FILES && strings.Index(last_p, ".") != -1 {
+		has_sfx := strings.HasSuffix(last_p, ".go")
+		if first_p == "template" || first_p == "tpl" && !has_sfx {
+			serveTemplateFile(w, req, uni)
+		} else if !has_sfx {
+			http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, "uploads", req.Host, req.URL.Path))
+		} else {
+			uni.Put("Don't do that.")
+		}
+		return
+	}
 	req.ParseForm()
 	runSite(uni)
+}
+
+// Since we don't include the template name into the url, only "template", we have to extract the template name from the opt here.
+// Example: xyz.com/template/style.css
+//			xyz.com/tpl/admin/style.css
+func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Uni) {
+	if uni.Paths[1] == "template" {
+		p := scut.GetTPath(uni.Opt)
+		http.ServeFile(w, req, filepath.Join(uni.Root, p, strings.Join(uni.Paths[2:], "/")))
+	} else {	// "tpl"
+		http.ServeFile(w, req, filepath.Join(uni.Root, "modules", uni.Paths[2], "tpl", strings.Join(uni.Paths[3:], "/")))
+	}
 }
 
 func main() {

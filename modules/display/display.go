@@ -2,8 +2,7 @@
 // If there is no "_points" set in uni.Dat, then it will execute the Display Point which name matches the http Request Path.
 // A given Display Point can contain queries, they will be run, after that, a tpl file which matches the name of the Display Point will be executed.
 //
-// TODO: use error troughout the package instead of a string error.
-// Caution: there is some real tricky (ugly?) hackage going on in this package in at getFile/getTPath/getModPath to support the logic behind the fallback files.
+// Caution: there is some real tricky (ugly?) hackage going on in this package at getFile/getTPath/getModTPath to support the logic behind the fallback files.
 package display
 
 import (
@@ -17,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"runtime/debug"
+	"github.com/opesun/hypecms/api/scut"
 )
 
 func displErr(uni *context.Uni) {
@@ -29,50 +29,22 @@ func displErr(uni *context.Uni) {
 }
 
 // TODO: Implement file caching here.
-func getFile(abs, fi string, uni *context.Uni) ([]byte, error) {
-	p := getTPath(fi, uni)
-	b, err := ioutil.ReadFile(filepath.Join(p[0], p[1]))
+func getFile(root, fi string, opt map[string]interface{}) ([]byte, error) {
+	p := scut.GetTPath(opt)
+	b, err := ioutil.ReadFile(filepath.Join(root, p, fi))
 	if err == nil {
 		return b, nil
 	}
-	p = getModPath(fi, uni)
-	return ioutil.ReadFile(filepath.Join(p[0], p[1]))
+	mp := getModTPath(fi)
+	return ioutil.ReadFile(filepath.Join(root, mp[0], mp[1]))
 }
 
-func templateType(opt map[string]interface{}) string {
-	_, priv := opt["TplIsPrivate"]
-	var ttype string
-	if priv {
-		ttype = "private"
-	} else {
-		ttype = "public"
-	}
-	return ttype
-}
-
-func templateName(opt map[string]interface{}) string {
-	tpl, has_tpl := opt["Template"]
-	if !has_tpl {
-		tpl = "default"
-	}
-	return tpl.(string)
-}
-
-// [0]: abs_folder, [1]: relative_path
-func getTPath(s string, uni *context.Uni) []string {
+// Inp:	"admin/this/that.txt"
+// []string{ "modules/admin/tpl", "this/that.txt"}
+func getModTPath(filename string) []string {
 	sl := []string{}
-	templ := templateName(uni.Opt)
-	ttype := templateType(uni.Opt)
-	sl = append(sl, filepath.Join(uni.Root, "templates", ttype, templ))
-	sl = append(sl, s)
-	return sl
-}
-
-// [0]: abs_folder, [1]: relative_path
-func getModPath(s string, uni *context.Uni) []string {
-	sl := []string{}
-	p := strings.Split(s, "/")
-	sl = append(sl, filepath.Join(uni.Root, "modules", p[0], "tpl"))
+	p := strings.Split(filename, "/")
+	sl = append(sl, filepath.Join("modules", p[0], "tpl"))
 	sl = append(sl, strings.Join(p[1:], "/"))
 	return sl
 }
@@ -80,11 +52,11 @@ func getModPath(s string, uni *context.Uni) []string {
 // Executes filep.tpl of a given template.
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
-		func(abs, fi string) ([]byte, error) {
-			return getFile(abs, fi, uni)
+		func(root, fi string) ([]byte, error) {
+			return getFile(uni.Root, fi, uni.Opt)
 		})
 	if err == nil {
-		uni.Dat["_tpl"] = "/templates/" + templateType(uni.Opt) + "/" + templateName(uni.Opt) + "/"
+		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
 		_ = t.Execute(uni.W, uni.Dat)
 		return nil
@@ -96,9 +68,9 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 func DisplayFallback(uni *context.Uni, filep string) error {
 	if strings.Index(filep, "/") != -1 {
 		if len(strings.Split(filep, "/")) >= 2 {
-			file, err := require.R("", filep+".tpl",			// Tricky, care.
-				func(abs, fi string) ([]byte, error) {
-					return getFile(abs, fi, uni)
+			file, err := require.R("", filep + ".tpl",			// Tricky, care.
+				func(root, fi string) ([]byte, error) {
+					return getFile(uni.Root, fi, uni.Opt)
 				})
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
@@ -177,7 +149,7 @@ func D(uni *context.Uni) {
 	}
 	if _, isjson := uni.Req.Form["json"]; isjson {
 		var v []byte
-		if _, fmt := uni.Req.Form["fmt"]; fmt {
+		if _, format := uni.Req.Form["fmt"]; format {
 			v, _ = json.MarshalIndent(uni.Dat, "", "    ")
 		} else {
 			v, _ = json.Marshal(uni.Dat)

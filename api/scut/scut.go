@@ -9,6 +9,7 @@ import(
 	"time"
 	"github.com/opesun/jsonp"
 	"sort"
+	"path/filepath"
 )
 
 // Insert, and update/delete, by Id.
@@ -124,4 +125,29 @@ func RulesToFields(r interface{}, dat interface{}) ([]map[string]interface{}, er
 		return nil, fmt.Errorf("Dat is not a map[string]interface{}.")
 	}
 	return abcKeys(rm, datm, []string{"title", "name", "slug"}), nil
+}
+
+func TemplateType(opt map[string]interface{}) string {
+	_, priv := opt["TplIsPrivate"]
+	var ttype string
+	if priv {
+		ttype = "private"
+	} else {
+		ttype = "public"
+	}
+	return ttype
+}
+
+func TemplateName(opt map[string]interface{}) string {
+	tpl, has_tpl := opt["Template"]
+	if !has_tpl {
+		tpl = "default"
+	}
+	return tpl.(string)
+}
+
+func GetTPath(opt map[string]interface{}) string {
+	templ := TemplateName(opt)
+	ttype := TemplateType(opt)
+	return filepath.Join("templates", ttype, templ)
 }
