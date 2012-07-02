@@ -5,5 +5,5 @@
 	<br />
 {{end}}
 <input type="hidden" name="type" value="{{.type}}" />
-<input type="hidden" name="type" value="{{.content._id}}" />
+<input type="hidden" name="id" value="{{.content._id}}" />
 <input type="submit">

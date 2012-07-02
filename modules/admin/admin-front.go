@@ -8,6 +8,7 @@ import(
 	"path/filepath"
 	"encoding/json"
 	"github.com/opesun/hypecms/api/mod"
+	"sort"
 )
 
 func Index(uni *context.Uni) {
@@ -15,10 +16,12 @@ func Index(uni *context.Uni) {
 	adm := map[string]interface{}{}
 	if v, ok := uni.Opt["Modules"]; ok {
 		if mapi, k := v.(map[string]interface{}); k {
-			adm["menu"] = []string{}
+			items := []string{}
 			for ind, _ := range mapi {
-				adm["menu"] = append(adm["menu"].([]string), ind)
+				items = append(items, ind)
 			}
+			sort.Strings(items)
+			adm["menu"] = items
 		} else {
 			adm["error"] = "Modules in options is not a map[string]interface{}."
 		}

@@ -16,13 +16,15 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"runtime/debug"
 )
 
 func displErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
-		uni.Put("The template file is a pile of shit and contains malformed data what the html/template pkg can't handle.")
+		uni.Put("There was an error executing the template. Probably a {{require ...}} remained in the template and the html/template module does not recognize unkown commands, it crashes only.")
 		fmt.Println("problem with template: ", r)
+		debug.PrintStack()
 	}
 }
 
@@ -157,7 +159,7 @@ func D(uni *context.Uni) {
 	var point, filep string		// filep = file path
 	if points_exist {
 		point = points.([]string)[0]
-		queries, queries_exists := jsonp.Get(uni.Opt, "Modules.display.Points." + point + ".queries")
+		queries, queries_exists := jsonp.Get(uni.Opt, "Display-points." + point + ".queries")
 		if queries_exists {
 			qslice, ok := queries.([]map[string]interface{})
 			if ok {

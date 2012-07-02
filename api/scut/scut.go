@@ -88,8 +88,11 @@ func abcKeys(r map[string]interface{}, dat map[string]interface{}, prior []strin
 	already_in := map[string]struct{}{}
 	for _, v := range prior {
 		if _, contains := r[v]; contains {
-			val := map[string]interface{}{"key":v, "value": dat[v]}
-			ret = append(ret, val)
+			item := map[string]interface{}{"key":v}
+			if dat != nil {
+				item["value"] = dat[v]
+			}
+			ret = append(ret, item)
 			already_in[v] = struct{}{}
 		}
 	}
@@ -100,8 +103,11 @@ func abcKeys(r map[string]interface{}, dat map[string]interface{}, prior []strin
 	sort.Strings(keys)
 	for _, v := range keys {
 		if _, in := already_in[v]; !in {
-			val := map[string]interface{}{"key":v, "value": dat[v]}
-			ret = append(ret, val)
+			item := map[string]interface{}{"key":v}
+			if dat != nil {
+				item["value"] = dat[v]
+			}
+			ret = append(ret, item)
 		}
 	}
 	return ret
@@ -114,7 +120,7 @@ func RulesToFields(r interface{}, dat interface{}) ([]map[string]interface{}, er
 		return nil, fmt.Errorf("Rule is not a map[string]interface{}.")
 	}
 	datm, datm_ok := dat.(map[string]interface{})
-	if !datm_ok {
+	if !datm_ok && dat != nil {
 		return nil, fmt.Errorf("Dat is not a map[string]interface{}.")
 	}
 	return abcKeys(rm, datm, []string{"title", "name", "slug"}), nil

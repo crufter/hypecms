@@ -1,7 +1,7 @@
 {{require admin/header.t}}
 {{require content/sidebar.t}}
 
-You gotta see a list of {{.type}} content here.<br />
+{{.type}} entries:<br /><br />
 {{range .latest}}
 	{{require content/listing.t}}
 {{end}}
