@@ -237,29 +237,13 @@ func err() {
 
 var cache = make(map[string]string)
 
-// A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
-func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
-	Put = func(a ...interface{}) {
-		io.WriteString(w, fmt.Sprint(a...)+"\n")
-	}
-	defer err()
-	host := req.Host
-	uni := &context.Uni{
-		Db:    db,
-		W:     w,
-		Req:   req,
-		Put:   Put,
-		Dat:   make(map[string]interface{}),
-		Root:  ABSOLUTE_PATH,
-		P:     req.URL.Path,
-		Paths: strings.Split(req.URL.Path, "/"),
-	}
+func handleConfig(uni *context.Uni, host string) error {
+	db := uni.Db
 	if val, ok := has(cache, host); OPT_CACHE && ok {
 		var v interface{}
 		json.Unmarshal([]byte(val.(string)), &v)
 		if v == nil {
-			Put(cached_opt_inv)
-			return
+			return fmt.Errorf(cached_opt_inv)
 		}
 		uni.Opt = v.(map[string]interface{})
 		delete(uni.Opt, "_id")
@@ -272,19 +256,41 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		}
 		enc, merr := json.Marshal(res)
 		if merr != nil {
-			Put(cant_encode_config)
-			return
+			return fmt.Errorf(cant_encode_config)
 		}
 		str := string(enc)
 		set(cache, host, str)
 		var v interface{}
 		json.Unmarshal([]byte(str), &v)
 		if v == nil {
-			Put(cant_unmarshal)
-			return
+			return fmt.Errorf(cant_unmarshal)
 		}
 		uni.Opt = v.(map[string]interface{})
 		delete(uni.Opt, "_id")
+	}
+	return nil
+}
+
+// A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
+func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
+	Put = func(a ...interface{}) {
+		io.WriteString(w, fmt.Sprint(a...)+"\n")
+	}
+	defer err()
+	uni := &context.Uni{
+		Db:    db,
+		W:     w,
+		Req:   req,
+		Put:   Put,
+		Dat:   make(map[string]interface{}),
+		Root:  ABSOLUTE_PATH,
+		P:     req.URL.Path,
+		Paths: strings.Split(req.URL.Path, "/"),
+	}
+	err := handleConfig(uni, req.Host)
+	if err != nil {
+		uni.Put(err.Error())
+		return
 	}
 	first_p := uni.Paths[1]
 	last_p := uni.Paths[len(uni.Paths)-1]
