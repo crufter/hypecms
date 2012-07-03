@@ -13,7 +13,11 @@ import(
 )
 
 // Insert, and update/delete, by Id.
+// TODO: uni should definitely not be passed here. I think we should create a communication channel of some sort to allow these inner functions to
+// notify the outside world about the happenings. This could be done with some kind of event emitter/receiver, or simply with callbacks... etc,
+// but this "even the deepest parts of the architecture has access to everything" is just plain wrong.
 func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) error {
+	db := uni.Db
 	var err error
 	if (op == "update" || op == "delete") && len(id) != 24 {
 		if len(id) == 39 {
@@ -24,12 +28,12 @@ func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) err
 	}
 	switch op {
 	case "insert":
-		err = uni.Db.C(coll).Insert(dat)
+		err = db.C(coll).Insert(dat)
 	case "update":
-		err = uni.Db.C(coll).Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": dat})
+		err = db.C(coll).Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": dat})
 	case "delete":
 		var v interface{}
-		err = uni.Db.C(coll).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+		err = db.C(coll).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
 		if v == nil {
 			return fmt.Errorf("Can't find document " + id + " in " + coll)
 		}
@@ -37,16 +41,16 @@ func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) err
 			return err
 		}
 		// Transactions would not hurt here, but maybe we can get away with upserts.
-		_, err = uni.Db.C(coll + "_deleted").Upsert(bson.M{"_id": bson.ObjectIdHex(id)}, v)
+		_, err = db.C(coll + "_deleted").Upsert(bson.M{"_id": bson.ObjectIdHex(id)}, v)
 		if err != nil {
 			return err
 		}
-		err = uni.Db.C(coll).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+		err = db.C(coll).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 		if err != nil {
 			return err
 		}
 	case "restore":
-		// err = uni.Db.C(coll).Find
+		// err = db.C(coll).Find
 		// Not implemented yet.
 	}
 	if err != nil {
@@ -82,13 +86,32 @@ func CreateOptCopy(db *mgo.Database) bson.ObjectId {
 	return ma["_id"].(bson.ObjectId)
 }
 
-// Takes a map[string]interface{}, and puts every element of that to a slice, sorted by the keys ABC order.
+// A more generic version of abcKeys. Takes a map[string]interface{} and puts every element of that into an []interface{}, ordered by keys alphabetically.
+// TODO: find the intersecting parts between the two functions and refactor.
+func OrderKeys(d map[string]interface{}) []interface{} {
+	keys := []string{}
+	for i, _ := range d {
+		keys = append(keys, i)
+	}
+	sort.Strings(keys)
+	ret := []interface{}{}
+	for _, v := range keys {
+		if ma, is_ma := d[v].(map[string]interface{}); is_ma {
+			// RETHINK: What if a key field gets overwritten? Should we name it _key?
+			ma["key"] = v
+		}
+		ret = append(ret, d[v])
+	}
+	return ret
+}
+
+// Takes a dat map[string]interface{}, and puts every element of that which is defined in r to a slice, sorted by the keys ABC order.
 // prior parameter can override the default abc ordering, so keys in prior will be the first ones in the slice, if those keys exist.
-func abcKeys(r map[string]interface{}, dat map[string]interface{}, prior []string) []map[string]interface{} {
+func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []string) []map[string]interface{} {
 	ret := []map[string]interface{}{}
 	already_in := map[string]struct{}{}
 	for _, v := range prior {
-		if _, contains := r[v]; contains {
+		if _, contains := rule[v]; contains {
 			item := map[string]interface{}{"key":v}
 			if dat != nil {
 				item["value"] = dat[v]
@@ -98,7 +121,7 @@ func abcKeys(r map[string]interface{}, dat map[string]interface{}, prior []strin
 		}
 	}
 	keys := []string{}
-	for i, _ := range r {
+	for i, _ := range rule {
 		keys = append(keys, i)
 	}
 	sort.Strings(keys)
@@ -115,8 +138,8 @@ func abcKeys(r map[string]interface{}, dat map[string]interface{}, prior []strin
 }
 
 // Takes an extraction/validation rule, a document and from that creates a slice which can be easily displayed by a templating engine as a html form.
-func RulesToFields(r interface{}, dat interface{}) ([]map[string]interface{}, error) {
-	rm, rm_ok := r.(map[string]interface{})
+func RulesToFields(rule interface{}, dat interface{}) ([]map[string]interface{}, error) {
+	rm, rm_ok := rule.(map[string]interface{})
 	if !rm_ok {
 		return nil, fmt.Errorf("Rule is not a map[string]interface{}.")
 	}
@@ -146,8 +169,20 @@ func TemplateName(opt map[string]interface{}) string {
 	return tpl.(string)
 }
 
+// Observes opt and gives you back a string describing the path of your template eg "templates/public/template_name"
 func GetTPath(opt map[string]interface{}) string {
 	templ := TemplateName(opt)
 	ttype := TemplateType(opt)
 	return filepath.Join("templates", ttype, templ)
+}
+
+// Calculate missing fields, we compare dat to r.
+func CalcMiss(rule map[string]interface{}, dat map[string]interface{}) []string {
+	missing_fields := []string{}
+	for i, _ := range rule {
+		if _, ex := dat[i]; !ex {
+			missing_fields = append(missing_fields, i)
+		}
+	}
+	return missing_fields
 }

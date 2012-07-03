@@ -9,9 +9,10 @@ import(
 	"encoding/json"
 	"github.com/opesun/hypecms/api/mod"
 	"sort"
+	"fmt"
 )
 
-func Index(uni *context.Uni) {
+func Index(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"admin/index"}
 	adm := map[string]interface{}{}
 	if v, ok := uni.Opt["Modules"]; ok {
@@ -29,9 +30,10 @@ func Index(uni *context.Uni) {
 		adm["error"] = "No module installed."
 	}
 	uni.Dat["admin"] = adm
+	return nil
 }
 
-func EditConfig(uni *context.Uni) {
+func EditConfig(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"admin/edit-config"}
 	adm := map[string]interface{}{}
 	delete(uni.Opt, "created")
@@ -42,10 +44,11 @@ func EditConfig(uni *context.Uni) {
 		adm["error"] = err.Error()
 	}
 	uni.Dat["admin"] = adm
+	return nil
 }
 
 // TODO: Highlight already installed packages.
-func Install(uni *context.Uni) {
+func Install(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"admin/install"}
 	adm := map[string]interface{}{}
 	dirs, err := ioutil.ReadDir(filepath.Join(uni.Root, "/modules"))
@@ -61,9 +64,10 @@ func Install(uni *context.Uni) {
 		adm["error"] = err.Error()
 	}
 	uni.Dat["admin"] = adm
+	return nil
 }
 
-func Uninstall(uni *context.Uni) {
+func Uninstall(uni *context.Uni) error {
 	installed_mods := []string{}
 	modules, has := uni.Opt["Modules"]
 	if has {
@@ -73,47 +77,50 @@ func Uninstall(uni *context.Uni) {
 	}
 	uni.Dat["installed_modules"] = installed_mods
 	uni.Dat["_points"] = []string{"admin/uninstall"}
+	return nil
 }
 
-func AD(uni *context.Uni) {
+func AD(uni *context.Uni) error {
 	defer adErr(uni)
+	var err error
 	if lev, k := jsonp.Get(uni.Dat, "_user.level"); k == false || lev.(int) < 300 {
 		if SiteHasAdmin(uni.Db) {
 			uni.Dat["_points"] = []string{"admin/login"}
 		} else {
 			uni.Dat["_points"] = []string{"admin/regadmin"}
 		}
-		return
+		return nil
 	}
-	m, err := routep.Comp("/admin/{modname}", uni.P)
-	if err == nil { // It should be always nil anyway.
+	m, cerr := routep.Comp("/admin/{modname}", uni.P)
+	if cerr == nil { // It should be always nil anyway.
 		modname, ok := m["modname"]
 		if !ok {
 			modname = ""
 		}
 		switch modname {
 		case "":
-			Index(uni)
+			err = Index(uni)
 		case "edit-config":
-			EditConfig(uni)
+			err = EditConfig(uni)
 		case "install":
-			Install(uni)
+			err = Install(uni)
 		case "uninstall":
-			Uninstall(uni)
+			err = Uninstall(uni)
 		default:
 			_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
 			if installed {
 				f := mod.GetHook(modname, "AD")
 				if f != nil {
-					f(uni)
+					err = f(uni)
 				} else {
-					uni.Put("Module ", modname, " does not export hook AD.")
+					err = fmt.Errorf("Module ", modname, " does not export hook AD.")
 				}
 			} else {
-				uni.Put("There is no module named ", modname, " installed.")
+				err = fmt.Errorf("There is no module named ", modname, " installed.")
 			}
 		}
 	} else {
-		uni.Put("Control is routed to Admin display, but it does not like the url structure.")
+		err = fmt.Errorf("Control is routed to Admin display, but it does not like the url structure.")
 	}
+	return err
 }

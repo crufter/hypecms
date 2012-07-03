@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"encoding/json"
+	"sort"
 )
 
 type m map[string]interface{}
@@ -35,14 +36,14 @@ func New(uni *context.Uni) error {
 }
 
 func Save(uni *context.Uni) error {
-	rule := map[string]interface{}{"name":1, "queries":1}
+	rule := map[string]interface{}{"name":1, "prev_name":1, "queries":1}
 	r := extract.New(rule)
 	dat, err := r.ExtractForm(uni.Req.Form)
 	if err != nil {
 		return err
 	}
 	if len(dat) != len(rule) {
-		return fmt.Errorf("Missing fields.")
+		return fmt.Errorf("Missing fields:", scut.CalcMiss(rule, dat))
 	}
 	id := scut.CreateOptCopy(uni.Db)
 	err = uni.Db.C("options").Update(m{"_id":id}, m{"$set":m{ "Display-points." + dat["name"].(string): dat}})
@@ -67,8 +68,7 @@ func Test(uni *context.Uni) error {
 	return nil
 }
 
-func Search(uni *context.Uni) {
-	ps := []string{}
+func Search(uni *context.Uni) error {
 	var search string
 	if s, hass := uni.Req.Form["point-name"]; hass {
 		search = s[0]
@@ -76,6 +76,7 @@ func Search(uni *context.Uni) {
 	points, ok := jsonp.Get(uni.Opt, "Display-points")
 	points_m := points.(map[string]interface{})
 	has_points := false
+	ps := []string{}
 	if ok {
 		for key, _ := range points_m {
 			if search == "" || strings.Index(key, search) != -1 {
@@ -85,53 +86,56 @@ func Search(uni *context.Uni) {
 		}
 	}
 	uni.Dat["has_points"] = has_points
+	sort.Strings(ps)
 	uni.Dat["point_names"] = ps
 	uni.Dat["search"] = search
 	uni.Dat["_points"] = []string{"display_editor/search"}
+	return nil
 }
 
-func Edit(uni *context.Uni, point_name string) {
+func Edit(uni *context.Uni, point_name string) error {
 	point, ok := jsonp.Get(uni.Opt, "Display-points." + point_name)
 	if !ok {
-		uni.Put("Can't find point named " + point_name)
-		return
+		return fmt.Errorf("Can't find point named ", point_name)
 	}
 	query, _ := json.MarshalIndent(point, "", "    ")
 	uni.Dat["point"] = map[string]interface{}{"name": point_name, "query": query}
 	uni.Dat["_points"] = []string{"display_editor/edit"}
+	return nil
 }
 
-func Help(uni *context.Uni, point_name string) {
+func Help(uni *context.Uni, point_name string) error {
 	uni.Dat["_points"] = []string{"display_editor/help"}
+	return nil
 }
 
 func AD(uni *context.Uni) error {
-	m, err := routep.Comp("/admin/display_editor/{view}/{param}", uni.P)
-	if err != nil {
-		uni.Put("Bad url at display editor AD.")
-		return nil
+	m, cerr := routep.Comp("/admin/display_editor/{view}/{param}", uni.P)
+	if cerr != nil {
+		return fmt.Errorf("Bad url at display editor AD.")
 	}
+	var err error
 	switch m["view"] {
 	case "":
-		Search(uni)
+		err = Search(uni)
 	case "edit":
-		Edit(uni, m["param"])
+		err = Edit(uni, m["param"])
 	case "help":
-		Help(uni, m["param"])
+		err = Help(uni, m["param"])
+	default:
+		err = fmt.Errorf("Unkown view at display_editor admin: ", m["view"])
 	}
-	return nil
+	return err
 }
 
 func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
 	display_editor_options := m{
 	}
-	uni.Db.C("options").Update(m{"_id": id}, m{"$set": m{"Modules.display_editor": display_editor_options}})
-	return nil
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$set": m{"Modules.display_editor": display_editor_options}})
 }
 
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	uni.Db.C("options").Update(m{"_id": id}, m{"$unset": m{"Modules.display_editor": 1}})
-	return nil
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$unset": m{"Modules.display_editor": 1}})
 }

@@ -7,6 +7,7 @@ import(
 	"launchpad.net/mgo/bson"
 	"github.com/opesun/hypecms/api/scut"
 	"encoding/json"
+	"fmt"
 )
 
 func Front(uni *context.Uni) error {
@@ -14,16 +15,13 @@ func Front(uni *context.Uni) error {
 	if ed_err == nil {
 		ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
 		if !hasu {
-			panic("No user level found, or it is not an integer.")
-			return nil
+			return fmt.Errorf("No user level found, or it is not an integer.")
 		}
 		_, hasid := ed["id"]
 		if hasid && ulev < minLev(uni.Opt, "edit") {
-			panic("You have no rights to edit a content.")
-			return nil
+			return fmt.Errorf("You have no rights to edit a content.")
 		} else if ulev < minLev(uni.Opt, "insert") {
-			panic("You have no rights to insert a content.")
-			return nil
+			return fmt.Errorf("You have no rights to insert a content.")
 		}
 		uni.Dat["_hijacked"] = true
 		Edit(uni, ed)
@@ -54,71 +52,72 @@ func getSidebar(uni *context.Uni) []string {
 	return menu
 }
 
-func Index(uni *context.Uni) {
+func Index(uni *context.Uni) error {
 	var v []interface{}
 	uni.Db.C("contents").Find(nil).Sort(m{"_created":-1}).All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
+	return nil
 }
 
-func List(uni *context.Uni) {
+func List(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/list/{type}", uni.Req.URL.Path)
 	if err != nil {
-		uni.Put("Bad url at list."); return
+		return fmt.Errorf("Bad url at list.")
 	}
 	typ, has := ma["type"]
 	if !has {
-		uni.Put("Can not extract typ at list."); return
+		return fmt.Errorf("Can not extract typ at list.")
 	}
 	var v []interface{}
 	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
+	return nil
 }
 
-func TypeConfig(uni *context.Uni) {
+func TypeConfig(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/type-config/{type}", uni.Req.URL.Path)
 	if err != nil {
-		uni.Put("Bad url at type config."); return
+		return fmt.Errorf("Bad url at type config.")
 	}
 	typ, has := ma["type"]
 	if !has {
-		uni.Put("Can not extract typ at type config."); return
+		return fmt.Errorf("Can not extract typ at type config.")
 	}
 	op, ok := jsonp.Get(uni.Opt, "Modules.content.types." + typ)
 	if !ok {
-		uni.Put("Can not find content type " + typ + " in options."); return
+		return fmt.Errorf("Can not find content type " + typ + " in options.")
 	}
 	uni.Dat["type"] = typ
 	uni.Dat["type_options"], _ = json.MarshalIndent(op, "", "    ")
 	uni.Dat["_points"] = []string{"content/type-config"}
+	return nil
 }
 
-func Config(uni *context.Uni) {
+func Config(uni *context.Uni) error {
 	op, _ := jsonp.Get(uni.Opt, "Modules.content")
 	v, err := json.MarshalIndent(op, "", "    ")
 	if err != nil {
-		uni.Put("Can't marshal content options.")
-		return
+		return fmt.Errorf("Can't marshal content options.")
 	}
 	uni.Dat["content_options"] = string(v)
 	uni.Dat["_points"] = []string{"content/config"}
+	return nil
 }
 
 // Called from both admin and outside editing.
-func Edit(uni *context.Uni, ma map[string]string) {
+func Edit(uni *context.Uni, ma map[string]string) error {
 	typ, hast := ma["type"]
 	if !hast {
-		uni.Put("Can't extract type at edit.")
-		return
+		return fmt.Errorf("Can't extract type at edit.")
 	}
 	uni.Dat["content_type"] = typ
-	rules, has := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
-	if !has {
-		uni.Put("Can't find rules of " + typ)
-		return
+	rules, hasr := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
+	if !hasr {
+		return fmt.Errorf("Can't find rules of " + typ)
 	}
 	uni.Dat["type"] = typ
 	id, hasid := ma["id"]
@@ -130,39 +129,41 @@ func Edit(uni *context.Uni, ma map[string]string) {
 	} else {
 		uni.Dat["op"] = "insert"
 	}
-	f, err := scut.RulesToFields(rules, context.Convert(indb))
-	if err != nil {
-		uni.Put(err.Error())
-		return
+	f, ferr := scut.RulesToFields(rules, context.Convert(indb))
+	if ferr != nil {
+		return ferr
 	}
 	uni.Dat["fields"] = f
+	return nil
 }
 
-func AEdit(uni *context.Uni) {
+func AEdit(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/edit/{type}/{id}", uni.Req.URL.Path)
 	if err != nil {
-		uni.Put("Bad url at edit."); return
+		return fmt.Errorf("Bad url at edit.")
 	}
 	Edit(uni, ma)
 	uni.Dat["_points"] = []string{"content/edit"}
+	return nil
 }
 
 func AD(uni *context.Uni) error {
+	var err error
 	m, _ := routep.Comp("/admin/content/{view}", uni.Req.URL.Path)
 	uni.Dat["content_menu"] = getSidebar(uni)
 	switch m["view"] {
 	case "":
-		Index(uni)
+		err = Index(uni)
 	case "config":
-		Config(uni)
+		err = Config(uni)
 	case "type-config":
-		TypeConfig(uni)
+		err = TypeConfig(uni)
 	case "edit":
-		AEdit(uni)
+		err = AEdit(uni)
 	case "list":
-		List(uni)
+		err = List(uni)
 	default:
-		uni.Put("Unkown content view.")
+		err = fmt.Errorf("Unkown content view.")
 	}
-	return nil
+	return err
 }

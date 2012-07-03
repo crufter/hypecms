@@ -128,17 +128,14 @@ func Test(uni *context.Uni) error {
 
 func Back(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
-	had_action := true
+	var err error
 	switch action {
 	case "login":
-		Login(uni)
+		err = Login(uni)
 	case "logout":
 	case "register":
 	default:
-		had_action = false
+		err = fmt.Errorf("Unkown action at user module.")
 	}
-	if !had_action {
-		uni.Put("Can't find action named \"" + action + "\" in user module.")
-	}
-	return nil
+	return err
 }

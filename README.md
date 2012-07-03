@@ -13,7 +13,7 @@ If you are running mongo on a different machine or port, modify the values in ma
 	* github.com/opesun/jsonp
 	* github.com/opesun/require
 	* github.com/opesun/routep  
-(Or anything else it whines for ;)
+	* anything else it whines for
 
 Demo
 =======
@@ -21,16 +21,15 @@ Soon (in a week) you can test drive your own instance at hypecms.com (will be hi
 
 Design goals
 =======
-We hope we can write a system which can be used by Go based startups as a starting point/framework for development.
-We try to build a system which is more oriented toward complete and unique web applications, rather than blogs or bussiness card web pages.
-However at the same time, we try to keep the inner workings of it as simple as possible.
-The CMS itself is just a thin layer above specific modules.
-Everything can be overwritten, but at the same time there is a builtin default functionality provided.
-Also, while performance is only a priority if it does no get in the way of clean code and maintainability, we believe that the Go and MongoDB is a killer combination.
+Hopefully Go based startups can use this as starting point/framework for development to save time.
+Our focus is oriented toward complete and unique web applications, rather than blogs or bussiness card web pages.
+We try to keep the inner workings of this as simple as possible, but there is a long way ahead.
+Everything can be overwritten, but at the same time there is a builtin default functionality provided for convenience.
+Performance, performance, performance. Only if it does not get in the way of readability and maintainability though.
 
-Ideas and inner workings
+Random info about the app so you can catch our drift
 =======
-Any setup ever done to a site resides in the "Options" collection, the one with the latest date being the currently used option document.
+Any setup ever done to a site resides in the "options" collection, the one with the latest date being the currently used option document.
 The system handles option documents as immutable values. This allows easy backup and restoration of configuration. (You can switch back to any previous state, so there is no danger in installing or configuring plugins.)
 Anything a site does, must be explicitly stated in this option document, with only two exceptions:
 
@@ -41,31 +40,20 @@ Anything a site does, must be explicitly stated in this option document, with on
 
 The architecture is lousely based on the MVC pattern. Basically whenever the system receives a http request, it routes the given request according to the next rule:
 - If the path of the request matches "/b/{modulename}", it will be routed to the given module, and the system expects a background operation to be called.
-- Anything else will be handled as a "View" which will be displayed by either the builtin Display module or an explicitly stated one.
-
-Some of the following things are awaiting implementation
--------
+- Anything else will be handled as a "view" which will be displayed by either the builtin Display module or an explicitly stated one.
 
 ### The admin module
 There is a builtin editor of the currently used option document, so you can configure any option or package by hand even if it has no graphical setup.
 
 ### The Display module
-Every view function specifies a "Display Point". This display point contains information about what template file to execute (it contains this information implicitly, since the filename is the name of the display point itself).
+Every view function specifies a "display point". This display point contains information about what template file to execute (it contains this information implicitly, since the filename is the name of the display point itself).
 Also, it can contain queries to be run. The queries are stored in the option document.
-If the display module senses the Get parameter "json", it will not output the html as response, only a JSON encoded string containing the map[string]interface{} uni.Dat, which is the context of the template execution. (Not implemented yet.)
+If the display module senses the get parameter "json", it will not output the html as response, only a JSON encoded string containing the map[string]interface{} uni.Dat, which is the context of the template execution. (Not implemented yet.)
 (Similarly, a background operation can receive "json" as a parameter, and instead of redirecting the user back to a view, it will print out the JSON encoded result of that background operation. Useful if we want ot build AJAX-based web applications.)
 
-### The Content module (soon to come)
+### The Content module
 Every content in this module has a type, with user defined fields. For example, you can define a "blogpost" type and a "product" type, and install a webshop module to the "product" content type only.
 Every type can have different fields and modules installed under it.
-
-### The universe
-The only value passed to modules is the *context.Uni (see api/context package)
-For more reusable code, try to avoid doing bussiness logic in functions which has access to this value.
-
-### "api/mod" package
-Since there is no dynamic code loading in Go (yet), we must require all packages here.
-Later if there will be a great number of modules we can compile with only the required modules.
 
 (More things to come here...)
 

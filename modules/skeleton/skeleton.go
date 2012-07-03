@@ -63,13 +63,11 @@ func Install(uni *context.Uni) error {
 	skeleton_options := m{
 		"example": "any value",
 	}
-	uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "skeleton"}, "$set": m{"Modules.skeleton": skeleton_options}})
-	return nil
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "skeleton"}, "$set": m{"Modules.skeleton": skeleton_options}})
 }
 
 // Admin Install invokes this trough mod.GetHook.
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "skeleton"}, "$unset": m{"Modules.skeleton": 1}})
-	return nil
+	return uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "skeleton"}, "$unset": m{"Modules.skeleton": 1}})
 }

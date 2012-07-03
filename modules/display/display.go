@@ -125,7 +125,12 @@ func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 	uni.Dat["queries"] = qs
 }
 
-// This is where this module starts.
+// This is where the module starts if an error occured in a front hook.
+func DErr(uni *context.Uni, err error) {
+	uni.Put(err)
+}
+
+// This is where the module starts if there were no error in the front hook.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
 	var point, filep string		// filep = file path

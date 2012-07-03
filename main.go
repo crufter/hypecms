@@ -54,22 +54,27 @@ type m map[string]interface{}
 
 // All views are going to use this hook.
 func runFrontHooks(uni *context.Uni) {
+	var err error
 	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Front")
 	if ok && len(top_hooks) > 0 {
 		for _, v := range top_hooks {
 			modname := v.(string)
 			if h := mod.GetHook(modname, "Front"); h != nil {
-				h(uni)
+				err = h(uni)
 			} else {
-				Put(modname + unexported_front)
-				return
+				err = fmt.Errorf(modname + unexported_front)
+				break
 			}
 			if _, ok := uni.Dat["_hijacked"]; ok {
 				break
 			}
 		}
 	}
-	display.D(uni)
+	if err == nil {
+		display.D(uni)
+	} else {
+		display.DErr(uni, err)
+	}
 }
 
 // This is real basic yet, it would be cool to include all elements of result.
@@ -151,8 +156,8 @@ func runBackHooks(uni *context.Uni) {
 
 func runAdminHooks(uni *context.Uni) {
 	l := len(uni.Paths)
+	var err error
 	if l > 2 && uni.Paths[2] == "b" {
-		var err error
 		if l > 3 {
 			uni.Dat["_action"] = uni.Paths[3]
 			err = admin.AB(uni)
@@ -161,8 +166,12 @@ func runAdminHooks(uni *context.Uni) {
 		}
 		handleBacks(uni, err)
 	} else {
-		admin.AD(uni)
-		display.D(uni)
+		err = admin.AD(uni)
+		if err == nil {
+			display.D(uni)
+		} else {
+			display.DErr(uni, err)
+		}
 	}
 }
 
@@ -182,14 +191,12 @@ func runDebug(uni *context.Uni) {
 	handleBacks(uni, err)
 }
 
-func buildUser(uni *context.Uni) {
+func buildUser(uni *context.Uni) error {
 	h := mod.GetHook("user", "BuildUser")
 	if h != nil {
-		h(uni)
-	} else {
-		Put(no_user_module_build_hook)
-		return
+		return h(uni)
 	}
+	return fmt.Errorf(no_user_module_build_hook)
 }
 
 // A runSite-ban van egy két hardcore-olt dolog (lásd forrást)
