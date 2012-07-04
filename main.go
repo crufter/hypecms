@@ -293,6 +293,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		Root:  ABSOLUTE_PATH,
 		P:     req.URL.Path,
 		Paths: strings.Split(req.URL.Path, "/"),
+		GetHook:	mod.GetHook,
 	}
 	err := handleConfig(uni, req.Host)
 	if err != nil {

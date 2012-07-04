@@ -92,35 +92,34 @@ func AD(uni *context.Uni) error {
 		return nil
 	}
 	m, cerr := routep.Comp("/admin/{modname}", uni.P)
-	if cerr == nil { // It should be always nil anyway.
-		modname, ok := m["modname"]
-		if !ok {
-			modname = ""
-		}
-		switch modname {
-		case "":
-			err = Index(uni)
-		case "edit-config":
-			err = EditConfig(uni)
-		case "install":
-			err = Install(uni)
-		case "uninstall":
-			err = Uninstall(uni)
-		default:
-			_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
-			if installed {
-				f := mod.GetHook(modname, "AD")
-				if f != nil {
-					err = f(uni)
-				} else {
-					err = fmt.Errorf("Module ", modname, " does not export hook AD.")
-				}
+	if cerr != nil { // It should be always nil anyway.
+		return fmt.Errorf("Control is routed to Admin display, but it does not like the url structure.")
+	}
+	modname, ok := m["modname"]
+	if !ok {
+		modname = ""
+	}
+	switch modname {
+	case "":
+		err = Index(uni)
+	case "edit-config":
+		err = EditConfig(uni)
+	case "install":
+		err = Install(uni)
+	case "uninstall":
+		err = Uninstall(uni)
+	default:
+		_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
+		if installed {
+			f := mod.GetHook(modname, "AD")
+			if f != nil {
+				err = f(uni)
 			} else {
-				err = fmt.Errorf("There is no module named ", modname, " installed.")
+				err = fmt.Errorf("Module ", modname, " does not export hook AD.")
 			}
+		} else {
+			err = fmt.Errorf("There is no module named ", modname, " installed.")
 		}
-	} else {
-		err = fmt.Errorf("Control is routed to Admin display, but it does not like the url structure.")
 	}
 	return err
 }
