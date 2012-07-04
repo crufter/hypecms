@@ -5,9 +5,8 @@ package user
 
 import (
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
-	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
 	"net/http"
 	"fmt"
 )
@@ -18,41 +17,10 @@ var Hooks = map[string]func(*context.Uni) error {
 	"Test":      Test,
 }
 
-func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
-	var v interface{}
-	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
-	if v != nil {
-		val, _ := context.Convert(v).(map[string]interface{})
-		delete(val, "password")
-		return val, true
-	}
-	return nil, false
-}
-
 func BuildUser(uni *context.Uni) error {
-	c, err := uni.Req.Cookie("user")
-	var user map[string]interface{}
-	var ok bool
-	if err == nil && len(c.Value) > 0 {
-		user, ok = FindUser(uni.Db, c.Value)
-	}
-	if ok {
-		uni.Dat["_user"] = user
-	} else {
-		user = make(map[string]interface{})
-		user["level"] = 0
-		uni.Dat["_user"] = user
-	}
+	c, _ := uni.Req.Cookie("user")
+	uni.Dat["_user"] = user_model.BuildUser(uni.Db, uni.Ev, c.Value)
 	return nil
-}
-
-func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
-	var v interface{}
-	db.C("users").Find(bson.M{"name": name, "password": encoded_pass}).One(&v)
-	if v != nil {
-		return v.(bson.M)["_id"].(bson.ObjectId).Hex(), true
-	}
-	return "", false
 }
 
 func Register(uni *context.Uni) error {
@@ -60,14 +28,9 @@ func Register(uni *context.Uni) error {
 	name, name_ok := post["name"]
 	pass, pass_ok := post["password"]
 	if name_ok && pass_ok && len(name) > 0 && len(pass) > 0 {
-		u := bson.M{"name": name[0], "password": pass[0]}
-		// Ide jön, hogy kiszedjük opciókból hogy miket pakoljunk még bele etc...
-		err := uni.Db.C("users").Insert(u)
-		if err != nil {
-			return fmt.Errorf("name is not unique")
-		}
+		return user_model.Register(uni.Db, uni.Ev, name[0], pass[0])
 	} else {
-		return fmt.Errorf("no name given")
+		return fmt.Errorf("No name or pass given.")
 	}
 	return nil
 }
@@ -81,7 +44,7 @@ func Login(uni *context.Uni) error {
 	if name_ok && pass_ok && len(name) == 1 && len(pass) == 1 {
 		name_str := name[0]
 		pass_str := pass[0]
-		if id, ok := FindLogin(uni.Db, name_str, pass_str); ok {
+		if id, ok := user_model.FindLogin(uni.Db, name_str, pass_str); ok {
 			c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
 			http.SetCookie(uni.W, c)
 			succ = true

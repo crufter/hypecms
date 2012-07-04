@@ -4,9 +4,10 @@ package context
 import (
 	"github.com/opesun/jsonp"
 	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
 	"net/http"
 	"strings"
+	"launchpad.net/mgo/bson"
+	"fmt"
 )
 
 // General context for the application.
@@ -39,10 +40,21 @@ type Ev struct {
 // 	Errors		[]error
 // }
 
+func (e *Ev) Param(params ...interface{}) {
+	for l, _ := range params {
+		e.Params = append(e.Params, params[l])
+	}
+}
 
 // s : "content.insert", "content.blog.insert"
-func (e *Ev) Trigger(s ...string) {
-	for _, acc_path := range s {
+func (e *Ev) Trigger(eventname string, params ...interface{}) {
+	e.Param(params...)
+	e.TriggerAll(eventname)
+}
+
+func (e *Ev) TriggerAll(eventnames ...string) {
+	fmt.Println("Triggered event ", eventnames)
+	for _, acc_path := range eventnames {
 		subscribed, has := jsonp.GetS(e.uni.Opt, acc_path)
 		if has {
 			for _, modname := range subscribed {
@@ -54,17 +66,6 @@ func (e *Ev) Trigger(s ...string) {
 		}
 	}
 	e.Params = make([]interface{}, 5)
-}
-
-func (e *Ev) Param(i ...interface{}) {
-	for l, _ := range i {
-		e.Params = append(e.Params, i[l])
-	}
-}
-
-type Event interface{
-	Param(i ...interface{})
-	Trigger(s ...string)
 }
 
 func NewEv(uni *Uni) *Ev {

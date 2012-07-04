@@ -285,16 +285,17 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	}
 	defer err()
 	uni := &context.Uni{
-		Db:    db,
-		W:     w,
-		Req:   req,
-		Put:   Put,
-		Dat:   make(map[string]interface{}),
-		Root:  ABSOLUTE_PATH,
-		P:     req.URL.Path,
-		Paths: strings.Split(req.URL.Path, "/"),
+		Db:    		db,
+		W:     		w,
+		Req:   		req,
+		Put:   		Put,
+		Dat:   		make(map[string]interface{}),
+		Root:  		ABSOLUTE_PATH,
+		P:     		req.URL.Path,
+		Paths: 		strings.Split(req.URL.Path, "/"),
 		GetHook:	mod.GetHook,
 	}
+	uni.Ev = context.NewEv(uni)
 	err := handleConfig(uni, req.Host)
 	if err != nil {
 		uni.Put(err.Error())

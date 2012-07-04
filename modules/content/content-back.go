@@ -2,9 +2,8 @@ package content
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/extract"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
 	"fmt"
@@ -75,40 +74,26 @@ func SaveConfig(uni *context.Uni) error {
 func Ins(uni *context.Uni) error {
 	typ, hastype := uni.Req.Form["type"]
 	if !hastype {
-		return fmt.Errorf("No type sent from form when inserting content.")
+		return fmt.Errorf("No type when inserting content.")
 	}
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
-	ins_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	if extr_err != nil {
-		return extr_err
-	}
-	ins_dat["type"] = typ[0]
-	return scut.Inud(uni, ins_dat, "contents", "insert", "")
+	return content_model.Insert(uni.Db, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Upd(uni *context.Uni) error {
-	id, hasid := uni.Req.Form["id"]
-	if !hasid {
-		return fmt.Errorf("No id sent from form when updating content.")
-	}
 	typ, hastype := uni.Req.Form["type"]
 	if !hastype {
-		return fmt.Errorf("No type sent from form when updating content.")
+		return fmt.Errorf("No type when inserting content.")
 	}
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
-	upd_dat, extr_err := extract.New(rule.(map[string]interface{})).ExtractForm(uni.Req.Form)
-	if extr_err != nil {
-		return extr_err
-	}
-	upd_dat["type"] = typ[0]
-	return scut.Inud(uni, upd_dat, "contents", "update", id[0])
+	return content_model.Update(uni.Db, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
 }
 
 func Del(uni *context.Uni) error {
@@ -116,7 +101,7 @@ func Del(uni *context.Uni) error {
 	if !has {
 		return fmt.Errorf("No id sent from form when deleting content.")
 	}
-	return scut.Inud(uni, nil, "contents", "delete", id[0])
+	return content_model.Delete(uni.Db, id[0])
 }
 
 func minLev(opt map[string]interface{}, op string) int {

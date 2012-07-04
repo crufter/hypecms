@@ -3,21 +3,15 @@ package scut
 
 import(
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
 	"launchpad.net/mgo/bson"
 	"launchpad.net/mgo"
 	"time"
-	"github.com/opesun/jsonp"
 	"sort"
 	"path/filepath"
 )
 
 // Insert, and update/delete, by Id.
-// TODO: uni should definitely not be passed here. I think we should create a communication channel of some sort to allow these inner functions to
-// notify the outside world about the happenings. This could be done with some kind of event emitter/receiver, or simply with callbacks... etc,
-// but this "even the deepest parts of the architecture has access to everything" is just plain wrong.
-func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) error {
-	db := uni.Db
+func Inud(db *mgo.Database, dat map[string]interface{}, coll, op, id string) error {
 	var err error
 	if (op == "update" || op == "delete") && len(id) != 24 {
 		if len(id) == 39 {
@@ -53,17 +47,7 @@ func Inud(uni *context.Uni, dat map[string]interface{}, coll, op, id string) err
 		// err = db.C(coll).Find
 		// Not implemented yet.
 	}
-	if err != nil {
-		return err
-	} else {
-		hooks, has := jsonp.Get(uni.Opt, "Hooks." + coll + "." + op)
-		if has {
-			for _, v := range hooks.([]string) {
-				//f := mod.GetHook(
-				fmt.Println(v)
-			}
-		}
-	}
+	// TODO: trigger event.
 	return nil
 }
 
