@@ -3,7 +3,8 @@ package user_model
 import(
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
-	"github.com/opesun/hypecms/model"
+	"github.com/opesun/hypecms/model/basic"
+	ifaces "github.com/opesun/hypecms/interfaces"
 	"fmt"
 )
 
@@ -11,7 +12,7 @@ func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
 	var v interface{}
 	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
 	if v != nil {
-		val, _ := model.Convert(v).(map[string]interface{})
+		val, _ := basic.Convert(v).(map[string]interface{})
 		delete(val, "password")
 		return val, true
 	}
@@ -27,7 +28,7 @@ func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
 	return "", false
 }
 
-func BuildUser(db *mgo.Database, ev model.Event, user_id string) map[string]interface{} {
+func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]interface{} {
 	var user map[string]interface{}
 	var ok bool
 	if len(user_id) > 0 {
@@ -42,7 +43,7 @@ func BuildUser(db *mgo.Database, ev model.Event, user_id string) map[string]inte
 }
 
 // We should call the extract module here, also no name && pass but rather a map[string]interface{} containing all the things.
-func Register(db *mgo.Database, ev model.Event, name, pass string) error {
+func Register(db *mgo.Database, ev ifaces.Event, name, pass string) error {
 	u := bson.M{"name": name, "password": pass}
 	ev.Trigger("user.register", u)
 	err := db.C("users").Insert(u)

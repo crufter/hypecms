@@ -80,7 +80,7 @@ func Ins(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
-	return content_model.Insert(uni.Db, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
+	return content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
@@ -93,7 +93,7 @@ func Upd(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type " + typ[0])
 	}
-	return content_model.Update(uni.Db, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
+	return content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form))
 }
 
 func Del(uni *context.Uni) error {
@@ -101,7 +101,7 @@ func Del(uni *context.Uni) error {
 	if !has {
 		return fmt.Errorf("No id sent from form when deleting content.")
 	}
-	return content_model.Delete(uni.Db, id[0])
+	return content_model.Delete(uni.Db, uni.Ev, id[0])
 }
 
 func minLev(opt map[string]interface{}, op string) int {

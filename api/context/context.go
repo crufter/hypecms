@@ -2,11 +2,11 @@
 package context
 
 import (
+	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/jsonp"
 	"launchpad.net/mgo"
 	"net/http"
 	"strings"
-	"launchpad.net/mgo/bson"
 	"fmt"
 )
 
@@ -79,14 +79,4 @@ func hooknameize(s string) string {
 	return strings.Replace(s, " ", "", -1)
 }
 
-// Convert multiply nested bson.M-s to map[string]interface{}
-// Written by Rog Peppe.
-func Convert(x interface{}) interface{} {
-	if x, ok := x.(bson.M); ok {
-		for key, val := range x {
-			x[key] = Convert(val)
-		}
-		return (map[string]interface{})(x)
-	}
-	return x
-}
+var Convert = basic.Convert

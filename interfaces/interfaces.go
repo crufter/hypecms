@@ -1,6 +1,4 @@
-package model
-
-import "github.com/opesun/hypecms/api/context"
+package interfaces
 
 type Event interface{
 	Param(params ...interface{})
@@ -8,5 +6,6 @@ type Event interface{
 	Trigger(eventname string, params ...interface{})
 }
 
-// Temp hack.
-var Convert = context.Convert
+type View interface{
+	Publish(key string, value ...interface{})
+}
