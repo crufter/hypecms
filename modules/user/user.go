@@ -37,34 +37,12 @@ func Register(uni *context.Uni) error {
 
 func Login(uni *context.Uni) error {
 	// There could be a check here to not log in somebody who is already logged in.
-	name, name_ok := uni.Req.Form["name"]
-	pass, pass_ok := uni.Req.Form["password"]
-	succ := false
-	reason := make([]string, 0)
-	if name_ok && pass_ok && len(name) == 1 && len(pass) == 1 {
-		name_str := name[0]
-		pass_str := pass[0]
-		if id, ok := user_model.FindLogin(uni.Db, name_str, pass_str); ok {
-			c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
-			http.SetCookie(uni.W, c)
-			succ = true
-		} else {
-			reason = append(reason, "cant find user/password combo")
-		}
+	inp := map[string][]string(uni.Req.Form)
+	if _, id, err := user_model.Login(uni.Db, inp); err == nil {
+		c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
+		http.SetCookie(uni.W, c)
 	} else {
-		if !name_ok {
-			reason = append(reason, "no name given")
-		} else if len(name) != 1 {
-			reason = append(reason, "improper name")
-		}
-		if !pass_ok {
-			reason = append(reason, "no pass given")
-		} else if len(pass) != 1 {
-			reason = append(reason, "improper pass")
-		}
-	}
-	if !succ {
-		return fmt.Errorf(reason[0])	// Ugly hack now, because main.handleBacks expects a string, not a []string.
+		return err
 	}
 	return nil
 }

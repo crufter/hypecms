@@ -7,6 +7,16 @@ import(
 	"fmt"
 )
 
+// by Id.
+func Find(db *mgo.Database, coll, id string) map[string]interface{} {
+	var v interface{}
+	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+	if v != nil {
+		return Convert(v).(map[string]interface{})
+	}
+	return nil
+}
+
 // Insert, and update/delete, by Id.
 func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, op, id string) error {
 	var err error

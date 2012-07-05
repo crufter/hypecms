@@ -3,38 +3,59 @@ package user_model
 import(
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
+	"github.com/opesun/extract"
 	"github.com/opesun/hypecms/model/basic"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"fmt"
 )
 
-func FindUser(db *mgo.Database, id string) (map[string]interface{}, bool) {
-	var v interface{}
-	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+func FindUser(db *mgo.Database, id string) (map[string]interface{}, error) {
+	v:= basic.Find(db, "users", id)
 	if v != nil {
-		val, _ := basic.Convert(v).(map[string]interface{})
-		delete(val, "password")
-		return val, true
+		delete(v, "password")
+		return v, nil
 	}
-	return nil, false
+	return nil, fmt.Errorf("Can't find user with id " + id)
 }
 
-func FindLogin(db *mgo.Database, name, encoded_pass string) (string, bool) {
+func NamePass(db *mgo.Database, name, encoded_pass string) (map[string]interface{}, error) {
 	var v interface{}
 	db.C("users").Find(bson.M{"name": name, "password": encoded_pass}).One(&v)
 	if v != nil {
-		return v.(bson.M)["_id"].(bson.ObjectId).Hex(), true
+		return basic.Convert(v).(map[string]interface{}), nil
 	}
-	return "", false
+	return nil, fmt.Errorf("Can't find user/password combo.")
+}
+
+func Login(db *mgo.Database, inp map[string][]string) (map[string]interface{}, string, error) {
+	rule := map[string]interface{}{
+		"name": map[string]interface{}{
+			"must": 1,
+			"type":	"string",
+		},
+		"password": map[string]interface{}{
+			"must": 1,
+			"type": "string",
+		},
+	}
+	d, err := extract.New(rule).Extract(inp)
+	if err != nil {
+		return nil, "", err
+	}
+	user, err := NamePass(db, d["name"].(string), d["password"].(string))
+	if err != nil {
+		return nil, "", err
+	}
+	return user, user["_id"].(bson.ObjectId).Hex(), nil
 }
 
 func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]interface{} {
 	var user map[string]interface{}
-	var ok bool
+	var err error
 	if len(user_id) > 0 {
-		user, ok = FindUser(db, user_id)
+		user, err = FindUser(db, user_id)
 	}
-	if !ok {
+	if err != nil {
 		user = make(map[string]interface{})
 		user["level"] = 0
 	}
@@ -52,4 +73,3 @@ func Register(db *mgo.Database, ev ifaces.Event, name, pass string) error {
 	}
 	return nil
 }
-
