@@ -2,8 +2,8 @@ package basic
 
 import(
 	ifaces "github.com/opesun/hypecms/interfaces"
-	"launchpad.net/mgo/bson"
-	"launchpad.net/mgo"
+	"labix.org/v2/mgo/bson"
+	"labix.org/v2/mgo"
 	"fmt"
 )
 

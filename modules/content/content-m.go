@@ -4,8 +4,8 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/jsonp"
-	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"fmt"
 )
 

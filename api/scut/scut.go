@@ -3,8 +3,8 @@ package scut
 
 import(
 	"fmt"
-	"launchpad.net/mgo/bson"
-	"launchpad.net/mgo"
+	"labix.org/v2/mgo/bson"
+	"labix.org/v2/mgo"
 	"time"
 	"sort"
 	"path/filepath"
@@ -21,7 +21,7 @@ func Strify(v []interface{}) {
 // Called before install and uninstall automatically, and you must call it by hand every time you want to modify the option document.
 func CreateOptCopy(db *mgo.Database) bson.ObjectId {
 	var v interface{}
-	db.C("options").Find(nil).Sort(bson.M{"created": -1}).Limit(1).One(&v)
+	db.C("options").Find(nil).Sort("-created").Limit(1).One(&v)
 	ma := v.(bson.M)
 	ma["_id"] = bson.NewObjectId()
 	ma["created"] = time.Now().Unix()

@@ -4,7 +4,7 @@ package context
 import (
 	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/jsonp"
-	"launchpad.net/mgo"
+	"labix.org/v2/mgo"
 	"net/http"
 	"strings"
 	"fmt"

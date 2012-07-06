@@ -5,7 +5,7 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo/bson"
 	"fmt"
 )
 

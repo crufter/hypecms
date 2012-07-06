@@ -8,7 +8,7 @@ Installation
 If you are running mongo on a different machine or port, modify the values in main.go.
 - Install the next modules into your go environment:
 	* github.com/opesun/hypecms
-	* launchpad.net/mgo
+	* labix.org/v2/mgo
 	* github.com/opesun/extract
 	* github.com/opesun/jsonp
 	* github.com/opesun/require

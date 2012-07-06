@@ -13,7 +13,7 @@ import (
 	"github.com/opesun/hypecms/modules/display"
 	"github.com/opesun/jsonp"
 	"io"
-	"launchpad.net/mgo"
+	"labix.org/v2/mgo"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -257,7 +257,7 @@ func handleConfig(uni *context.Uni, host string) error {
 		delete(uni.Opt, "_id")
 	} else {
 		var res interface{}
-		db.C("options").Find(nil).Sort(m{"created": -1}).Limit(1).One(&res)
+		db.C("options").Find(nil).Sort("-created").Limit(1).One(&res)
 		if res == nil {
 			res = m{}
 			db.C("options").Insert(res)

@@ -4,7 +4,7 @@ import(
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/routep"
 	"github.com/opesun/jsonp"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo/bson"
 	"github.com/opesun/hypecms/api/scut"
 	"encoding/json"
 	"fmt"
@@ -54,7 +54,7 @@ func getSidebar(uni *context.Uni) []string {
 
 func Index(uni *context.Uni) error {
 	var v []interface{}
-	uni.Db.C("contents").Find(nil).Sort(m{"_created":-1}).All(&v)
+	uni.Db.C("contents").Find(nil).Sort("-created").All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
@@ -71,7 +71,7 @@ func List(uni *context.Uni) error {
 		return fmt.Errorf("Can not extract typ at list.")
 	}
 	var v []interface{}
-	uni.Db.C("contents").Find(m{"type":typ}).Sort(m{"_created":-1}).All(&v)
+	uni.Db.C("contents").Find(m{"type":typ}).Sort("-created").All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}

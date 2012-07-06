@@ -7,7 +7,7 @@ import (
 	"github.com/opesun/extract"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo/bson"
 	"fmt"
 	"strings"
 	"encoding/json"

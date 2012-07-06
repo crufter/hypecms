@@ -1,8 +1,8 @@
 package user_model
 
 import(
-	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"github.com/opesun/extract"
 	"github.com/opesun/hypecms/model/basic"
 	ifaces "github.com/opesun/hypecms/interfaces"

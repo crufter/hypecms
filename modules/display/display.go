@@ -116,7 +116,7 @@ func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 			q.Limit(limit.(int))
 		}
 		if sort, sook := v["so"]; sook {
-			q.Sort(jsonp.ToStringSlice(sort))
+			q.Sort(jsonp.ToStringSlice(sort)...)
 		}
 		var res interface{}
 		q.All(&res)
