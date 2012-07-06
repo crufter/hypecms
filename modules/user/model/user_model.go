@@ -66,10 +66,10 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]int
 // We should call the extract module here, also no name && pass but rather a map[string]interface{} containing all the things.
 func Register(db *mgo.Database, ev ifaces.Event, name, pass string) error {
 	u := bson.M{"name": name, "password": pass}
-	ev.Trigger("user.register", u)
 	err := db.C("users").Insert(u)
 	if err != nil {
-		return fmt.Errorf("name is not unique")
+		return fmt.Errorf("Name is not unique.")
 	}
+	ev.Trigger("user.register", u)
 	return nil
 }
