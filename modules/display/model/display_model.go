@@ -6,15 +6,16 @@ import(
 )
 
 // n:		name			string
-// c: 		collection		string	
+// c: 		collection		string
 // q: 		query			map[string]interface{}
 // sk: 		skip			float64 (int in fact)
 // l:		limit			float64 (int in fact)
 //
 // TODO: check for validity of type assertions.
-func RunQueries(db *mgo.Database, queries []map[string]interface{}) map[string]interface{} {
+func RunQueries(db *mgo.Database, queries []interface{}) map[string]interface{} {
 	qs := make(map[string]interface{})
-	for _, v := range queries {
+	for _, z := range queries {
+		v := z.(map[string]interface{})
 		q := db.C(v["c"].(string)).Find(v["q"])
 		if skip, skok := v["sk"]; skok {
 			q.Skip(int(skip.(float64)))
@@ -25,7 +26,7 @@ func RunQueries(db *mgo.Database, queries []map[string]interface{}) map[string]i
 		if sort, sook := v["so"]; sook {
 			q.Sort(jsonp.ToStringSlice(sort)...)
 		}
-		var res interface{}
+		var res []interface{}
 		q.All(&res)
 		qs[v["n"].(string)] = res
 	}

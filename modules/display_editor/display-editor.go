@@ -75,12 +75,24 @@ func Search(uni *context.Uni) error {
 }
 
 func Edit(uni *context.Uni, point_name string) error {
-	point, ok := jsonp.Get(uni.Opt, "Display-points." + point_name)
+	point, ok := jsonp.GetM(uni.Opt, "Display-points." + point_name)
 	if !ok {
 		return fmt.Errorf("Can't find point named ", point_name)
 	}
-	query, _ := json.MarshalIndent(point, "", "    ")
-	uni.Dat["point"] = map[string]interface{}{"name": point_name, "query": query}
+	var queries []interface{}
+	if q, has := point["queries"]; has {
+		queries = q.([]interface{})
+	} else {
+		queries = []interface{}{map[string]interface{}{}}
+	}
+	query_b, err := json.MarshalIndent(queries, "", "    ")
+	var query string
+	if err != nil {
+		query = err.Error()
+	} else {
+		query = string(query_b)
+	}
+	uni.Dat["point"] = map[string]interface{}{"name": point_name, "queries": query}
 	uni.Dat["_points"] = []string{"display_editor/edit"}
 	return nil
 }

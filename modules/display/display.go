@@ -100,12 +100,15 @@ func DisplayFile(uni *context.Uni, filep string) error {
 
 func queryErr(uni *context.Uni) {
 	r := recover()
-	fmt.Println(r)
-	uni.Put("shit happened while running queries")
+	if r != nil {
+		fmt.Println(r)
+		uni.Put("There was an error running the queries: ", r)
+		debug.PrintStack()
+	}
 }
 
 // Runs the queries associated with a given Display Point.
-func runQueries(uni *context.Uni, queries []map[string]interface{}) {
+func runQueries(uni *context.Uni, queries []interface{}) {
 	defer queryErr(uni)
 	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries)
 }
@@ -118,23 +121,23 @@ func DErr(uni *context.Uni, err error) {
 // This is where the module starts if there were no error in the front hook.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
-	var point, filep string		// filep = file path
+	var point string
 	if points_exist {
 		point = points.([]string)[0]
-		queries, queries_exists := jsonp.Get(uni.Opt, "Display-points." + point + ".queries")
-		if queries_exists {
-			qslice, ok := queries.([]map[string]interface{})
-			if ok {
-				runQueries(uni, qslice)
-			}
-		}
-		filep = point
 	} else {
 		p := uni.Req.URL.Path
 		if p == "/" {
-			filep = "index"
+			point = "index"
 		} else {
-			filep = p
+			point = p
+		}
+	}
+	queries, queries_exists := jsonp.Get(uni.Opt, "Display-points." + point + ".queries")
+	if queries_exists {
+		qslice, ok := queries.([]interface{})
+		if ok {
+			fmt.Println(qslice)
+			runQueries(uni, qslice)
 		}
 	}
 	if _, isjson := uni.Req.Form["json"]; isjson {
@@ -146,12 +149,12 @@ func D(uni *context.Uni) {
 		}
 		uni.Put(string(v))
 	} else {
-		err := DisplayFile(uni, filep)
+		err := DisplayFile(uni, point)
 		if err != nil {
-			uni.Dat["missing_file"] = filep
+			uni.Dat["missing_file"] = point
 			err_404 := DisplayFile(uni, "404")
 			if err_404 != nil {
-				uni.Put("Cant find file: ", filep)
+				uni.Put("Cant find file: ", point)
 			}
 		}
 	}

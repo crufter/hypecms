@@ -9,27 +9,24 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/api/mod"
+	"github.com/opesun/hypecms/model/main"
 	"github.com/opesun/hypecms/modules/admin"
 	"github.com/opesun/hypecms/modules/display"
 	"github.com/opesun/jsonp"
-	"io"
 	"labix.org/v2/mgo"
+	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"sync"
 )
 
 const (
 	unfortunate_error			= "An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	cached_opt_inv				= "The cached options string is not a valid JSON." 									// TODO: Maybe we should try to recover from here.
-	cant_unmarshal				= "Can't unmarshal freshly encoded option document."
 	unexported_front			= " module does not export Front hook."
 	unexported_back				= " module does not export Back hook."
 	no_user_module_build_hook	= "user module does not export build hook"
-	cant_encode_config			= "Can't encode config. - No way this should happen anyway."
 	no_module_at_back			= "Tried to run a back hook, but no module was specified."
 	no_action					= "No action specified when accessing module "
 	adminback_no_module			= "No module specified when accessing admin back."
@@ -218,22 +215,6 @@ func runSite(uni *context.Uni) {
 	}
 }
 
-func set(c map[string]string, key, val string) {
-	mut := new(sync.Mutex)
-	mut.Lock()
-	c[key] = val
-	mut.Unlock()
-}
-
-// mutex locked map get
-func has(c map[string]string, str string) (interface{}, bool) {
-	mut := new(sync.Mutex)
-	mut.Lock()
-	v, ok := c[str]
-	mut.Unlock()
-	return v, ok
-}
-
 // Just printing the stack trace to http response if a panic bubbles up all the way to top.
 func err() {
 	if r := recover(); r != nil {
@@ -241,42 +222,6 @@ func err() {
 		Put(unfortunate_error)
 		Put(fmt.Sprint("\n", r, "\n\n"+string(debug.Stack())))
 	}
-}
-
-var cache = make(map[string]string)
-
-func handleConfig(uni *context.Uni, host string) error {
-	db := uni.Db
-	if val, ok := has(cache, host); OPT_CACHE && ok {
-		var v interface{}
-		json.Unmarshal([]byte(val.(string)), &v)
-		if v == nil {
-			return fmt.Errorf(cached_opt_inv)
-		}
-		uni.Opt = v.(map[string]interface{})
-		delete(uni.Opt, "_id")
-	} else {
-		var res interface{}
-		db.C("options").Find(nil).Sort("-created").Limit(1).One(&res)
-		if res == nil {
-			res = m{}
-			db.C("options").Insert(res)
-		}
-		enc, merr := json.Marshal(res)
-		if merr != nil {
-			return fmt.Errorf(cant_encode_config)
-		}
-		str := string(enc)
-		set(cache, host, str)
-		var v interface{}
-		json.Unmarshal([]byte(str), &v)
-		if v == nil {
-			return fmt.Errorf(cant_unmarshal)
-		}
-		uni.Opt = v.(map[string]interface{})
-		delete(uni.Opt, "_id")
-	}
-	return nil
 }
 
 // A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
@@ -297,11 +242,12 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		GetHook:	mod.GetHook,
 	}
 	uni.Ev = context.NewEv(uni)
-	err := handleConfig(uni, req.Host)
+	opt, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)
 	if err != nil {
 		uni.Put(err.Error())
 		return
 	}
+	uni.Opt = opt
 	first_p := uni.Paths[1]
 	last_p := uni.Paths[len(uni.Paths)-1]
 	if SERVE_FILES && strings.Index(last_p, ".") != -1 {
