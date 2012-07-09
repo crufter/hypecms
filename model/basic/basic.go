@@ -5,6 +5,7 @@ import(
 	"labix.org/v2/mgo/bson"
 	"labix.org/v2/mgo"
 	"fmt"
+	"time"
 )
 
 // by Id.
@@ -68,4 +69,30 @@ func Convert(x interface{}) interface{} {
 		return (map[string]interface{})(x)
 	}
 	return x
+}
+
+func CreateCopy(db *mgo.Database, collname, sortfield string) bson.ObjectId {
+	var v interface{}
+	db.C(collname).Find(nil).Sort(sortfield).Limit(1).One(&v)
+	ma := v.(bson.M)
+	ma["_id"] = bson.NewObjectId()
+	ma["created"] = time.Now().Unix()
+	db.C(collname).Insert(ma)
+	return ma["_id"].(bson.ObjectId)
+}
+
+// Called before install and uninstall automatically, and you must call it by hand every time you want to modify the option document.
+func CreateOptCopy(db *mgo.Database) bson.ObjectId {
+	return CreateCopy(db, "options", "-created")
+}
+
+// Calculate missing fields, we compare dat to r.
+func CalcMiss(rule map[string]interface{}, dat map[string]interface{}) []string {
+	missing_fields := []string{}
+	for i, _ := range rule {
+		if _, ex := dat[i]; !ex {
+			missing_fields = append(missing_fields, i)
+		}
+	}
+	return missing_fields
 }

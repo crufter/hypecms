@@ -6,17 +6,18 @@
 package display
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/require"
+	"github.com/opesun/hypecms/modules/display/model"
+	"github.com/opesun/hypecms/api/scut"
 	"html/template"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"runtime/debug"
-	"github.com/opesun/hypecms/api/scut"
+	"encoding/json"
+	"fmt"
 )
 
 func displErr(uni *context.Uni) {
@@ -106,23 +107,7 @@ func queryErr(uni *context.Uni) {
 // Runs the queries associated with a given Display Point.
 func runQueries(uni *context.Uni, queries []map[string]interface{}) {
 	defer queryErr(uni)
-	qs := make(map[string]interface{})
-	for _, v := range queries {
-		q := uni.Db.C(v["c"].(string)).Find(v["q"])
-		if skip, skok := v["sk"]; skok {
-			q.Skip(skip.(int))
-		}
-		if limit, lok := v["l"]; lok {
-			q.Limit(limit.(int))
-		}
-		if sort, sook := v["so"]; sook {
-			q.Sort(jsonp.ToStringSlice(sort)...)
-		}
-		var res interface{}
-		q.All(&res)
-		qs[v["n"].(string)] = res
-	}
-	uni.Dat["queries"] = qs
+	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries)
 }
 
 // This is where the module starts if an error occured in a front hook.

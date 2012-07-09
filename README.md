@@ -2,6 +2,10 @@ HypeCMS
 =======
 A CMS written in Go, using MongoDB as a backend. (Work in progress, heavily.)
 
+Why the name
+=======
+Most people want his blog or web app to be hyped, right?
+
 Installation
 =======
 - A MongoDB server running on the default port 27017. HypeCMS can start with an empty database, it will create everything it needs.

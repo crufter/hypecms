@@ -6,17 +6,13 @@
 package admin
 
 import (
-	"encoding/json"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
-	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/modules/user"
+	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
 	"strings"
-	"time"
 	"runtime/debug"
 	"fmt"
 )
@@ -30,40 +26,26 @@ func adErr(uni *context.Uni) {
 	}
 }
 
-func SiteHasAdmin(db *mgo.Database) bool {
-	var v interface{}
-	db.C("users").Find(m{"level": m{"$gt": 299}}).One(&v)
-	return v != nil
-}
-
-func regUser(db *mgo.Database, post map[string][]string) error {
-	pass, pass_ok := post["password"]
-	pass_again, pass_again_ok := post["password_again"]
-	if !pass_ok || !pass_again_ok || len(pass) < 1 || len(pass_again) < 1 || pass[0] != pass_again[0] {
-		return fmt.Errorf("improper passwords")
-	} else {
-		a := bson.M{"name": "admin", "level": 300, "password": pass[0]}
-		err := db.C("users").Insert(a)
-		if err != nil {
-			return fmt.Errorf("name is not unique")
-		}
-	}
-	return nil
-}
-
 // Registering yourself as admin is possible if the site has no admin yet.
-func RegAdmin(uni *context.Uni) error {
-	if SiteHasAdmin(uni.Db) {
+func RegFirstAdmin(uni *context.Uni) error {
+	if admin_model.SiteHasAdmin(uni.Db) {
 		return fmt.Errorf("site already has an admin")
 	}
-	return regUser(uni.Db, uni.Req.Form)
+	return admin_model.RegAdmin(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+}
+
+func RegAdmin(uni *context.Uni) error {
+	if !requireLev(uni.Dat["_user"], 300) {
+		return fmt.Errorf("No rights")
+	}
+	return admin_model.RegAdmin(uni.Db, uni.Ev, uni.Req.Form)
 }
 
 func RegUser(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights")
 	}
-	return regUser(uni.Db, uni.Req.Form)
+	return admin_model.RegUser(uni.Db, uni.Ev, uni.Req.Form)
 }
 
 func Login(uni *context.Uni) error {
@@ -91,17 +73,7 @@ func SaveConfig(uni *context.Uni) error {
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
 		if len(jsonenc) == 1 {
-			var v interface{}
-			json.Unmarshal([]byte(jsonenc[0]), &v)
-			if v != nil {
-				m := v.(map[string]interface{})
-				// Just in case
-				delete(m, "_id")
-				m["created"] = time.Now().Unix()
-				uni.Db.C("options").Insert(m)
-			} else {
-				return fmt.Errorf("Invalid json.")
-			}
+			admin_model.SaveConfig(uni.Db, uni.Ev, jsonenc[0])
 		} else {
 			return fmt.Errorf("Multiple option strings received.")
 		}
@@ -112,15 +84,9 @@ func SaveConfig(uni *context.Uni) error {
 }
 
 // InstallB handles both installing and uninstalling.
-func InstallB(uni *context.Uni) error {
+func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights")
-	}
-	mode := ""
-	if _, k := uni.Dat["_uninstall"]; k {
-		mode = "uninstall"
-	} else {
-		mode = "install"
 	}
 	ma, err := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
 	if err != nil {
@@ -130,21 +96,19 @@ func InstallB(uni *context.Uni) error {
 	if !has {
 		return fmt.Errorf("No modulename at " + mode)
 	}
-	if _, already := jsonp.Get(uni.Opt, "Modules." + modn); mode == "install" && already {
-		return fmt.Errorf("Module " + modn + " is already installed.")
-	} else if mode == "uninstall" && !already {
-		return fmt.Errorf("Module " + modn + " is not installed.")
-	} else {
-		h := mod.GetHook(modn, strings.Title(mode))
-		uni.Dat["_option_id"] = scut.CreateOptCopy(uni.Db)
-		if h != nil {
-			inst_err := h(uni)
-			if inst_err != nil {
-				return inst_err
-			}
-		} else {
-			return fmt.Errorf("Module " + modn + " does not export the Hook " + mode + ".")
+	obj_id, ierr := admin_model.InstallB(uni.Db, uni.Ev, uni.Opt, modn, mode)
+	if ierr != nil {
+		return ierr
+	}	
+	h := mod.GetHook(modn, strings.Title(mode))
+	uni.Dat["_option_id"] = obj_id
+	if h != nil {
+		inst_err := h(uni)
+		if inst_err != nil {
+			return inst_err
 		}
+	} else {
+		return fmt.Errorf("Module " + modn + " does not export the Hook " + mode + ".")
 	}
 	return nil
 }
@@ -153,8 +117,8 @@ func AB(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
 	var r error
 	switch action {
-	case "regadmin":
-		r = RegAdmin(uni)
+	case "regfirstadmin":
+		r = RegFirstAdmin(uni)
 	case "reguser":
 		r = RegUser(uni)
 	case "adminlogin":
@@ -164,10 +128,9 @@ func AB(uni *context.Uni) error {
 	case "save-config":
 		r = SaveConfig(uni)
 	case "install":
-		r = InstallB(uni)
+		r = InstallB(uni, "install")
 	case "uninstall":
-		uni.Dat["_uninstall"] = true
-		r = InstallB(uni)
+		r = InstallB(uni, "uninstall")
 	default:
 		return fmt.Errorf("Unknown admin action.")
 	}

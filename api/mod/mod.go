@@ -23,7 +23,7 @@ func GetHook(modname string, method string) func(*context.Uni) error {
 	case "display_editor":
 		r = display_editor.Hooks[method]
 	default:								// Such a crucial bug.
-		panic("Unkown module " + modname)
+		panic("mod.Gethook cant find module " + modname)
 	}
 	return r
 }

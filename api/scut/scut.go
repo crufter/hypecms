@@ -4,8 +4,6 @@ package scut
 import(
 	"fmt"
 	"labix.org/v2/mgo/bson"
-	"labix.org/v2/mgo"
-	"time"
 	"sort"
 	"path/filepath"
 )
@@ -16,17 +14,6 @@ func Strify(v []interface{}) {
 	for _, val := range v {
 		val.(bson.M)["_id"] = val.(bson.M)["_id"].(bson.ObjectId).Hex()
 	}
-}
-
-// Called before install and uninstall automatically, and you must call it by hand every time you want to modify the option document.
-func CreateOptCopy(db *mgo.Database) bson.ObjectId {
-	var v interface{}
-	db.C("options").Find(nil).Sort("-created").Limit(1).One(&v)
-	ma := v.(bson.M)
-	ma["_id"] = bson.NewObjectId()
-	ma["created"] = time.Now().Unix()
-	db.C("options").Insert(ma)
-	return ma["_id"].(bson.ObjectId)
 }
 
 // A more generic version of abcKeys. Takes a map[string]interface{} and puts every element of that into an []interface{}, ordered by keys alphabetically.
@@ -117,15 +104,4 @@ func GetTPath(opt map[string]interface{}) string {
 	templ := TemplateName(opt)
 	ttype := TemplateType(opt)
 	return filepath.Join("templates", ttype, templ)
-}
-
-// Calculate missing fields, we compare dat to r.
-func CalcMiss(rule map[string]interface{}, dat map[string]interface{}) []string {
-	missing_fields := []string{}
-	for i, _ := range rule {
-		if _, ex := dat[i]; !ex {
-			missing_fields = append(missing_fields, i)
-		}
-	}
-	return missing_fields
 }

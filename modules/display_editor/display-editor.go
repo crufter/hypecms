@@ -3,8 +3,7 @@ package display_editor
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/scut"
-	"github.com/opesun/extract"
+	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
@@ -14,8 +13,6 @@ import (
 	"sort"
 )
 
-type m map[string]interface{}
-
 var Hooks = map[string]func(*context.Uni) error {
 	"Back":      Back,
 	"Install":   Install,
@@ -24,30 +21,14 @@ var Hooks = map[string]func(*context.Uni) error {
 	"AD":        AD,
 }
 
+type m map[string]interface{}
+
 func New(uni *context.Uni) error {
-	name_sl, hn := uni.Req.Form["name"]
-	if !hn {
-		return fmt.Errorf("Can't save new display point: no name specified.")
-	}
-	name := name_sl[0]
-	id := scut.CreateOptCopy(uni.Db)
-	err := uni.Db.C("options").Update(m{"_id":id}, m{"$set":m{ "Display-points." + name: m{}}})
-	return err
+	return display_editor_model.New(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
 }
 
 func Save(uni *context.Uni) error {
-	rule := map[string]interface{}{"name":1, "prev_name":1, "queries":1}
-	r := extract.New(rule)
-	dat, err := r.ExtractForm(uni.Req.Form)
-	if err != nil {
-		return err
-	}
-	if len(dat) != len(rule) {
-		return fmt.Errorf("Missing fields:", scut.CalcMiss(rule, dat))
-	}
-	id := scut.CreateOptCopy(uni.Db)
-	err = uni.Db.C("options").Update(m{"_id":id}, m{"$set":m{ "Display-points." + dat["name"].(string): dat}})
-	return err
+	return display_editor_model.Save(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
 }
 
 func Back(uni *context.Uni) error {

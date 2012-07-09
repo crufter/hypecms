@@ -8,6 +8,7 @@ import(
 	"path/filepath"
 	"encoding/json"
 	"github.com/opesun/hypecms/api/mod"
+	"github.com/opesun/hypecms/modules/admin/model"
 	"sort"
 	"fmt"
 )
@@ -84,7 +85,7 @@ func AD(uni *context.Uni) error {
 	defer adErr(uni)
 	var err error
 	if lev, k := jsonp.Get(uni.Dat, "_user.level"); k == false || lev.(int) < 300 {
-		if SiteHasAdmin(uni.Db) {
+		if admin_model.SiteHasAdmin(uni.Db) {
 			uni.Dat["_points"] = []string{"admin/login"}
 		} else {
 			uni.Dat["_points"] = []string{"admin/regadmin"}
