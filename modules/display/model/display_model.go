@@ -3,6 +3,7 @@ package display_model
 import(
 	"labix.org/v2/mgo"
 	"github.com/opesun/jsonp"
+	"github.com/opesun/hypecms/model/basic"
 )
 
 // n:		name			string
@@ -29,6 +30,10 @@ func RunQueries(db *mgo.Database, queries []interface{}) map[string]interface{} 
 		var res []interface{}
 		q.All(&res)
 		qs[v["n"].(string)] = res
+	}
+	for i, _ := range qs {
+		qs[i] = basic.Convert(qs[i]).([]interface{})
+		basic.IdsToStrings(qs[i])
 	}
 	return qs
 }

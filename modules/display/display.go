@@ -59,7 +59,7 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
 		t, _ := template.New("template_name").Parse(string(file))
-		_ = t.Execute(uni.W, uni.Dat)
+		t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 		return nil
 	}
 	return fmt.Errorf("cant find template file ", `"`, filep, `"`)
@@ -76,7 +76,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
 				t, _ := template.New("template_name").Parse(string(file))
-				_ = t.Execute(uni.W, uni.Dat)
+				t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 				return nil
 			}
 			return fmt.Errorf("cant find fallback template file ", `"`, filep, `"`)
@@ -136,7 +136,6 @@ func D(uni *context.Uni) {
 	if queries_exists {
 		qslice, ok := queries.([]interface{})
 		if ok {
-			fmt.Println(qslice)
 			runQueries(uni, qslice)
 		}
 	}

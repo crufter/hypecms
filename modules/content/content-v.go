@@ -6,6 +6,7 @@ import(
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/modules/content/model"
 	"encoding/json"
 	"fmt"
 )
@@ -29,8 +30,25 @@ func Front(uni *context.Uni) error {
 		return nil
 	}
 	m, err := routep.Comp("/{slug}", uni.P)
-	if err == nil {
-		content, found := FindContent(uni.Db, "slug", m["slug"])
+	if err == nil && len(m["slug"]) > 0 {
+		types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
+		if !ok {
+			return nil
+		}
+		slug_keymap := map[string]struct{}{}
+		for _, v := range types.(map[string]interface{}) {
+			type_conf := v.(map[string]interface{})
+			if slugval, has := type_conf["slug"]; has {
+				slug_keymap[slugval.(string)] = struct{}{}
+			} else {
+				slug_keymap["_id"] = struct{}{}
+			}
+		}
+		slug_keys := []string{}
+		for i, _ := range slug_keymap {
+			slug_keys = append(slug_keys, i)
+		}
+		content, found := content_model.FindContent(uni.Db, slug_keys, m["slug"])
 		if found {
 			uni.Dat["_hijacked"] = true
 			uni.Dat["_points"] = []string{"content"}

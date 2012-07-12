@@ -73,7 +73,7 @@ func SaveConfig(uni *context.Uni) error {
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
 		if len(jsonenc) == 1 {
-			admin_model.SaveConfig(uni.Db, uni.Ev, jsonenc[0])
+			return admin_model.SaveConfig(uni.Db, uni.Ev, jsonenc[0])
 		} else {
 			return fmt.Errorf("Multiple option strings received.")
 		}

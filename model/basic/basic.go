@@ -59,16 +59,47 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 	return nil
 }
 
-// Convert multiply nested bson.M-s to map[string]interface{}
-// Written by Rog Peppe.
 func Convert(x interface{}) interface{} {
-	if x, ok := x.(bson.M); ok {
-		for key, val := range x {
-			x[key] = Convert(val)
+	if y, ok := x.(bson.M); ok {
+		for key, val := range y {
+			y[key] = Convert(val)
 		}
-		return (map[string]interface{})(x)
+		return (map[string]interface{})(y)
+	} else if z, ok := x.([]interface{}); ok {
+		for i, v := range z {
+			z[i] = Convert(v)
+		}
 	}
 	return x
+}
+
+func convertMapId(x map[string]interface{}) {
+	if id, has_id := x["_id"]; has_id {
+		x["_id"] = id.(bson.ObjectId).Hex()
+	}
+}
+
+// Used in views, where we dont want to show display ObjectIdHex("ab889d8ec889") but rather "ab889d8ec889".
+// x must be a result map[string]interface{} or result []interface{}
+func IdsToStrings(x interface{}) {
+	if ma, ok := x.(map[string]interface{}); ok {
+		convertMapId(ma)
+	} else if ma_sl, sl_ok := x.([]interface{}); sl_ok {
+		for _, v := range ma_sl {
+			convertMapId(v.(map[string]interface{}))
+		}
+	} else {
+		panic("Wrong input for IdsToString.")
+	}
+}
+
+// Takes a query map and converts the "_id" member of it from string to bson.ObjectId
+func StringToId(query map[string]interface{}) {
+	if id_i, has := query["_id"]; has {
+		if id_s, is_str := id_i.(string); is_str {
+			query["_id"] = bson.ObjectIdHex(id_s)
+		}
+	}
 }
 
 func CreateCopy(db *mgo.Database, collname, sortfield string) bson.ObjectId {
@@ -95,4 +126,55 @@ func CalcMiss(rule map[string]interface{}, dat map[string]interface{}) []string 
 		}
 	}
 	return missing_fields
+}
+
+// Kind of an extension of the extract module.
+// Handles author fields 	(created_by, last_modified_by),
+// And time fields			(created, last_modified)
+func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user_id bson.ObjectId) {
+	var inserting, updating bool
+	if _, has_id := dat["id"]; has_id {
+		updating = true
+	} else {
+		inserting = true
+	}
+	for i, _ := range rule {
+		switch i {
+		case "created_by":
+			if inserting {
+				dat[i] = user_id
+			}
+		case "last_modified_by":
+			if updating {
+				dat[i] = user_id
+			}
+		case "created":
+			if inserting {
+				dat[i] = time.Now()
+			}
+		case "last_modified":
+			if updating {
+				dat[i] = time.Now()
+			}
+		}
+	}
+}
+
+func ExtractIds(dat map[string][]string, keys []string) ([]string, error) {
+	ret := []string {}
+	for _, v := range keys {
+		id_s, has_id_s := dat[v]
+		if !has_id_s {
+			return nil, fmt.Errorf(v, " id is not found.")
+		}
+		id := id_s[0]
+		if len(id) == 24 {
+			ret = append(ret, v)
+		} else if len(id) == 39 {
+			ret = append(ret, id[13:37])
+		} else {
+			return nil, fmt.Errorf(v, " is not a proper id.")
+		}
+	}
+	return ret, nil
 }
