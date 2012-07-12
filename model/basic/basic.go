@@ -32,7 +32,9 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 	case "insert":
 		err = db.C(coll).Insert(dat)
 	case "update":
-		err = db.C(coll).Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": dat})
+		q := bson.M{"_id": bson.ObjectIdHex(id)}
+		upd := bson.M{"$set": dat}
+		err = db.C(coll).Update(q, upd)
 	case "delete":
 		var v interface{}
 		err = db.C(coll).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
@@ -43,11 +45,13 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 			return err
 		}
 		// Transactions would not hurt here, but maybe we can get away with upserts.
-		_, err = db.C(coll + "_deleted").Upsert(bson.M{"_id": bson.ObjectIdHex(id)}, v)
+		q := bson.M{"_id": bson.ObjectIdHex(id)}
+		_, err = db.C(coll + "_deleted").Upsert(q, v)
 		if err != nil {
 			return err
 		}
-		err = db.C(coll).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+		q = bson.M{"_id": bson.ObjectIdHex(id)}
+		err = db.C(coll).Remove(q)
 		if err != nil {
 			return err
 		}
