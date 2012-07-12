@@ -160,6 +160,10 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 	}
 }
 
+func StripId(str_id string) string {
+	return str_id[13:37]
+}
+
 func ExtractIds(dat map[string][]string, keys []string) ([]string, error) {
 	ret := []string {}
 	for _, v := range keys {

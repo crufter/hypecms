@@ -105,35 +105,26 @@ func Del(uni *context.Uni) error {
 }
 
 // Defaults to 100.
-func AllowsComment(opt map[string]interface{}, inp map[string][]string, user_level int) (string, error) {
+func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int) (string, error) {
 	typ, has_typ := inp["type"]
 	if !has_typ {
-		return "", fmt.Errorf("No content type sent when commenting.")
+		return "", fmt.Errorf("Can't find type when commenting.")
 	}
-	cont_opt, has := jsonp.Get(opt, "Modules.content.types." + typ[0])
+	cont_opt, has := jsonp.GetM(uni.Opt, "Modules.content.types." + typ[0])
 	if !has {
 		return "", fmt.Errorf("Can't find options for content type " + typ[0])
 	}
-	var clen int
-	if lev, has := cont_opt.(map[string]interface{})["_comment_level"]; has {
-		clen = int(lev.(float64))
-	} else {
-		clen = 100
-	}
-	var err error
-	if clen > user_level {
-		err = fmt.Errorf("You have no rights to comment.")
-	}
+	err := content_model.AllowsComment(uni.Db, inp, cont_opt, uni.Dat["_user"].(map[string]interface{})["_id"].(bson.ObjectId), user_level)
 	return typ[0], err
 }
 
 func InsertComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	typ, allow_err := AllowsComment(uni.Opt, inp, uLev(uni.Dat["_user"].(map[string]interface{})))
+	typ, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
-	rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
+	comment_rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
 	}
@@ -141,16 +132,16 @@ func InsertComment(uni *context.Uni) error {
 	if !has_uid {
 		return fmt.Errorf("Can't insert comment, you have no id.")
 	}
-	return content_model.InsertComment(uni.Db, uni.Ev, rule, inp, uid.(bson.ObjectId))
+	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId))
 }
 
 func UpdateComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	typ, allow_err := AllowsComment(uni.Opt, inp, uLev(uni.Dat["_user"].(map[string]interface{})))
+	typ, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
-	rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
+	comment_rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
 	}
@@ -158,12 +149,12 @@ func UpdateComment(uni *context.Uni) error {
 	if !has_uid {
 		return fmt.Errorf("Can't update comment, you have no id.")
 	}
-	return content_model.UpdateComment(uni.Db, uni.Ev, rule, inp, uid.(bson.ObjectId))
+	return content_model.UpdateComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId))
 }
 
 func DeleteComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	_, allow_err := AllowsComment(uni.Opt, inp, uLev(uni.Dat["_user"].(map[string]interface{})))
+	_, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
@@ -174,10 +165,11 @@ func DeleteComment(uni *context.Uni) error {
 	return content_model.DeleteComment(uni.Db, uni.Ev, inp, uid.(bson.ObjectId))
 }
 
-func uLev(user map[string]interface{}) int {
-	if user == nil {
+func uLev(useri interface{}) int {
+	if useri == nil {
 		return 0
 	}
+	user := useri.(map[string]interface{})
 	ulev, has := user["level"]
 	if !has {
 		return 0

@@ -9,6 +9,47 @@ import(
 	"fmt"
 )
 
+func AllowsComment(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int) error {
+	rule := map[string]interface{}{
+		"content_id": 	1,
+		"comment_id":	1,
+	}
+	dat, ex_err := extract.New(rule).Extract(inp)
+	if ex_err != nil {
+		return ex_err
+	}
+	var inserting bool
+	if len(dat) == 1 {
+		inserting = true
+	}
+	var req_len int
+	if lev, has_lev := content_options["_comment_level"]; has_lev {
+		req_len = int(lev.(float64))
+	} else {
+		req_len = 100
+	}
+	if req_len > user_level {
+		return fmt.Errorf("You have no rights to comment.")
+	}
+	// Even if he has the required level, and he is below level 200 (not a moderator), he can't modify other people's comment, only his owns.
+	// So we query here the comment and check who is the owner of it.
+	if req_len < 200 && !inserting {
+		if len(dat) < 2 {
+			return fmt.Errorf("Missing fields ", basic.CalcMiss(rule, dat))
+		}
+		comm, find_err := FindComment(db, basic.StripId(dat["content_id"].(string)), basic.StripId(dat["comment_id"].(string)))
+		if find_err != nil {
+			return find_err
+		}
+		if owner, has_owner := comm["created_by"].(bson.ObjectId); has_owner {		// If has no owner, we are like "okay, do whatever you want..." for now.
+			if owner.Hex() != user_id.Hex() {
+				return fmt.Errorf("You are not the rightous owner of the comment.")
+			}
+		}
+	}
+	return nil
+}
+
 func Find(db *mgo.Database, content_id string) {
 	
 }
@@ -121,4 +162,16 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 		return nil, false
 	}
 	return basic.Convert(v).(map[string]interface{}), true
+}
+
+func FindComment(db *mgo.Database, content_id, comment_id string) (map[string]interface{}, error) {
+	var v interface{}
+	err := db.C("content").Find(bson.M{"_id": bson.ObjectIdHex(content_id), "comments.comment_id": bson.ObjectIdHex(comment_id)}).One(&v)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, fmt.Errorf("Can't find comment with content id %s, and comment id %s", content_id, comment_id)
+	}
+	return v.(map[string]interface{}), nil
 }
