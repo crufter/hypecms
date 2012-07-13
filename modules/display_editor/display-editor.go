@@ -31,6 +31,10 @@ func Save(uni *context.Uni) error {
 	return display_editor_model.Save(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
 }
 
+func Delete(uni *context.Uni) error {
+	return display_editor_model.Delete(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+}
+
 func Back(uni *context.Uni) error {
 	action := uni.Dat["_action"].(string)
 	var err error
@@ -39,6 +43,8 @@ func Back(uni *context.Uni) error {
 		err = New(uni)
 	case "save":
 		err = Save(uni)
+	case "delete":
+		err = Delete(uni)
 	default:
 		return fmt.Errorf("Unkown display_editor action.")
 	}

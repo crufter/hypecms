@@ -21,7 +21,13 @@ func New(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 	}
 	name := name_sl[0]
 	id := basic.CreateOptCopy(db)
-	return db.C("options").Update(m{"_id":id}, m{"$set":m{ "Display-points." + name: m{}}})
+	q := m{"_id": id}
+	upd := m{
+		"$set": m{
+			"Display-points." + name: m{},
+		},
+	}
+	return db.C("options").Update(q, upd)
 }
 
 // Updates an existing display point. We warn if an unkown key is sent too.
@@ -64,10 +70,33 @@ func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 			}
 		}
 	}
-	db_mod := m{"$set":m{ "Display-points." + dat["name"].(string) + ".queries": que_s}}
+	upd := m{
+		"$set":m{
+			"Display-points." + dat["name"].(string) + ".queries": que_s,
+		},
+	}
 	if dat["name"].(string) != dat["prev_name"].(string) {
-		db_mod["$unset"] = m{"Display-points." + dat["prev_name"].(string) + ".queries": 1}
+		upd["$unset"] = m{
+			"Display-points." + dat["prev_name"].(string) + ".queries": 1,
+		}
 	}
 	id := basic.CreateOptCopy(db)
-	return db.C("options").Update(m{"_id":id}, db_mod)
+	q := m{"_id":id}
+	return db.C("options").Update(q, upd)
+}
+
+func Delete(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
+	name_sl, hn := inp["name"]
+	if !hn {
+		return fmt.Errorf("Can't delete display point: no name specified.")
+	}
+	name := name_sl[0]
+	id := basic.CreateOptCopy(db)
+	q := m{"_id":id}
+	upd := m{
+		"$unset": m{
+			"Display-points." + name: 1,
+		},
+	}
+	return db.C("options").Update(q, upd)
 }
