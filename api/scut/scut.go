@@ -34,7 +34,9 @@ func OrderKeys(d map[string]interface{}) []interface{} {
 	}
 	return ret
 }
-
+// TODO: ret should contain the rules, so we can display/js validate based on them too.
+// Extract module should be modified to not blow up when encountering an unkown rule field, so we can embed metainformation (like text or input, WYSIWYG editor, etc) in the rule too.
+//
 // Takes a dat map[string]interface{}, and puts every element of that which is defined in r to a slice, sorted by the keys ABC order.
 // prior parameter can override the default abc ordering, so keys in prior will be the first ones in the slice, if those keys exist.
 func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []string) []map[string]interface{} {
@@ -51,8 +53,11 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 		}
 	}
 	keys := []string{}
-	for i, _ := range rule {
-		keys = append(keys, i)
+	for i, v := range rule {
+		// If the value is not false
+		if boo, is_boo := v.(bool); !is_boo || boo == true {
+			keys = append(keys, i)
+		}
 	}
 	sort.Strings(keys)
 	for _, v := range keys {
