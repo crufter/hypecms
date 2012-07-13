@@ -5,30 +5,35 @@ import(
 	"labix.org/v2/mgo/bson"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/extract"
+	"github.com/opesun/jsonp"
 	"github.com/opesun/hypecms/model/basic"
 	"fmt"
 )
 
+func commentRequiredLevel(content_options map[string]interface{}) int {
+	var req_lev int
+	if lev, has_lev := content_options["comment_level"]; has_lev {
+		req_lev = int(lev.(float64))
+	} else {
+		req_lev = 100
+	}
+	return req_lev
+}
+
+// TODO: it's op independent now.
 func AllowsComment(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int) error {
 	rule := map[string]interface{}{
 		"content_id": 	1,
 		"comment_id":	1,
 	}
 	dat, ex_err := extract.New(rule).Extract(inp)
-	if ex_err != nil {
-		return ex_err
-	}
+	if ex_err != nil { return ex_err }
 	var inserting bool
 	if len(dat) == 1 {
 		inserting = true
 	}
-	var req_len int
-	if lev, has_lev := content_options["_comment_level"]; has_lev {
-		req_len = int(lev.(float64))
-	} else {
-		req_len = 100
-	}
-	if req_len > user_level {
+	req_lev := commentRequiredLevel(content_options)
+	if req_lev > user_level {
 		return fmt.Errorf("You have no rights to comment.")
 	}
 	// Even if he has the required level, and he is below level 200 (not a moderator), he can't modify other people's comment, only his owns.
@@ -37,7 +42,7 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 		if len(dat) < 2 {
 			return fmt.Errorf("Missing fields ", basic.CalcMiss(rule, dat))
 		}
-		auth, find_err := FindCommentAuthor(db, basic.StripId(dat["content_id"].(string)), basic.StripId(dat["comment_id"].(string)))
+		auth, find_err := findCommentAuthor(db, basic.StripId(dat["content_id"].(string)), basic.StripId(dat["comment_id"].(string)))
 		if find_err != nil {
 			return find_err
 		}
@@ -48,8 +53,72 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 	return nil
 }
 
-func Find(db *mgo.Database, content_id string) {
-	
+// Precedence: type && op, type, op, all
+func requiredLevel(content_options map[string]interface{}, typ, op string) int {
+	type_op_lev, has := jsonp.Get(content_options, "types." + typ + "." + op + "_level")
+	if has {
+		return int(type_op_lev.(float64))
+	}
+	type_lev, has := jsonp.Get(content_options, "types." + typ + ".level")
+	if has {
+		return int(type_lev.(float64))
+	}
+	lev, has := content_options["level"]
+	if has {
+		return int(lev.(float64))
+	}
+	return 300
+}
+
+// op is insert/update/delete
+func AllowsContent(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int, op string) error {
+	rule := map[string]interface{}{
+		"type": "must",
+		"id": "must",
+	}
+	dat, ex_err := extract.New(rule).Extract(inp)
+	if ex_err != nil { return ex_err }
+	var inserting bool
+	if len(dat["id"].(string)) == 0 {
+		inserting = true
+	}
+	req_lev := requiredLevel(content_options, dat["type"].(string), op)
+	if req_lev > user_level {
+		return fmt.Errorf("You have no rights to manage contents.")
+	}
+	if user_level < 200 && !inserting {
+		auth, find_err := findContentAuthor(db, basic.StripId(dat["_id"].(string)))
+		if find_err != nil { return find_err }
+		if auth.Hex() != user_id.Hex() {
+			return fmt.Errorf("You are not the rightous owner of the content.")
+		}
+	}
+	return nil
+}
+
+// returns nil if not found
+func find(db *mgo.Database, content_id string) map[string]interface{} {
+	if len(content_id) != 24 { return nil }
+	q := bson.M{
+		"_id": bson.ObjectIdHex(content_id),
+	}
+	var v interface{}
+	err := db.C("contents").Find(q).One(&v)
+	if err != nil { return nil }
+	if v == nil { return nil }
+	return v.(map[string]interface{})
+}
+
+func findContentAuthor(db *mgo.Database, content_id string) (bson.ObjectId, error) {
+	cont := find(db, content_id)
+	if cont == nil {
+		return "", fmt.Errorf("Content not found.")
+	}
+	auth, has := cont["created_by"]
+	if !has {
+		return "", fmt.Errorf("Content has no author.")
+	}
+	return auth.(bson.ObjectId), nil
 }
 
 func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) error {
@@ -158,7 +227,8 @@ func DeleteComment(db *mgo.Database, ev ifaces.Event, inp map[string][]string, u
 	return db.C("contents").Update(q, upd)
 }
 
-// Find slug value be given key.
+// Called from Front hook.
+// Find slug value by given key.
 func FindContent(db *mgo.Database, keys []string, val string) (map[string]interface{}, bool) {
 	query := bson.M{}
 	if len(keys) == 0 {
@@ -188,7 +258,7 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 	return basic.Convert(v).(map[string]interface{}), true
 }
 
-func FindComment(db *mgo.Database, content_id, comment_id string) (map[string]interface{}, error) {
+func findComment(db *mgo.Database, content_id, comment_id string) (map[string]interface{}, error) {
 	var v interface{}
 	q := bson.M{
 		"_id": bson.ObjectIdHex(content_id),
@@ -223,8 +293,8 @@ func FindComment(db *mgo.Database, content_id, comment_id string) (map[string]in
 	return nil, fmt.Errorf("Comment not found.")
 }
 
-func FindCommentAuthor(db *mgo.Database, content_id, comment_id string) (bson.ObjectId, error) {
-	comment, err := FindComment(db, content_id, comment_id)
+func findCommentAuthor(db *mgo.Database, content_id, comment_id string) (bson.ObjectId, error) {
+	comment, err := findComment(db, content_id, comment_id)
 	if err != nil { return "", err }
 	author, has := comment["created_by"]
 	if !has {

@@ -57,51 +57,53 @@ func SaveConfig(uni *context.Uni) error {
 	return nil
 }
 
+func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
+	typ_s, hastype := uni.Req.Form["type"]
+	if !hastype {
+		return "", "", fmt.Errorf("No type when doing content op %v.", op)
+	}
+	typ := typ_s[0]
+	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
+	if !has_uid {
+		return "", typ, fmt.Errorf("Can't %v content, you have no id.", op)
+	}
+	type_opt, _ := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
+	allowed_err := content_model.AllowsContent(uni.Db, map[string][]string(uni.Req.Form), type_opt, uid.(bson.ObjectId), uLev(uni.Dat["_user"]), op)
+	if allowed_err != nil { return "", typ, allowed_err }
+	return uid.(bson.ObjectId), typ, nil
+}
+
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Ins(uni *context.Uni) error {
-	typ, hastype := uni.Req.Form["type"]
-	if !hastype {
-		return fmt.Errorf("No type when inserting content.")
-	}
-	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
+	uid, typ, prep_err := prepareOp(uni, "insert")
+	if prep_err != nil { return prep_err }
+	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !hasrule {
-		return fmt.Errorf("Can't find content type rules " + typ[0])
+		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
-	if !has_uid {
-		return fmt.Errorf("Can't insert content, you have no id.")
-	}
-	return content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid.(bson.ObjectId))
+	return content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Upd(uni *context.Uni) error {
-	typ, hastype := uni.Req.Form["type"]
-	if !hastype {
-		return fmt.Errorf("No type when inserting content.")
-	}
-	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ[0] + ".rules")
+	uid, typ, prep_err := prepareOp(uni, "insert")
+	if prep_err != nil { return prep_err }
+	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !hasrule {
-		return fmt.Errorf("Can't find content type rules " + typ[0])
+		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
-	if !has_uid {
-		return fmt.Errorf("Can't update content, you have no id.")
-	}
-	return content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid.(bson.ObjectId))
+	return content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
 }
 
 func Del(uni *context.Uni) error {
+	uid, _, prep_err := prepareOp(uni, "insert")
+	if prep_err != nil { return prep_err }
 	id, has := uni.Req.Form["id"]
 	if !has {
 		return fmt.Errorf("No id sent from form when deleting content.")
 	}
-	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
-	if !has_uid {
-		return fmt.Errorf("Can't update content, you have no id.")
-	}
-	return content_model.Delete(uni.Db, uni.Ev, id, uid.(bson.ObjectId))[0]	// HACK for now.
+	return content_model.Delete(uni.Db, uni.Ev, id, uid)[0]	// HACK for now.
 }
 
 // Defaults to 100.
