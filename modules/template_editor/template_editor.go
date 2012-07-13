@@ -96,13 +96,25 @@ func Install(uni *context.Uni) error {
 	template_editor_options := m{
 		// "example": "any value",
 	}
-	return uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "template_editor"}, "$set": m{"Modules.template_editor": template_editor_options}})
+	q := m{"_id": id}
+	upd := m{
+		"$set": m{
+			"Modules.template_editor": template_editor_options,
+		},
+	}
+	return uni.Db.C("options").Update(q, upd)
 }
 
 // Admin Install invokes this trough mod.GetHook.
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	return uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "template_editor"}, "$unset": m{"Modules.template_editor": 1}})
+	q := m{"_id": id}
+	upd := m{
+		"$unset": m{
+			"Modules.template_editor": 1,
+		},
+	}
+	return uni.Db.C("options").Update(q, upd)
 }
 
 // main.runDebug invokes this trough mod.GetHook.

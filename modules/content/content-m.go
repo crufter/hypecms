@@ -39,12 +39,30 @@ func Install(uni *context.Uni) error {
 			},
 		},
 	}
-	return uni.Db.C("options").Update(m{"_id": id}, m{"$addToSet": m{"Hooks.Front": "content"}, "$set": m{"Modules.content": content_options}})
+	q := m{"_id": id}
+	upd := m{
+		"$addToSet": m{
+			"Hooks.Front": "content",
+		},
+		"$set": m{
+			"Modules.content": content_options,
+		},
+	}
+	return uni.Db.C("options").Update(q, upd)
 }
 
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	return uni.Db.C("options").Update(m{"_id": id}, m{"$pull": m{"Hooks.Front": "content"}, "$unset": m{"Modules.content": 1}})
+	q := m{"_id": id}
+	upd := m{
+		"$pull": m{
+			"Hooks.Front": "content",
+		},
+		"$unset": m{
+			"Modules.content": 1,
+		},
+	}
+	return uni.Db.C("options").Update(q, upd)
 }
 
 func SaveTypeConfig(uni *context.Uni) error {
