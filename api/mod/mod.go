@@ -7,6 +7,7 @@ import (
 	"github.com/opesun/hypecms/modules/skeleton"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/hypecms/modules/display_editor"
+	"github.com/opesun/hypecms/modules/template_editor"
 )
 
 func GetHook(modname string, method string) func(*context.Uni) error {
@@ -22,6 +23,8 @@ func GetHook(modname string, method string) func(*context.Uni) error {
 		r = skeleton.Hooks[method]
 	case "display_editor":
 		r = display_editor.Hooks[method]
+	case "template_editor":
+		r = template_editor.Hooks[method]
 	default:								// Such a crucial bug.
 		panic("mod.Gethook cant find module " + modname)
 	}
