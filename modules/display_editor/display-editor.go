@@ -129,24 +129,10 @@ func AD(uni *context.Uni) error {
 
 func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	display_editor_options := m{
-	}
-	q := m{"_id": id}
-	upd := m{
-		"$set": m{
-			"Modules.display_editor": display_editor_options,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return display_editor_model.Install(uni.Db, id)
 }
 
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	q := m{"_id": id}
-	upd := m{
-		"$unset": m{
-			"Modules.display_editor": 1,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return display_editor_model.Uninstall(uni.Db, id)
 }

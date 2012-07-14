@@ -11,6 +11,8 @@ import(
 	"fmt"
 )
 
+type m map[string]interface{}
+
 func Front(uni *context.Uni) error {
 	ed, ed_err := routep.Comp("/admin/content/edit/{type}/{id}", uni.P)
 	if ed_err == nil {

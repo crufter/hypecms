@@ -11,10 +11,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"github.com/opesun/hypecms/modules/template_editor/model"
 )
-
-// Create a type only to spare ourselves from typing map[string]interface{} every time.
-type m map[string]interface{}
 
 // mod.GetHook accesses certain functions dynamically trough this.
 var Hooks = map[string]func(*context.Uni) error {
@@ -107,28 +105,13 @@ func AD(uni *context.Uni) error {
 // admin.Install invokes this trough mod.GetHook.
 func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	template_editor_options := m{
-		// "example": "any value",
-	}
-	q := m{"_id": id}
-	upd := m{
-		"$set": m{
-			"Modules.template_editor": template_editor_options,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return template_editor_model.Install(uni.Db, id)
 }
 
 // Admin Install invokes this trough mod.GetHook.
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	q := m{"_id": id}
-	upd := m{
-		"$unset": m{
-			"Modules.template_editor": 1,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return template_editor_model.Uninstall(uni.Db, id)
 }
 
 // main.runDebug invokes this trough mod.GetHook.
