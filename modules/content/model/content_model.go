@@ -10,6 +10,8 @@ import(
 	"fmt"
 )
 
+type m map[string]interface{}
+
 func commentRequiredLevel(content_options map[string]interface{}) int {
 	var req_lev int
 	if lev, has_lev := content_options["comment_level"]; has_lev {
@@ -301,4 +303,37 @@ func findCommentAuthor(db *mgo.Database, content_id, comment_id string) (bson.Ob
 		return "", fmt.Errorf("Given content has no author.")
 	}
 	return author.(bson.ObjectId), nil
+}
+func Install(db *mgo.Database, id bson.ObjectId) error {
+	content_options := m{
+		"types": m {
+			"blog": m{
+				"rules" : m{
+					"title": 1, "slug":1, "content": 1,
+				},
+			},
+		},
+	}
+	q := m{"_id": id}
+	upd := m{
+		"$addToSet": m{
+			"Hooks.Front": "content",
+		},
+		"$set": m{
+			"Modules.content": content_options,
+		},
+	}
+	return db.C("options").Update(q, upd)
+}
+func Uninstall(db *mgo.Database, id bson.ObjectId) error {
+	q := m{"_id": id}
+	upd := m{
+		"$pull": m{
+			"Hooks.Front": "content",
+		},
+		"$unset": m{
+			"Modules.content": 1,
+		},
+	}
+	return db.C("options").Update(q, upd)
 }
