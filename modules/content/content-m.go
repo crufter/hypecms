@@ -9,8 +9,6 @@ import (
 	"fmt"
 )
 
-type m map[string]interface{}
-
 var Hooks = map[string]func(*context.Uni) error {
 	"AD":        AD,
 	"Front":     Front,
@@ -30,39 +28,12 @@ func Test(uni *context.Uni) error {
 
 func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	content_options := m{
-		"types": m {
-			"blog": m{
-				"rules" : m{
-					"title": 1, "slug":1, "content": 1,
-				},
-			},
-		},
-	}
-	q := m{"_id": id}
-	upd := m{
-		"$addToSet": m{
-			"Hooks.Front": "content",
-		},
-		"$set": m{
-			"Modules.content": content_options,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return content_model.Install(uni.Db, id)
 }
 
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	q := m{"_id": id}
-	upd := m{
-		"$pull": m{
-			"Hooks.Front": "content",
-		},
-		"$unset": m{
-			"Modules.content": 1,
-		},
-	}
-	return uni.Db.C("options").Update(q, upd)
+	return content_model.Uninstall(uni.Db, id)
 }
 
 func SaveTypeConfig(uni *context.Uni) error {
