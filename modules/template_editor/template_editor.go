@@ -41,6 +41,19 @@ func isDir(filep string) bool {
 	return false
 }
 
+type Breadc struct {
+	Name string
+	Path string
+}
+
+func createBreadCrumb(fs []string) []Breadc {
+	ret := []Breadc{}
+	for i:=1; i<len(fs); i++ {
+		ret = append(ret, Breadc{fs[i], "/" + filepath.Join(fs[:i+1]...)})
+	}
+	return ret
+}
+
 func View(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/view"}
 	filepath_s, has := uni.Req.Form["file"]
@@ -50,6 +63,7 @@ func View(uni *context.Uni) error {
 	}
 	filepath_str := filepath_s[0]
 	tpath := scut.GetTPath(uni.Opt)
+	uni.Dat["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
 	uni.Dat["filepath"] = filepath.Join(tpath, filepath_str)
 	uni.Dat["raw_path"] = filepath_str
 	if isDir(filepath_str) {
