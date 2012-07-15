@@ -20,7 +20,7 @@ If you are running mongo on a different machine or port, modify the values in ma
 	* github.com/opesun/routep  
 	* anything else it whines for
 - Create a symbolic link in your file system to point from github.com/opesun/hypecms/shared to github.com/opesun/hypecms-shared.
-This needs to be done to separate the gazillion included JS libraries from the hypecms codebase.
+This needs to be done to separate the gazillion included JS libraries from the hypecms codebase. (And still able to serve those files.)
 
 Demo
 =======

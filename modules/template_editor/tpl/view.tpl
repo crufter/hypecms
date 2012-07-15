@@ -5,6 +5,12 @@
 <script src="/shared/CodeMirror-2.3/lib/util/overlay.js"></script>
 <script src="/shared/CodeMirror-2.3/mode/xml/xml.js"></script>
 
+<style type="text/css">
+	.CodeMirror-scroll {height: 80%;}
+	.CodeMirror {border: 1px solid black;}
+	.cm-mustache {color: #004; font-weight: bold}
+</style>
+
 {{if .error}}
 	An error occured: {{.error}}
 {{else}}

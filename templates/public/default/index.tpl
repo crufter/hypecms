@@ -7,5 +7,5 @@ Index<br />
 {{else}}
 	No blog post query.
 {{end}}
-</br />
+<br />
 {{require footer.t}}
