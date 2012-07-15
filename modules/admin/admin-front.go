@@ -38,7 +38,7 @@ func EditConfig(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"admin/edit-config"}
 	adm := map[string]interface{}{}
 	delete(uni.Opt, "created")
-	v, err := json.MarshalIndent(uni.Opt, "", "    ")
+	v, err := json.MarshalIndent(uni.Opt, "", "\t")
 	if err == nil {
 		adm["options_json"] = string(v)
 	} else {
