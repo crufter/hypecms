@@ -22,13 +22,40 @@ var Hooks = map[string]func(*context.Uni) error {
 	"Test":      Test,
 	"AD":        AD,
 }
+
+func NewFile(uni *context.Uni) error {
+	return template_editor_model.NewFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+}
+
+func SaveFile(uni *context.Uni) error {
+	return template_editor_model.SaveFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+}
+
+func DeleteFile(uni *context.Uni) error {
+	return template_editor_model.DeleteFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+}
+
+func ForkPublic(uni *context.Uni) error {
+	return template_editor_model.ForkPublic(uni.Db, uni.Opt, uni.Req.Host, uni.Root)
+}
+
 // main.runBackHooks invokes this trough mod.GetHook.
 func Back(uni *context.Uni) error {
+	var r error
 	action := uni.Dat["_action"].(string)
 	switch action {
-	// You can dispatch your background operations here.
+	case "new_file":
+		r = NewFile(uni)
+	case "save_file":
+		r = SaveFile(uni)
+	case "delete_file":
+		r = DeleteFile(uni)
+	case "fork_public":
+		r = ForkPublic(uni)
+	default:
+		return fmt.Errorf("Unkown action at template_editor.")
 	}
-	return nil
+	return r
 }
 
 func isDir(filep string) bool {
@@ -60,8 +87,9 @@ func View(uni *context.Uni) error {
 		return nil
 	}
 	filepath_str := filepath_s[0]
-	tpath := scut.GetTPath(uni.Opt)
+	tpath := scut.GetTPath(uni.Opt, uni.Req.Host)
 	uni.Dat["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
+	uni.Dat["can_modify"] = template_editor_model.CanModifyTemplate(uni.Opt)
 	uni.Dat["filepath"] = filepath.Join(tpath, filepath_str)
 	uni.Dat["raw_path"] = filepath_str
 	if isDir(filepath_str) {

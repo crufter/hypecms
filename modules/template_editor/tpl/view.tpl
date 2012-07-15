@@ -28,8 +28,15 @@
 	{{end}}
 	
 	{{if .file}}
-		<form>
-			<textarea id="code" cols="90" rows="30">{{.file}}</textarea>
+		<form action="/b/template_editor/save_file">
+			<textarea name="content" id="code" cols="90" rows="30">{{.file}}</textarea>
+			{{if .can_modify}}
+				<input type="hidden" name="filepath" value="{{$raw_path}}">
+				<input type="submit">
+			{{else}}
+				<br />
+				You can not modify this file because it is part of a public template. <a href="/b/template_editor/fork_public">Make a private template out of this by forking.</a>
+			{{end}}
 		</form>
 	{{end}}
 {{end}}

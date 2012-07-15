@@ -274,7 +274,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 //			xyz.com/tpl/admin/style.css
 func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Uni) {
 	if uni.Paths[1] == "template" {
-		p := scut.GetTPath(uni.Opt)
+		p := scut.GetTPath(uni.Opt, uni.Req.Host)
 		http.ServeFile(w, req, filepath.Join(uni.Root, p, strings.Join(uni.Paths[2:], "/")))
 	} else {	// "tpl"
 		http.ServeFile(w, req, filepath.Join(uni.Root, "modules", uni.Paths[2], "tpl", strings.Join(uni.Paths[3:], "/")))

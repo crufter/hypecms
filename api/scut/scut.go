@@ -105,8 +105,11 @@ func TemplateName(opt map[string]interface{}) string {
 }
 
 // Observes opt and gives you back a string describing the path of your template eg "templates/public/template_name"
-func GetTPath(opt map[string]interface{}) string {
+func GetTPath(opt map[string]interface{}, host string) string {
 	templ := TemplateName(opt)
 	ttype := TemplateType(opt)
-	return filepath.Join("templates", ttype, templ)
+	if ttype == "public" {
+		return filepath.Join("templates", ttype, templ)
+	}
+	return filepath.Join("templates", ttype, host, templ)
 }

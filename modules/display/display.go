@@ -30,8 +30,8 @@ func displErr(uni *context.Uni) {
 }
 
 // TODO: Implement file caching here.
-func getFile(root, fi string, opt map[string]interface{}) ([]byte, error) {
-	p := scut.GetTPath(opt)
+func getFile(root, fi string, opt map[string]interface{}, host string) ([]byte, error) {
+	p := scut.GetTPath(opt, host)
 	b, err := ioutil.ReadFile(filepath.Join(root, p, fi))
 	if err == nil {
 		return b, nil
@@ -54,7 +54,7 @@ func getModTPath(filename string) []string {
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
 		func(root, fi string) ([]byte, error) {
-			return getFile(uni.Root, fi, uni.Opt)
+			return getFile(uni.Root, fi, uni.Opt, uni.Req.Host)
 		})
 	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
@@ -71,7 +71,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 		if len(strings.Split(filep, "/")) >= 2 {
 			file, err := require.R("", filep + ".tpl",			// Tricky, care.
 				func(root, fi string) ([]byte, error) {
-					return getFile(uni.Root, fi, uni.Opt)
+					return getFile(uni.Root, fi, uni.Opt, uni.Req.Host)
 				})
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
