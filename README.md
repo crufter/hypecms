@@ -12,12 +12,15 @@ Installation
 If you are running mongo on a different machine or port, modify the values in main.go.
 - Install the next modules into your go environment:
 	* github.com/opesun/hypecms
+	* github.com/opesun/hypecms-shared
 	* labix.org/v2/mgo
 	* github.com/opesun/extract
 	* github.com/opesun/jsonp
 	* github.com/opesun/require
 	* github.com/opesun/routep  
 	* anything else it whines for
+- Create a symbolic link in your file system to point from github.com/opesun/hypecms/shared to github.com/opesun/hypecms-shared.
+This needs to be done to separate the gazillion included JS libraries from the hypecms codebase.
 
 Demo
 =======
