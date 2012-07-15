@@ -1,5 +1,10 @@
 {{require admin/header.t}}
 
+<link rel="stylesheet" href="/shared/CodeMirror-2.3/lib/codemirror.css">
+<script src="/shared/CodeMirror-2.3/lib/codemirror.js"></script>
+<script src="/shared/CodeMirror-2.3/lib/util/overlay.js"></script>
+<script src="/shared/CodeMirror-2.3/mode/xml/xml.js"></script>
+
 {{if .error}}
 	An error occured: {{.error}}
 {{else}}
@@ -18,9 +23,11 @@
 	
 	{{if .file}}
 		<form>
-			<textarea cols="90" rows="30">{{.file}}</textarea>
+			<textarea id="code" cols="90" rows="30">{{.file}}</textarea>
 		</form>
 	{{end}}
 {{end}}
+
+<script src="/tpl/template_editor/codemirror_init.js"></script>
 
 {{require admin/footer.t}}

@@ -3,3 +3,4 @@
 <input type="hidden" name="type" value="{{.content.type}}">
 <input name="comment_content">
 <input type="submit">
+</form>

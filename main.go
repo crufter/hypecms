@@ -255,7 +255,11 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		if first_p == "template" || first_p == "tpl" && !has_sfx {
 			serveTemplateFile(w, req, uni)
 		} else if !has_sfx {
-			http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, "uploads", req.Host, req.URL.Path))
+			if uni.Paths[1] == "shared" {
+				http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, req.URL.Path))
+			} else {
+				http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, "uploads", req.Host, req.URL.Path))
+			}
 		} else {
 			uni.Put("Don't do that.")
 		}

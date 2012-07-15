@@ -3,4 +3,3 @@
 {{require content/comment_listing.t}}
 <br />
 {{require content/comment_insert.t}}
-</form>
