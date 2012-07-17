@@ -14,6 +14,7 @@
 {{if .error}}
 	An error occured: {{.error}}
 {{else}}
+	{{$can_mod := .can_modify}}
 	{{$raw_path := .raw_path}}
 	<a href="/admin/template_editor/view?file=">root</a>/
 	{{range .breadcrumb}}
@@ -21,17 +22,25 @@
 	{{end}}
 	<br />
 	<br />
+	
 	{{if .dir}}
+		{{if $can_mod}}
+			Create new file/dir: <form action="/b/template_editor/new_file"><input name="filepath"><input type="submit"></form>
+		{{end}}
 		{{range .dir}}
-			<a href="/admin/template_editor/view?file={{$raw_path}}/{{.Name}}">{{.Name}}</a><br />
+			{{if $can_mod}}
+				<a href="/b/template_editor/delete_file?filepath={{$raw_path}}" title="Delete">-</a>&nbsp;&nbsp;
+			{{end}}
+			<a href="/admin/template_editor/view?file={{$raw_path}}/{{.Name}}">{{.Name}}</a>
+			<br />
 		{{end}}
 	{{end}}
 	
 	{{if .file}}
 		<form action="/b/template_editor/save_file">
 			<textarea name="content" id="code" cols="90" rows="30">{{.file}}</textarea>
-			{{if .can_modify}}
-				<input type="hidden" name="filepath" value="{{$raw_path}}">
+			{{if $can_mod}}
+				<input type="hidden" name="filepath" value="{{$raw_path}}"><br />
 				<input type="submit">
 			{{else}}
 				<br />
