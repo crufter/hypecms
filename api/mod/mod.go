@@ -1,4 +1,5 @@
 // This package gets around the lack of dynamic code loading in Go.
+// There may be a better solution then putting every exported (in terms of cms) function into a map.
 package mod
 
 import (
