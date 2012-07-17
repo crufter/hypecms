@@ -16,20 +16,20 @@
 {{else}}
 	{{$can_mod := .can_modify}}
 	{{$raw_path := .raw_path}}
-	<a href="/admin/template_editor/view?file=">root</a>/
+	{{if $can_mod}}private{{else}}public{{end}} &nbsp;&nbsp;<a href="/admin/template_editor/view?file=">{{.template_name}}</a>/
 	{{range .breadcrumb}}
 		<a href="/admin/template_editor/view?file={{.Path}}">{{.Name}}</a>/
 	{{end}}
 	<br />
 	<br />
 	
-	{{if .dir}}
+	{{if .is_dir}}
 		{{if $can_mod}}
-			Create new file/dir: <form action="/b/template_editor/new_file"><input name="filepath"><input type="submit"></form>
+			Create new file/dir: <form action="/b/template_editor/new_file"><input type="hidden" name="where" value="{{$raw_path}}"><input name="filepath"><input type="submit"></form>
 		{{end}}
 		{{range .dir}}
 			{{if $can_mod}}
-				<a href="/b/template_editor/delete_file?filepath={{$raw_path}}" title="Delete">-</a>&nbsp;&nbsp;
+				<a href="/b/template_editor/delete_file?filepath={{$raw_path}}/{{.Name}}" title="Delete">-</a>&nbsp;&nbsp;
 			{{end}}
 			<a href="/admin/template_editor/view?file={{$raw_path}}/{{.Name}}">{{.Name}}</a>
 			<br />

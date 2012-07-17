@@ -58,14 +58,6 @@ func Back(uni *context.Uni) error {
 	return r
 }
 
-func isDir(filep string) bool {
-	filep_s := strings.Split(filep, "/")
-	if strings.Index(filep_s[len(filep_s)-1], ".") == -1 {
-		return true
-	}
-	return false
-}
-
 type Breadc struct {
 	Name string
 	Path string
@@ -74,7 +66,8 @@ type Breadc struct {
 func createBreadCrumb(fs []string) []Breadc {
 	ret := []Breadc{}
 	for i:=1; i<len(fs); i++ {
-		ret = append(ret, Breadc{fs[i], "/" + filepath.Join(fs[:i+1]...)})
+		str := strings.Replace(filepath.Join(fs[:i+1]...), "\\", "/", -1)
+		ret = append(ret, Breadc{fs[i], "/" + str})
 	}
 	return ret
 }
@@ -88,23 +81,29 @@ func View(uni *context.Uni) error {
 	}
 	filepath_str := filepath_s[0]
 	tpath := scut.GetTPath(uni.Opt, uni.Req.Host)
+	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
 	uni.Dat["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
 	uni.Dat["can_modify"] = template_editor_model.CanModifyTemplate(uni.Opt)
 	uni.Dat["filepath"] = filepath.Join(tpath, filepath_str)
 	uni.Dat["raw_path"] = filepath_str
-	if isDir(filepath_str) {
+	if template_editor_model.IsDir(filepath_str) {
 		fileinfos, read_err := ioutil.ReadDir(filepath.Join(uni.Root, tpath, filepath_str))
 		if read_err != nil {
 			uni.Dat["error"] = read_err.Error()
 		}
 		uni.Dat["dir"] = fileinfos
+		uni.Dat["is_dir"] = true
 	} else {
 		file_b, read_err := ioutil.ReadFile(filepath.Join(uni.Root, tpath, filepath_str))
 		if read_err != nil {
 			uni.Dat["error"] = "Can't find specified file."
 			return nil
 		}
-		uni.Dat["file"] = string(file_b)
+		if len(file_b) == 0 {
+			uni.Dat["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
+		} else {
+			uni.Dat["file"] = string(file_b)
+		}
 	}
 	return nil
 }

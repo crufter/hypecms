@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"github.com/opesun/copyrecur"
 	"github.com/opesun/hypecms/model/basic"
+	"strings"
 )
 
 type m map[string]interface{}
@@ -26,21 +27,37 @@ func CanModifyTemplate(opt map[string]interface{}) bool {
 	return true
 }
 
+func IsDir(filep string) bool {
+	filep_s := strings.Split(filep, "/")
+	if strings.Index(filep_s[len(filep_s)-1], ".") == -1 {
+		return true
+	}
+	return false
+}
+
+// New file OR dir. Filenames without extensions became dirs. RETHINK: This way we lose the ability to create files without extensions.
+// Only accessed member of opt will be "TplIsPrivate" in scut.GetTPath. TODO: this is ugly.
 func NewFile(opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	if !CanModifyTemplate(opt) {
 		return fmt.Errorf(cant_mod_public)
 	}
 	rule := map[string]interface{}{
 		"filepath": "must",
+		"where":	"must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
 	if e_err != nil {
 		return e_err
 	}
 	fp := dat["filepath"].(string)
-	return ioutil.WriteFile(filepath.Join(root, scut.GetTPath(opt, host), fp), []byte(""), os.ModePerm)
+	where := dat["where"].(string)
+	if IsDir(fp) {
+		return os.Mkdir(filepath.Join(root, scut.GetTPath(opt, host), where, fp), os.ModePerm)
+	}
+	return ioutil.WriteFile(filepath.Join(root, scut.GetTPath(opt, host), where, fp), []byte(""), os.ModePerm)
 }
 
+// Save an existing file.
 func SaveFile(opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	if !CanModifyTemplate(opt) {
 		return fmt.Errorf(cant_mod_public)
@@ -58,6 +75,7 @@ func SaveFile(opt map[string]interface{}, inp map[string][]string, root, host st
 	return ioutil.WriteFile(filepath.Join(root, scut.GetTPath(opt, host), fp), []byte(content), os.ModePerm)
 }
 
+// Delete a file OR dir. See NewFile for controversy about filenames and extensions.
 func DeleteFile(opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	if !CanModifyTemplate(opt) {
 		return fmt.Errorf(cant_mod_public)
@@ -70,9 +88,22 @@ func DeleteFile(opt map[string]interface{}, inp map[string][]string, root, host 
 		return e_err
 	}
 	fp := dat["filepath"].(string)
-	return os.Remove(filepath.Join(root, scut.GetTPath(opt, host), fp))
+	full_p := filepath.Join(root, scut.GetTPath(opt, host), fp)
+	var err error
+	if IsDir(fp) {
+		err = os.RemoveAll(full_p)
+	} else {
+		err = os.Remove(full_p)
+	}
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("Can't delete file or directory. Probably it does not exist.")
+	}
+	return nil
 }
 
+// Forks a public template into a private one: creates a deep recursive copy of the whole directory tree, so the user
+// can edit his own template files as he wishes.
 func ForkPublic(db *mgo.Database, opt map[string]interface{}, host, root string) error {
 	if CanModifyTemplate(opt) {
 		return fmt.Errorf("Template is already private.")
