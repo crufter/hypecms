@@ -1,4 +1,7 @@
 {{require admin/header.t}}
+{{if .is_dir}}
+	{{require template_editor/sidebar.t}}
+{{end}}
 
 <link rel="stylesheet" href="/shared/CodeMirror-2.3/lib/codemirror.css">
 <script src="/shared/CodeMirror-2.3/lib/codemirror.js"></script>
@@ -52,4 +55,7 @@
 
 <script src="/tpl/template_editor/codemirror_init.js"></script>
 
+{{if .is_dir}}
+	{{require template_editor/footer.t}}
+{{end}}
 {{require admin/footer.t}}
