@@ -41,6 +41,9 @@ func ForkPublic(uni *context.Uni) error {
 
 // main.runBackHooks invokes this trough mod.GetHook.
 func Back(uni *context.Uni) error {
+	if scut.NotAdmin(uni.Dat["_user"]) {
+		return fmt.Errorf("You have no rights to do that.")
+	}
 	var r error
 	action := uni.Dat["_action"].(string)
 	switch action {

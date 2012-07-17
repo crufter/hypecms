@@ -2,6 +2,7 @@ package content
 
 import (
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/jsonp"
 	//"labix.org/v2/mgo"
@@ -57,7 +58,7 @@ func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 		return "", typ, fmt.Errorf("Can't %v content, you have no id.", op)
 	}
 	type_opt, _ := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
-	allowed_err := content_model.AllowsContent(uni.Db, map[string][]string(uni.Req.Form), type_opt, uid.(bson.ObjectId), uLev(uni.Dat["_user"]), op)
+	allowed_err := content_model.AllowsContent(uni.Db, map[string][]string(uni.Req.Form), type_opt, uid.(bson.ObjectId), scut.ULev(uni.Dat["_user"]), op)
 	if allowed_err != nil { return "", typ, allowed_err }
 	return uid.(bson.ObjectId), typ, nil
 }
@@ -111,7 +112,7 @@ func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int) (s
 
 func InsertComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	typ, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
+	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
@@ -128,7 +129,7 @@ func InsertComment(uni *context.Uni) error {
 
 func UpdateComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	typ, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
+	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
@@ -145,7 +146,7 @@ func UpdateComment(uni *context.Uni) error {
 
 func DeleteComment(uni *context.Uni) error {
 	inp := map[string][]string(uni.Req.Form)
-	_, allow_err := AllowsComment(uni, inp, uLev(uni.Dat["_user"]))
+	_, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
@@ -154,18 +155,6 @@ func DeleteComment(uni *context.Uni) error {
 		return fmt.Errorf("Can't delete comment, you have no id.")
 	}
 	return content_model.DeleteComment(uni.Db, uni.Ev, inp, uid.(bson.ObjectId))
-}
-
-func uLev(useri interface{}) int {
-	if useri == nil {
-		return 0
-	}
-	user := useri.(map[string]interface{})
-	ulev, has := user["level"]
-	if !has {
-		return 0
-	}
-	return int(ulev.(int))
 }
 
 func minLev(opt map[string]interface{}, op string) int {

@@ -113,3 +113,19 @@ func GetTPath(opt map[string]interface{}, host string) string {
 	}
 	return filepath.Join("templates", ttype, host, templ)
 }
+
+func NotAdmin(user interface{}) bool {
+	return ULev(user) < 300
+}
+
+func ULev(useri interface{}) int {
+	if useri == nil {
+		return 0
+	}
+	user := useri.(map[string]interface{})
+	ulev, has := user["level"]
+	if !has {
+		return 0
+	}
+	return int(ulev.(int))
+}

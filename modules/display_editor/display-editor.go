@@ -3,6 +3,7 @@ package display_editor
 
 import (
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/api/scut"
 	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
@@ -36,6 +37,9 @@ func Delete(uni *context.Uni) error {
 }
 
 func Back(uni *context.Uni) error {
+	if scut.NotAdmin(uni.Dat["_user"]) {
+		return fmt.Errorf("You have no rights to do that.")
+	}
 	action := uni.Dat["_action"].(string)
 	var err error
 	switch action {
