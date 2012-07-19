@@ -3,6 +3,7 @@
 	{{require template_editor/sidebar.t}}
 {{end}}
 
+<!-- Including codemirror -->
 <link rel="stylesheet" href="/shared/CodeMirror-2.3/lib/codemirror.css">
 <script src="/shared/CodeMirror-2.3/lib/codemirror.js"></script>
 <script src="/shared/CodeMirror-2.3/lib/util/overlay.js"></script>
@@ -13,36 +14,74 @@
 	.CodeMirror {border: 1px solid black;}
 	.cm-mustache {color: #004; font-weight: bold}
 </style>
+<!-- /Including codemirror -->
+
+{{$current := .current}}
+{{$typ := .typ}}
+{{$name := .template_name}}
 
 {{if .error}}
 	An error occured: {{.error}}
 {{else}}
 	{{$can_mod := .can_modify}}
 	{{$raw_path := .raw_path}}
-	{{if $can_mod}}private{{else}}public{{end}} &nbsp;&nbsp;<a href="/admin/template_editor/view?file=">{{.template_name}}</a>/
+	{{if $can_mod}}private{{else}}public{{end}} &nbsp;&nbsp;
+	
+	<!-- Breadcrumb. -->
+	{{if $current}}
+		<a href="/admin/template_editor/view?file=">
+	{{else}}
+		<a href="/admin/template_editor/view/{{$typ}}/{{$name}}?file=">
+	{{end}}
+	{{.template_name}}</a>/
+	
 	{{range .breadcrumb}}
-		<a href="/admin/template_editor/view?file={{.Path}}">{{.Name}}</a>/
+		{{if $current}}
+			<a href="/admin/template_editor/view?file={{.Path}}">{{.Name}}</a>/
+		{{else}}
+			<a href="/admin/template_editor/view/{{$typ}}/{{.Name}}?file={{.Path}}">{{.Name}}</a>/
+		{{end}}
 	{{end}}
 	<br />
 	<br />
+	<!-- /Breadcrumb. -->
 	
+	<!-- Directory listing. -->
 	{{if .is_dir}}
 		{{if $can_mod}}
-			Create new file/dir: <form action="/b/template_editor/new_file"><input type="hidden" name="where" value="{{$raw_path}}"><input name="filepath"><input type="submit"></form>
+			{{if $current}}
+				Create new file/dir: <form action="/b/template_editor/new_file"><input type="hidden" name="where" value="{{$raw_path}}"><input name="filepath"><input type="submit"></form>
+			{{else}}
+				<!-- Soon you will be able to create files in noncurrent templates too. -> <!-- TODO -->
+			{{end}}
 		{{end}}
 		{{range .dir}}
 			{{if $can_mod}}
-				<a href="/b/template_editor/delete_file?filepath={{$raw_path}}/{{.Name}}" title="Delete">-</a>&nbsp;&nbsp;
+				{{if $current}}
+					<a href="/b/template_editor/delete_file?filepath={{$raw_path}}/{{.Name}}" title="Delete">-</a>&nbsp;&nbsp;
+				{{else}}
+					<!-- Soon you will be able to delete files in noncurrent templates too. -> <!-- TODO -->
+				{{end}}
 			{{end}}
-			<a href="/admin/template_editor/view?file={{$raw_path}}/{{.Name}}">{{.Name}}</a>
+			{{if $current}}
+				<a href="/admin/template_editor/view?file={{$raw_path}}/{{.Name}}">{{.Name}}</a>
+			{{else}}
+				<a href="/admin/template_editor/view/{{$typ}}/{{$name}}?file={{$raw_path}}/{{.Name}}">{{.Name}}</a>
+			{{end}}
 			<br />
 		{{end}}
 	{{end}}
+	<!-- /Directory listing. -->
 	
+	<!-- File editing. -->
 	{{if .file}}
 		<form action="/b/template_editor/save_file">
 			<textarea name="content" id="code" cols="90" rows="30">{{.file}}</textarea>
 			{{if $can_mod}}
+				{{if $current}}
+				{{else}}
+					<!--TODO: include additional parameters here too. -->
+				{{end}}
 				<input type="hidden" name="filepath" value="{{$raw_path}}"><br />
 				<input type="submit">
 			{{else}}
@@ -51,6 +90,7 @@
 			{{end}}
 		</form>
 	{{end}}
+	<!-- /File editing. -->
 {{end}}
 
 <script src="/tpl/template_editor/codemirror_init.js"></script>

@@ -1,4 +1,5 @@
-// Package template_editor implements a minimalistic but idiomatic plugin for HypeCMS.
+// TODO: make the difference between current and noncurrent template browsing/editing disappear, so the code can get simpler and easier to read/develope.
+// (Background operations will need some unnecessary parameters then? Rethink.)
 package template_editor
 
 import (
@@ -81,29 +82,40 @@ func createBreadCrumb(fs []string) []Breadc {
 	return ret
 }
 
-func threePath(host, typ, name string) string {
+func threePath(host, typ, name string) (string, error) {
 	var ret string
 	switch typ {
-	case "tpl":
+	case "mod":
 		ret = filepath.Join("modules", name, "tpl")
 	case "public":
 		ret = filepath.Join("templates", "public", name)
 	case "private":
 		ret = filepath.Join("templates", "private", host, name)
+	default:
+		return "", fmt.Errorf("Unkown template type.")
 	}
-	return ret
+	return ret, nil
 }
 
 func canMod(typ string) bool {
 	return typ == "private"
 }
 
-func view(opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
+func view(current bool, opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
 	ret := map[string]interface{}{}
-	tpath := threePath(host, typ, name)
+	tpath, path_err := threePath(host, typ, name)
+	if path_err != nil {
+		ret["error"] = path_err
+		return ret
+	}
 	ret["template_name"] = name
 	ret["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
 	ret["can_modify"] = canMod(typ)
+	ret["current"] = current
+	ret["typ"] = typ
+	if typ == "mod" {
+		ret["is_mod"] = true
+	}
 	ret["filepath"] = filepath.Join(tpath, filepath_str)
 	ret["raw_path"] = filepath_str
 	if template_editor_model.IsDir(filepath_str) {
@@ -143,7 +155,7 @@ func View(uni *context.Uni, typ, name string) error {
 	no_typ := len(typ) == 0
 	no_name := len(name) == 0
 	if no_typ && no_name {
-		scut.Merge(uni.Dat, view(uni.Opt, uni.Root, uni.Req.Host, scut.TemplateType(uni.Opt), scut.TemplateName(uni.Opt), filepath_s[0]))
+		scut.Merge(uni.Dat, view(true, uni.Opt, uni.Root, uni.Req.Host, scut.TemplateType(uni.Opt), scut.TemplateName(uni.Opt), filepath_s[0]))
 		return nil
 	}
 	if no_typ {
@@ -154,7 +166,7 @@ func View(uni *context.Uni, typ, name string) error {
 		uni.Dat["error"] = "Got no template type."
 		return nil
 	}
-	scut.Merge(uni.Dat, view(uni.Opt, uni.Root, uni.Req.Host, typ, name, filepath_s[0]))
+	scut.Merge(uni.Dat, view(false, uni.Opt, uni.Root, uni.Req.Host, typ, name, filepath_s[0]))
 	return nil
 }
 
