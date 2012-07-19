@@ -129,3 +129,9 @@ func ULev(useri interface{}) int {
 	}
 	return int(ulev.(int))
 }
+
+func Merge(a map[string]interface{}, b map[string]interface{}) {
+	for i, v := range b {
+		a[i] = v
+	}
+}

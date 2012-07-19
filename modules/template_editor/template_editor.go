@@ -39,6 +39,10 @@ func ForkPublic(uni *context.Uni) error {
 	return template_editor_model.ForkPublic(uni.Db, uni.Opt, uni.Req.Host, uni.Root)
 }
 
+func PublishPrivate(uni *context.Uni) error {
+	return template_editor_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Req.Host, uni.Root)
+}
+
 // main.runBackHooks invokes this trough mod.GetHook.
 func Back(uni *context.Uni) error {
 	if scut.NotAdmin(uni.Dat["_user"]) {
@@ -55,6 +59,8 @@ func Back(uni *context.Uni) error {
 		r = DeleteFile(uni)
 	case "fork_public":
 		r = ForkPublic(uni)
+	case "publish_private":
+		r = PublishPrivate(uni)
 	default:
 		return fmt.Errorf("Unkown action at template_editor.")
 	}
@@ -75,57 +81,145 @@ func createBreadCrumb(fs []string) []Breadc {
 	return ret
 }
 
-func View(uni *context.Uni) error {
+func threePath(host, typ, name string) string {
+	var ret string
+	switch typ {
+	case "tpl":
+		ret = filepath.Join("modules", name, "tpl")
+	case "public":
+		ret = filepath.Join("templates", "public", name)
+	case "private":
+		ret = filepath.Join("templates", "private", host, name)
+	}
+	return ret
+}
+
+func canMod(typ string) bool {
+	return typ == "private"
+}
+
+func view(opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
+	ret := map[string]interface{}{}
+	tpath := threePath(host, typ, name)
+	ret["template_name"] = name
+	ret["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
+	ret["can_modify"] = canMod(typ)
+	ret["filepath"] = filepath.Join(tpath, filepath_str)
+	ret["raw_path"] = filepath_str
+	if template_editor_model.IsDir(filepath_str) {
+		fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, tpath, filepath_str))
+		if read_err != nil {
+			ret["error"] = read_err.Error()
+			return ret
+		}
+		ret["dir"] = fileinfos
+		ret["is_dir"] = true
+	} else {
+		file_b, read_err := ioutil.ReadFile(filepath.Join(root, tpath, filepath_str))
+		if read_err != nil {
+			ret["error"] = "Can't find specified file."
+			return ret
+		}
+		if len(file_b) == 0 {
+			ret["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
+		} else {
+			ret["file"] = string(file_b)
+		}
+	}
+	return ret
+}
+
+// Get parameters:
+// type: tpl, private, public
+// file: path of file
+// name: name of template or module
+func View(uni *context.Uni, typ, name string) error {
 	uni.Dat["_points"] = []string{"template_editor/view"}
 	filepath_s, has := uni.Req.Form["file"]
 	if !has {
 		uni.Dat["error"] = "Can't find file parameter."
 		return nil
 	}
-	filepath_str := filepath_s[0]
-	tpath := scut.GetTPath(uni.Opt, uni.Req.Host)
-	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
-	uni.Dat["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
-	uni.Dat["can_modify"] = template_editor_model.CanModifyTemplate(uni.Opt)
-	uni.Dat["filepath"] = filepath.Join(tpath, filepath_str)
-	uni.Dat["raw_path"] = filepath_str
-	if template_editor_model.IsDir(filepath_str) {
-		fileinfos, read_err := ioutil.ReadDir(filepath.Join(uni.Root, tpath, filepath_str))
-		if read_err != nil {
-			uni.Dat["error"] = read_err.Error()
-		}
-		uni.Dat["dir"] = fileinfos
-		uni.Dat["is_dir"] = true
-	} else {
-		file_b, read_err := ioutil.ReadFile(filepath.Join(uni.Root, tpath, filepath_str))
-		if read_err != nil {
-			uni.Dat["error"] = "Can't find specified file."
-			return nil
-		}
-		if len(file_b) == 0 {
-			uni.Dat["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
-		} else {
-			uni.Dat["file"] = string(file_b)
-		}
+	no_typ := len(typ) == 0
+	no_name := len(name) == 0
+	if no_typ && no_name {
+		scut.Merge(uni.Dat, view(uni.Opt, uni.Root, uni.Req.Host, scut.TemplateType(uni.Opt), scut.TemplateName(uni.Opt), filepath_s[0]))
+		return nil
 	}
+	if no_typ {
+		uni.Dat["error"] = "Got no template name."
+		return nil
+	}
+	if no_name {
+		uni.Dat["error"] = "Got no template type."
+		return nil
+	}
+	scut.Merge(uni.Dat, view(uni.Opt, uni.Root, uni.Req.Host, typ, name, filepath_s[0]))
 	return nil
 }
 
 func Index(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/index"}
+	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
+	uni.Dat["can_modify"] = template_editor_model.CanModifyTemplate(uni.Opt)
+	return nil
+}
+
+func search(uni *context.Uni, path string) error {
+	fileinfos, read_err := ioutil.ReadDir(filepath.Join(uni.Root, path))
+	if read_err != nil {
+		uni.Dat["error"] = "Cant read path " + path
+		return nil
+	}
+	term_s, has := uni.Req.Form["search"]
+	term := ""
+	if has {
+		term = term_s[0]
+	}
+	uni.Dat["dir"] = template_editor_model.Contains(fileinfos, term)
+	return nil
+}
+
+func SearchPublic(uni *context.Uni) error {
+	uni.Dat["_points"] = []string{"template_editor/search"}
+	uni.Dat["is_public"] = true
+	path := filepath.Join("templates", "public")
+	search(uni, path)
+	return nil
+}
+
+func SearchPrivate(uni *context.Uni) error {
+	uni.Dat["_points"] = []string{"template_editor/search"}
+	uni.Dat["is_private"] = true
+	path := filepath.Join("templates", "private", uni.Req.Host)
+	search(uni, path)
+	return nil
+}
+
+func SearchMod(uni *context.Uni) error {
+	uni.Dat["_points"] = []string{"template_editor/search"}
+	uni.Dat["is_mod"] = true
+	path := filepath.Join("modules")
+	search(uni, path)
 	return nil
 }
 
 // admin.AD invokes this trough mod.GetHook.
 func AD(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/template_editor/{view}", uni.P)
+	ma, err := routep.Comp("/admin/template_editor/{view}/{typ}/{name}", uni.P)
 	if err != nil { return err }
 	var r error
 	switch ma["view"] {
 		case "":
 			r = Index(uni)
 		case "view":
-			r = View(uni)
+			r = View(uni, ma["typ"], ma["name"])
+		case "search-public":
+			r = SearchPublic(uni)
+		case "search-private":
+			r = SearchPrivate(uni)
+		case "search-mod":
+			r = SearchMod(uni)
 		default:
 			return fmt.Errorf("Unkown view at template_editor admin.")
 	}

@@ -21,10 +21,7 @@ const(
 )
 
 func CanModifyTemplate(opt map[string]interface{}) bool {
-	if scut.TemplateType(opt) == "public" {
-		return false
-	}
-	return true
+	return scut.TemplateType(opt) == "private"
 }
 
 func IsDir(filep string) bool {
@@ -122,6 +119,60 @@ func ForkPublic(db *mgo.Database, opt map[string]interface{}, host, root string)
 		},
 	}
 	return db.C("options").Update(q, upd)
+}
+
+// Taken from http://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
+// exists returns whether the given file or directory exists or not
+func exists(path string) (bool, error) {
+    _, err := os.Stat(path)
+    if err == nil { return true, nil }
+    if os.IsNotExist(err) { return false, nil }
+    return false, err
+}
+
+// Publish a private template, so others can use it too.
+func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, host, root string) error {
+	rule := map[string]interface{}{
+		"public_name": 	"must",
+	}
+	dat, ex_err := extract.New(rule).Extract(inp)
+	if ex_err != nil { return ex_err }
+	public_name := dat["public_name"].(string)
+	from := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
+	to := filepath.Join(root, "templates", "public", public_name)
+	// copyrecur.CopyDir checks for existence too, but for safety reasons we check here in case copyrecur semantics change.
+	exis, exis_err := exists(to)
+	if exis {
+		return fmt.Errorf("Public template with name " + public_name + " already exists.")
+	}
+	if exis_err != nil { return exis_err }
+	copy_err := copyrecur.CopyDir(from, to)
+	if copy_err != nil {
+		return fmt.Errorf("There was an error while copying.")
+	}
+	return nil
+}
+
+func Contains(fi []os.FileInfo, term string) []os.FileInfo {
+	ret_fis := []os.FileInfo{}
+	for _, v := range fi {
+		if len(term) == 0 || strings.Index(v.Name(), term) != -1 {
+			ret_fis = append(ret_fis, v)
+		}
+	}
+	return ret_fis
+}
+
+func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
+	var path string
+	if typ == "public" {
+		path =  filepath.Join(root, "templates", "public")
+	} else {
+		path = filepath.Join(root, "templates", "private", host)
+	}
+	fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, path))
+	if read_err != nil { return nil, read_err }
+	return Contains(fileinfos, search_str), nil
 }
 
 func Install(db *mgo.Database, id bson.ObjectId) error {
