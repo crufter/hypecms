@@ -9,6 +9,7 @@ import(
 	"github.com/opesun/hypecms/modules/content/model"
 	"encoding/json"
 	"fmt"
+	//"strings"
 )
 
 type m map[string]interface{}
@@ -92,6 +93,7 @@ func List(uni *context.Uni) error {
 	}
 	var v []interface{}
 	uni.Db.C("contents").Find(m{"type":typ}).Sort("-created").All(&v)
+	fmt.Println("v:", v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
@@ -153,6 +155,22 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	if ferr != nil {
 		return ferr
 	}
+	//Tags implemetation
+	//for i, v := range rules.(map[string]interface{}) {
+	//	field := map[string]interface{}{"key":i,"value":v}
+	//	if indb != nil {
+	//		field["value"] = indb.(bson.M)[i]
+	//		fmt.Println(field["value"])
+	//		if i == "tags" {
+	//			tags_i := field["value"]
+	//			tags_strsl := jsonp.ToStringSlice(tags_i)
+	//			tags_str := strings.Join(tags_strsl, ", ")
+	//			field["value"] = tags_str
+	//			fmt.Println(field["key"], field["value"])
+	//		}
+	//	}
+	//}
+	//Tags implemetation
 	uni.Dat["fields"] = f
 	return nil
 }
