@@ -10,7 +10,6 @@ import(
 	"fmt"
 )
 
-type m map[string]interface{}
 
 func commentRequiredLevel(content_options map[string]interface{}) int {
 	var req_lev int
@@ -108,7 +107,7 @@ func find(db *mgo.Database, content_id string) map[string]interface{} {
 	err := db.C("contents").Find(q).One(&v)
 	if err != nil { return nil }
 	if v == nil { return nil }
-	return v.(map[string]interface{})
+	return basic.Convert(v).(map[string]interface{})
 }
 
 func findContentAuthor(db *mgo.Database, content_id string) (bson.ObjectId, error) {
@@ -138,6 +137,10 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	}
 	basic.DateAndAuthor(rule, ins_dat, user_id)
 	ins_dat["type"] = typ[0]
+	_, has_tags := ins_dat["_tags"]
+	if has_tags {
+		handleTags(db, ins_dat, "", "insert")
+	}
 	return basic.Inud(db, ev, ins_dat, "contents", "insert", "")
 }
 
@@ -155,7 +158,11 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 		return extr_err
 	}
 	basic.DateAndAuthor(rule, upd_dat, user_id)
-	upd_dat["typ"] = typ[0]
+	upd_dat["type"] = typ[0]
+	_, has_tags := upd_dat["_tags"]
+	if has_tags {
+		handleTags(db, upd_dat, id[0], "update")
+	}
 	return basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
 }
 
@@ -309,7 +316,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"types": m {
 			"blog": m{
 				"rules" : m{
-					"title": 1, "slug":1, "content": 1,
+					"title": 1, "slug":1, "content": 1, "_tags" : 1,
 				},
 			},
 		},
