@@ -4,3 +4,4 @@
 	<a href="/admin/content/edit/{{.type}}/{{._id}}">{{.name}}</a>
 {{end}}&nbsp;&nbsp;&nbsp;
 <a href="/b/content/delete?id={{._id}}&type={{.type}}" />Delete</a><br />
+{{if .tags}}Tags: {{.tags}}<br><br>{{end}}
