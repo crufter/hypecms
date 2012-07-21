@@ -157,8 +157,11 @@ func DeleteComment(uni *context.Uni) error {
 	return content_model.DeleteComment(uni.Db, uni.Ev, inp, uid.(bson.ObjectId))
 }
 
-func PullTag(uni *context.Uni) error {
-	return content_model.PullTags(uni.Db, "", []string{})
+func PullTags(uni *context.Uni) error {
+	content_id := uni.Req.Form["content_id"][0]
+	tag_id := uni.Req.Form["tag_id"][0]
+	return content_model.PullTags(uni.Db, content_id, []string{tag_id})
+	
 }
 
 func minLev(opt map[string]interface{}, op string) int {
@@ -194,8 +197,8 @@ func Back(uni *context.Uni) error {
 		r = DeleteComment(uni)
 	case "save_config":
 		r = SaveTypeConfig(uni)
-	case "pull_tag":
-		r = PullTag(uni)
+	case "pull_tags":
+		r = PullTags(uni)
 	default:
 		return fmt.Errorf("Can't find action named \"" + action + "\" in user module.")
 	}
