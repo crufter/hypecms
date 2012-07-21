@@ -316,7 +316,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"types": m {
 			"blog": m{
 				"rules" : m{
-					"title": 1, "slug":1, "content": 1, Tag_fieldname : 1,
+					"title": 1, "slug":1, "content": 1, Tag_fieldname_displayed : 1,
 				},
 			},
 		},
