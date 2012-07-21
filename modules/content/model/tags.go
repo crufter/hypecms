@@ -172,7 +172,8 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 			to_pull = append(to_pull, tag_objectid)
 		}
 	}
-	q := content["_id"].(bson.ObjectId)
+	dec(db, to_pull)
+	q := m{"_id": content["_id"].(bson.ObjectId) }
 	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
-	return db.C("content").Update(q, upd)
+	return db.C("contents").Update(q, upd)
 }

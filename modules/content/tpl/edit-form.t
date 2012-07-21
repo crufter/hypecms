@@ -5,9 +5,10 @@
 	<br />
 {{end}}
 {{if .tags_on}}
+	{{$content_id := .content._id}}
 	{{if .content._tags}}
 		{{range .content._tags}}
-			{{.name}} ({{.count}})<br />
+			{{.name}} ({{.count}}) <a href="/b/content/pull_tags?content_id={{$content_id}}&tag_id={{._id}}">x</a> <br /> 
 		{{end}}
 		<br />
 	{{else}}
