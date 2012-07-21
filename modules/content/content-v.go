@@ -2,6 +2,7 @@ package content
 
 import(
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/routep"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"
@@ -9,6 +10,7 @@ import(
 	"github.com/opesun/hypecms/modules/content/model"
 	"encoding/json"
 	"fmt"
+	"github.com/opesun/resolver"
 	//"strings"
 )
 
@@ -137,16 +139,22 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 		return fmt.Errorf("Can't extract type at edit.")
 	}
 	uni.Dat["content_type"] = typ
-	rules, hasr := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
+	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !hasr {
 		return fmt.Errorf("Can't find rules of " + typ)
 	}
 	uni.Dat["type"] = typ
 	id, hasid := ma["id"]
 	var indb interface{}
+	_, tags_on := rules[content_model.Tag_fieldname_displayed]
+	uni.Dat["tags_on"] = tags_on
 	if hasid {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
+		indb = basic.Convert(indb)
+		fmt.Println(indb)
+		resolver.ResolveOne(uni.Db, indb)
+		fmt.Println(indb)
 		uni.Dat["content"] = indb
 	} else {
 		uni.Dat["op"] = "insert"
@@ -155,22 +163,6 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	if ferr != nil {
 		return ferr
 	}
-	//Tags implemetation
-	//for i, v := range rules.(map[string]interface{}) {
-	//	field := map[string]interface{}{"key":i,"value":v}
-	//	if indb != nil {
-	//		field["value"] = indb.(bson.M)[i]
-	//		fmt.Println(field["value"])
-	//		if i == "tags" {
-	//			tags_i := field["value"]
-	//			tags_strsl := jsonp.ToStringSlice(tags_i)
-	//			tags_str := strings.Join(tags_strsl, ", ")
-	//			field["value"] = tags_str
-	//			fmt.Println(field["key"], field["value"])
-	//		}
-	//	}
-	//}
-	//Tags implemetation
 	uni.Dat["fields"] = f
 	return nil
 }

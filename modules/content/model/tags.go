@@ -9,6 +9,13 @@ import (
 	"fmt"
 )
 
+const(
+	Tag_fieldname = "_tags"					// goes to database
+	Tag_fieldname_displayed = "tags"		// comes from user interface, it is in the rules
+	Collection_name = "tags"
+	Count_fieldname = "count"
+)
+
 type m map[string]interface{}
 
 func createM(slugs []string) map[string]struct{} {
@@ -29,7 +36,7 @@ func mToSSlice(ma map[string]struct{}) []string {
 
 func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string) {
 	var i []interface{}
-	db.C("tags").Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
+	db.C(Collection_name).Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
 	ret_ids := []bson.ObjectId{}
 	contains := createM(slug_sl)
 	i = basic.Convert(i).([]interface{})
@@ -41,12 +48,12 @@ func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string
 	return ret_ids, mToSSlice(contains)
 }
 func inc(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C("tags").UpdateAll( m{"_id": m{"$in":ids}}, m{ "$inc":m{ "counter":1 }})
+	_, err := db.C(Collection_name).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:1 }})
 	return err
 }
 
 func dec(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C("tags").UpdateAll( m{"_id": m{"$in":ids}}, m{ "$inc":m{ "counter":-1 }})
+	_, err := db.C(Collection_name).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:-1 }})
 	return err
 }
 
@@ -54,8 +61,8 @@ func insert(db *mgo.Database, slug_sl []string) []bson.ObjectId {
 	ret := []bson.ObjectId{}
 	for _, v := range slug_sl {
 		id := bson.NewObjectId()
-		tag := m{"_id": id, "slug":v, "name":v, "counter":0}
-		db.C("tags").Insert(tag)
+		tag := m{"_id": id, "slug":v, "name":v, Count_fieldname:0}
+		db.C(Collection_name).Insert(tag)
 		ret = append(ret, id)
 	}
 	return ret
@@ -104,13 +111,16 @@ func toIdSlice(i []interface{}) []bson.ObjectId {
 		return ret
 }
 
+// $addToSet
+// $pull
+
 func handleTags(db *mgo.Database, dat map[string]interface{}, id string, mod string) {
 	content := map[string]interface{}{}
 	if mod != "insert" {
 		content = find(db, basic.StripId(id))
 	}
-	tags_i, _ := dat["_tags"]
-	delete(dat, "_tags")
+	tags_i, _ := dat[Tag_fieldname_displayed]
+	delete(dat, Tag_fieldname_displayed)
 	tags := tags_i.(string)					// Example: "Autók, Biciklik"
 	tags_sl := strings.Split(tags, ",")
 	slug_sl := []string{}
@@ -125,19 +135,23 @@ func handleTags(db *mgo.Database, dat map[string]interface{}, id string, mod str
 			old_ids := []bson.ObjectId{}
 			new_ids := merge(existing_ids, inserted_ids)
 			handleCount(db, old_ids, new_ids)
-			dat["tags"] = new_ids
+			dat[Tag_fieldname] = new_ids
 		case "update":
 			existing_ids, to_insert_slugs := separateTags(db, slug_sl)
 			inserted_ids := insert(db, to_insert_slugs)
-			old_ids := toIdSlice(content["tags"].([]interface{}))
+			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
 			new_ids := merge(existing_ids, inserted_ids)
 			handleCount(db, old_ids, new_ids)
-			dat["tags"] = new_ids
+			dat[Tag_fieldname] = merge(old_ids, new_ids)	// TODO: handle duplication
 		case "delete":
-			old_ids := toIdSlice(content["tags"].([]interface{}))
+			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
 			new_ids := []bson.ObjectId{}
 			handleCount(db, old_ids, new_ids)
 		default:
 			panic("Bad mode at handleTags.")
 	}
+}
+
+func PullTag(db *mgo.Database, id string) error {
+	
 }

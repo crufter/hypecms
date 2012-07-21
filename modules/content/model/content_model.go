@@ -137,7 +137,7 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	}
 	basic.DateAndAuthor(rule, ins_dat, user_id)
 	ins_dat["type"] = typ[0]
-	_, has_tags := ins_dat["_tags"]
+	_, has_tags := ins_dat[Tag_fieldname_displayed]
 	if has_tags {
 		handleTags(db, ins_dat, "", "insert")
 	}
@@ -159,7 +159,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	}
 	basic.DateAndAuthor(rule, upd_dat, user_id)
 	upd_dat["type"] = typ[0]
-	_, has_tags := upd_dat["_tags"]
+	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
 		handleTags(db, upd_dat, id[0], "update")
 	}
@@ -316,7 +316,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"types": m {
 			"blog": m{
 				"rules" : m{
-					"title": 1, "slug":1, "content": 1, "_tags" : 1,
+					"title": 1, "slug":1, "content": 1, Tag_fieldname : 1,
 				},
 			},
 		},

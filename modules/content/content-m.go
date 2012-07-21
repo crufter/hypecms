@@ -157,6 +157,10 @@ func DeleteComment(uni *context.Uni) error {
 	return content_model.DeleteComment(uni.Db, uni.Ev, inp, uid.(bson.ObjectId))
 }
 
+func PullTag(uni *context.Uni) error {
+	
+}
+
 func minLev(opt map[string]interface{}, op string) int {
 	if v, ok := jsonp.Get(opt, "Modules.content." + op + "_level"); ok {
 		return int(v.(float64))
@@ -190,6 +194,8 @@ func Back(uni *context.Uni) error {
 		r = DeleteComment(uni)
 	case "save_config":
 		r = SaveTypeConfig(uni)
+	case "pull_tag":
+		r = PullTag(uni)
 	default:
 		return fmt.Errorf("Can't find action named \"" + action + "\" in user module.")
 	}
