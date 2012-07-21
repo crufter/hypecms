@@ -7,7 +7,7 @@
 {{if .tags_on}}
 	{{if .content._tags}}
 		{{range .content._tags}}
-			{{.name}}<br />
+			{{.name}} ({{.count}})<br />
 		{{end}}
 		<br />
 	{{else}}

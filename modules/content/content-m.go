@@ -158,7 +158,7 @@ func DeleteComment(uni *context.Uni) error {
 }
 
 func PullTag(uni *context.Uni) error {
-	
+	return content_model.PullTags(uni.Db, "", []string{})
 }
 
 func minLev(opt map[string]interface{}, op string) int {

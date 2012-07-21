@@ -139,7 +139,7 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	ins_dat["type"] = typ[0]
 	_, has_tags := ins_dat[Tag_fieldname_displayed]
 	if has_tags {
-		handleTags(db, ins_dat, "", "insert")
+		addTags(db, ins_dat, "", "insert")
 	}
 	return basic.Inud(db, ev, ins_dat, "contents", "insert", "")
 }
@@ -161,7 +161,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	upd_dat["type"] = typ[0]
 	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
-		handleTags(db, upd_dat, id[0], "update")
+		addTags(db, upd_dat, id[0], "update")
 	}
 	return basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
 }

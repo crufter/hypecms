@@ -88,12 +88,16 @@ func diffIds(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
 	return ret
 }
 
+// "a, b, c" ... "a, c" => decrement b, old node.js version logic
 func handleCount(db *mgo.Database, old_ids []bson.ObjectId, new_ids []bson.ObjectId) {
 	dec_ids := diffIds(old_ids, new_ids)
 	inc_ids := diffIds(new_ids, old_ids)
-	inc(db, inc_ids)
-	dec(db, dec_ids)
-	fmt.Println(inc_ids, dec_ids)
+	if len(inc_ids) > 0 {
+		inc(db, inc_ids)
+	}
+	if len(dec_ids) > 0 {
+		dec(db, dec_ids)
+	}
 }
 
 func merge(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
@@ -111,17 +115,21 @@ func toIdSlice(i []interface{}) []bson.ObjectId {
 		return ret
 }
 
-// $addToSet
-// $pull
+func addToSet(db *mgo.Database, content_id bson.ObjectId, tag_ids []bson.ObjectId) {
+	q := m{"_id": content_id}
+	upd := m{"$addToSet": m{Tag_fieldname: m{"$each": tag_ids}}}
+	db.C("contents").Update(q, upd)
+}
 
-func handleTags(db *mgo.Database, dat map[string]interface{}, id string, mod string) {
+// Creates nonexisting tags if needed and pushes the tag ids into the content, and increments the tag counters.
+func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string) {
 	content := map[string]interface{}{}
 	if mod != "insert" {
 		content = find(db, basic.StripId(id))
 	}
 	tags_i, _ := dat[Tag_fieldname_displayed]
 	delete(dat, Tag_fieldname_displayed)
-	tags := tags_i.(string)					// Example: "Autók, Biciklik"
+	tags := tags_i.(string)					// Example: "Cars, Bicycles"
 	tags_sl := strings.Split(tags, ",")
 	slug_sl := []string{}
 	for _, v := range tags_sl {
@@ -132,26 +140,39 @@ func handleTags(db *mgo.Database, dat map[string]interface{}, id string, mod str
 		case "insert":
 			existing_ids, to_insert_slugs := separateTags(db, slug_sl)
 			inserted_ids := insert(db, to_insert_slugs)
-			old_ids := []bson.ObjectId{}
-			new_ids := merge(existing_ids, inserted_ids)
-			handleCount(db, old_ids, new_ids)
-			dat[Tag_fieldname] = new_ids
+			all_ids := merge(existing_ids, inserted_ids)
+			inc(db, all_ids)
+			dat[Tag_fieldname] = all_ids
 		case "update":
 			existing_ids, to_insert_slugs := separateTags(db, slug_sl)
 			inserted_ids := insert(db, to_insert_slugs)
 			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
 			new_ids := merge(existing_ids, inserted_ids)
-			handleCount(db, old_ids, new_ids)
-			dat[Tag_fieldname] = merge(old_ids, new_ids)	// TODO: handle duplication
-		case "delete":
-			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
-			new_ids := []bson.ObjectId{}
-			handleCount(db, old_ids, new_ids)
+			inc_ids := diffIds(new_ids, old_ids)
+			inc(db, inc_ids)
+			addToSet(db, content["_id"].(bson.ObjectId), new_ids)
 		default:
-			panic("Bad mode at handleTags.")
+			panic("Bad mode at addTags.")
 	}
 }
 
-func PullTag(db *mgo.Database, id string) error {
-	
+// Pulls one or more tag ids from a content and decrements the tag counters.
+// UI can send "ObjectIdHex(\"abababab656b5a6b5a6b5a6b5\")" instead of "abababab656b5a6b5a6b5a6b5"
+func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
+	content_id = basic.StripId(content_id)
+	content := find(db, content_id)
+	if content == nil { return fmt.Errorf("Cant find content when pulling tags.") }
+	tag_objectids := content[Tag_fieldname].([]interface{})
+	cache := createMObjectId(toIdSlice(tag_objectids))
+	to_pull := []bson.ObjectId{}
+	for _, v := range tag_ids {
+		tag_id := basic.StripId(v)
+		tag_objectid := bson.ObjectIdHex(tag_id)
+		if _, has := cache[tag_objectid]; has {
+			to_pull = append(to_pull, tag_objectid)
+		}
+	}
+	q := content["_id"].(bson.ObjectId)
+	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
+	return db.C("content").Update(q, upd)
 }
