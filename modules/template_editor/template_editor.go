@@ -44,6 +44,14 @@ func PublishPrivate(uni *context.Uni) error {
 	return template_editor_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Req.Host, uni.Root)
 }
 
+func DeletePrivate(uni *context.Uni) error {
+	return template_editor_model.DeletePrivate(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+}
+
+func ForkPrivate(uni *context.Uni) error {
+	return template_editor_model.ForkPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+}
+
 // main.runBackHooks invokes this trough mod.GetHook.
 func Back(uni *context.Uni) error {
 	if scut.NotAdmin(uni.Dat["_user"]) {
@@ -62,6 +70,10 @@ func Back(uni *context.Uni) error {
 		r = ForkPublic(uni)
 	case "publish_private":
 		r = PublishPrivate(uni)
+	case "delete_private":
+		r = DeletePrivate(uni)
+	case "fork_private":
+		r = ForkPrivate(uni)
 	default:
 		return fmt.Errorf("Unkown action at template_editor.")
 	}

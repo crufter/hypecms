@@ -163,6 +163,60 @@ func Contains(fi []os.FileInfo, term string) []os.FileInfo {
 	return ret_fis
 }
 
+// Delete a whole private template.
+func DeletePrivate(opt map[string]interface{}, inp map[string][]string, root, host string) error {
+	rule := map[string]interface{}{
+		"template_name": "must",
+	}
+	dat, e_err := extract.New(rule).Extract(inp)
+	if e_err != nil { return e_err }
+	template_name := dat["template_name"].(string)
+	if template_name == scut.TemplateName(opt) {
+		return fmt.Errorf("For safety reasons you can only delete private templates not in use.")
+	}
+	full_p := filepath.Join(root, "templates", "private", host, template_name)
+	err := os.RemoveAll(full_p)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("Can't delete private template named %v. It probably does not exist.", template_name)
+	}
+	return nil
+}
+
+// Fork current private template into an other private one.
+func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
+	if scut.TemplateType(opt) != "private" {
+		return fmt.Errorf("Your current template is not a private one.")	// Kinda unsensical error message but ok...
+	}
+	rule := map[string]interface{}{
+		"new_template_name": "must",
+	}
+	dat, e_err := extract.New(rule).Extract(inp)
+	if e_err != nil { return e_err }
+	new_template_name := dat["new_template_name"].(string)
+	to := filepath.Join(root, "templates", "private", host, new_template_name)
+	e, e_err := exists(to)
+	if e {
+		return fmt.Errorf("Private template named %v already exists.", new_template_name)
+	} else if e_err != nil {
+		fmt.Println(e_err.Error())
+		return fmt.Errorf("Can't determine if private template exists.")
+	}
+	from := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
+	copy_err := copyrecur.CopyDir(from, to)
+	if copy_err != nil {
+		return fmt.Errorf("There was an error while copying.")
+	}
+	id := basic.CreateOptCopy(db)
+	q := m{"_id": id}
+	upd := m{
+		"$set": m{
+			"Template": new_template_name,
+		},
+	}
+	return db.C("options").Update(q, upd)
+}
+
 func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
 	var path string
 	if typ == "public" {
