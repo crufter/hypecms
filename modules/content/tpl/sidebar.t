@@ -10,6 +10,7 @@
 				</ul>
 			</li>
 		{{end}}
+		<a href="/admin/content/tags">Tags</a>
 	</ul>
 </div>
 
