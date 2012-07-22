@@ -30,6 +30,7 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 	}
 	switch op {
 	case "insert":
+		dat["_id"] = bson.NewObjectId()
 		err = db.C(coll).Insert(dat)
 	case "update":
 		q := bson.M{"_id": bson.ObjectIdHex(id)}

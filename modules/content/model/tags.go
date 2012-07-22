@@ -57,11 +57,13 @@ func dec(db *mgo.Database, ids []bson.ObjectId) error {
 	return err
 }
 
-func insert(db *mgo.Database, slug_sl []string) []bson.ObjectId {
+func insert(db *mgo.Database, tag_sl []string) []bson.ObjectId {
 	ret := []bson.ObjectId{}
-	for _, v := range slug_sl {
+	for _, v := range tag_sl {
+		if len(v) == 0 { continue }
 		id := bson.NewObjectId()
-		tag := m{"_id": id, "slug":v, "name":v, Count_fieldname:0}
+		slug := slugify.S(v)
+		tag := m{"_id": id, "slug":slug, "name":v, Count_fieldname:0}
 		db.C(Collection_name).Insert(tag)
 		ret = append(ret, id)
 	}
@@ -121,6 +123,16 @@ func addToSet(db *mgo.Database, content_id bson.ObjectId, tag_ids []bson.ObjectI
 	db.C("contents").Update(q, upd)
 }
 
+func stripEmpty(sl []string) []string {
+	ret := []string{}
+	for _, v := range sl {
+		if len(v) > 0 {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
 // Creates nonexisting tags if needed and pushes the tag ids into the content, and increments the tag counters.
 func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string) {
 	content := map[string]interface{}{}
@@ -131,20 +143,16 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string
 	delete(dat, Tag_fieldname_displayed)
 	tags := tags_i.(string)					// Example: "Cars, Bicycles"
 	tags_sl := strings.Split(tags, ",")
-	slug_sl := []string{}
-	for _, v := range tags_sl {
-		slug := slugify.S(v)
-		slug_sl = append(slug_sl, slug)
-	}
+	tags_sl = stripEmpty(tags_sl)
 	switch mod {
 		case "insert":
-			existing_ids, to_insert_slugs := separateTags(db, slug_sl)
+			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
 			inserted_ids := insert(db, to_insert_slugs)
 			all_ids := merge(existing_ids, inserted_ids)
 			inc(db, all_ids)
 			dat[Tag_fieldname] = all_ids
 		case "update":
-			existing_ids, to_insert_slugs := separateTags(db, slug_sl)
+			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
 			inserted_ids := insert(db, to_insert_slugs)
 			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
 			new_ids := merge(existing_ids, inserted_ids)
@@ -176,4 +184,28 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	q := m{"_id": content["_id"].(bson.ObjectId) }
 	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
 	return db.C("contents").Update(q, upd)
+}
+
+func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error) {
+	q := m{"slug": tag_slug}
+	var res interface{}
+	err := db.C("tags").Find(q).One(&res)
+	if err != nil { return nil, err }
+	if res == nil { return nil, fmt.Errorf("Can't find tag by slug.") }
+	tag := basic.Convert(res.(bson.M)).(map[string]interface{})
+	q = m{Tag_fieldname: tag["_id"].(bson.ObjectId)}
+	var contents []interface{}
+	err = db.C("contents").Find(q).All(&contents)
+	if err != nil { return nil, err }
+	if contents == nil { return nil, fmt.Errorf("Can't find contents.") }
+	return basic.Convert(contents).([]interface{}), nil
+}
+
+func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
+	var res []interface{}
+	q := m{"slug": bson.RegEx{ "^" + tag_slug, "u"}}
+	err := db.C("tags").Find(q).All(&res)
+	if err != nil { return nil, err }
+	if res == nil { return nil, fmt.Errorf("Can't find tags.") }
+	return res, nil
 }

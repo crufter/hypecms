@@ -17,7 +17,7 @@ import(
 type m map[string]interface{}
 
 func Front(uni *context.Uni) error {
-	ed, ed_err := routep.Comp("/admin/content/edit/{type}/{id}", uni.P)
+	ed, ed_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
 	if ed_err == nil {
 		ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
 		if !hasu {
@@ -32,6 +32,29 @@ func Front(uni *context.Uni) error {
 		uni.Dat["_hijacked"] = true
 		Edit(uni, ed)
 		uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
+		return nil
+	}
+	tag_view, tag_view_err := routep.Comp("/tag/{slug}", uni.P)
+	// Tag view: list contents in that category.
+	if tag_view_err == nil {
+		list, err := content_model.ListContentsByTag(uni.Db, tag_view["slug"])
+		if err != nil {
+			uni.Dat["error"] = err.Error()
+		} else {
+			uni.Dat["content_list"] = list
+		}
+		uni.Dat["_points"] = []string{"tag"}
+		return nil
+	}
+	tag_search_view, tag_search_err := routep.Comp("/tag-search/{slug}", uni.P)
+	if tag_search_err == nil {
+		list, err := content_model.TagSearch(uni.Db, tag_search_view["slug"])
+		if err != nil {
+			uni.Dat["error"] = err.Error()
+		} else {
+			uni.Dat["tag_list"] = list
+		}
+		uni.Dat["_points"] = []string{"tag-search"}
 		return nil
 	}
 	m, err := routep.Comp("/{slug}", uni.P)
@@ -152,9 +175,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
 		indb = basic.Convert(indb)
-		fmt.Println(indb)
 		resolver.ResolveOne(uni.Db, indb)
-		fmt.Println(indb)
 		uni.Dat["content"] = indb
 	} else {
 		uni.Dat["op"] = "insert"
@@ -167,6 +188,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	return nil
 }
 
+// Admin edit
 func AEdit(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/edit/{type}/{id}", uni.Req.URL.Path)
 	if err != nil {
