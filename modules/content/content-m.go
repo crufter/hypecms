@@ -176,6 +176,11 @@ func PullTags(uni *context.Uni) error {
 	
 }
 
+func deleteTag(uni *context.Uni) error {
+	tag_id := uni.Req.Form["tag_id"][0]
+	return content_model.DeleteTag(uni.Db, tag_id)
+}
+
 func minLev(opt map[string]interface{}, op string) int {
 	if v, ok := jsonp.Get(opt, "Modules.content." + op + "_level"); ok {
 		return int(v.(float64))
@@ -211,6 +216,8 @@ func Back(uni *context.Uni) error {
 		r = SaveTypeConfig(uni)
 	case "pull_tags":
 		r = PullTags(uni)
+	case "delete_tag":
+		r = deleteTag(uni)
 	default:
 		return fmt.Errorf("Can't find action named \"" + action + "\" in user module.")
 	}

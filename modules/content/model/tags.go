@@ -186,6 +186,19 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	return db.C("contents").Update(q, upd)
 }
 
+func DeleteTag(db *mgo.Database, tag_id string) error {
+	tag_idstr := basic.StripId(tag_id)
+	tag_bsonid := bson.ObjectIdHex(tag_idstr)
+	err := db.C("tags").Remove(m{"_id":tag_bsonid})
+	if err != nil {return err}
+	return PullTagFromAll(db, tag_bsonid)
+}
+
+func PullTagFromAll(db *mgo.Database, tag_id bson.ObjectId) error {
+	_, err := db.C("tags").UpdateAll(nil, m{"$pull":m{Tag_fieldname:tag_id}})
+	return err
+}
+
 func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error) {
 	q := m{"slug": tag_slug}
 	var res interface{}
