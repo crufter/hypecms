@@ -29,7 +29,9 @@
 	{{$content_id := .content._id}}
 	{{if .content._tags}}
 		{{range .content._tags}}
-			{{.name}} ({{.count}}) <a href="/b/content/pull_tags?content_id={{$content_id}}&tag_id={{._id}}">x</a> <br /> 
+			{{if .}}
+				{{.name}} ({{.count}}) <a href="/b/content/pull_tags?content_id={{$content_id}}&tag_id={{._id}}">x</a> <br /> 
+			{{end}}
 		{{end}}
 		<br />
 	{{else}}

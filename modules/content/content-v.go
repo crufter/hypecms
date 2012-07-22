@@ -107,6 +107,15 @@ func Index(uni *context.Uni) error {
 	return nil
 }
 
+func ListTags(uni *context.Uni) error {
+	var v []interface{}
+	uni.Db.C("tags").Find(nil).All(&v)
+	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	uni.Dat["latest"] = v
+	uni.Dat["_points"] = []string{"content/tags"}
+	return nil
+}
+
 func List(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/list/{type}", uni.Req.URL.Path)
 	if err != nil {
@@ -214,6 +223,8 @@ func AD(uni *context.Uni) error {
 		err = AEdit(uni)
 	case "list":
 		err = List(uni)
+	case "tags":
+		err = ListTags(uni)
 	default:
 		err = fmt.Errorf("Unkown content view.")
 	}
