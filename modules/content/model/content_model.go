@@ -122,18 +122,18 @@ func findContentAuthor(db *mgo.Database, content_id string) (bson.ObjectId, erro
 	return auth.(bson.ObjectId), nil
 }
 
-func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) error {
+func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) (bson.ObjectId, error) {
 	id, hasid := dat["id"]
 	if hasid && len(id[0]) > 0 {
-		return fmt.Errorf("Can't insert an object wich already has an id.")
+		return "", fmt.Errorf("Can't insert an object wich already has an id.")
 	}
 	typ, hastype := dat["type"]
 	if !hastype {
-		return fmt.Errorf("No type when inserting content.")
+		return "", fmt.Errorf("No type when inserting content.")
 	}
 	ins_dat, extr_err := extract.New(rule).Extract(dat)
 	if extr_err != nil {
-		return extr_err
+		return "", extr_err
 	}
 	basic.DateAndAuthor(rule, ins_dat, user_id)
 	ins_dat["type"] = typ[0]
@@ -141,7 +141,9 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if has_tags {
 		addTags(db, ins_dat, "", "insert")
 	}
-	return basic.Inud(db, ev, ins_dat, "contents", "insert", "")
+	err := basic.Inud(db, ev, ins_dat, "contents", "insert", "")
+	if err != nil { return "", err }
+	return ins_dat["_id"].(bson.ObjectId), nil
 }
 
 func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) error {

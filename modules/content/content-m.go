@@ -8,6 +8,7 @@ import (
 	//"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"fmt"
+	"strings"
 )
 
 var Hooks = map[string]func(*context.Uni) error {
@@ -72,7 +73,18 @@ func Ins(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	return content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	id, err := content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	if err != nil {
+		return err
+	}
+	// Handling redirect.
+	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
+	redir := "/content/edit/" + typ + "/" + id.Hex()
+	if is_admin {
+		redir = "/admin" + redir
+	}
+	uni.Dat["redirect"] = redir
+	return nil
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
