@@ -1,4 +1,4 @@
-<div style="float: left; width: 20%;">
+<div id="left-sidebar">
 	<ul>
 		<a href="/admin/content">All</a>
 		{{range .content_menu}}
@@ -14,4 +14,4 @@
 	</ul>
 </div>
 
-<div style="float: right; width: 80%;">
+<div id="inner-content">

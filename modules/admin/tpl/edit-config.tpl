@@ -15,6 +15,7 @@
 
 <form action="/admin/b/save-config">
 <input type="submit">
+<br /><br />
 <textarea id="code" name="option" style="display: block; width: 100%; height: 92%">
 {{.admin.options_json}}
 </textarea>

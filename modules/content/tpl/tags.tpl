@@ -1,9 +1,9 @@
 {{require admin/header.t}}
 {{require content/sidebar.t}}
 
-{{.type}} entries:<br /><br />
+<h4>Tags:</h4>
 {{range .latest}}
-	{{.name}} ({{.count}}) <a href="/b/content/delete_tag?tag_id={{._id}}">x</a><br />
+	<a class="delete" href="/b/content/delete_tag?tag_id={{._id}}">-</a> {{.name}} ({{.count}})<br />
 {{end}}
 
 {{require content/footer.t}}
