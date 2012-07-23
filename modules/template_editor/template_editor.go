@@ -52,6 +52,10 @@ func ForkPrivate(uni *context.Uni) error {
 	return template_editor_model.ForkPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
+func SwitchToTemplate(uni *context.Uni) error {
+	return template_editor_model.SwitchToTemplate(uni.Db, map[string][]string(uni.Req.Form))
+}
+
 // main.runBackHooks invokes this trough mod.GetHook.
 func Back(uni *context.Uni) error {
 	if scut.NotAdmin(uni.Dat["_user"]) {
@@ -74,6 +78,8 @@ func Back(uni *context.Uni) error {
 		r = DeletePrivate(uni)
 	case "fork_private":
 		r = ForkPrivate(uni)
+	case "switch_to_template":
+		r = SwitchToTemplate(uni)
 	default:
 		return fmt.Errorf("Unkown action at template_editor.")
 	}

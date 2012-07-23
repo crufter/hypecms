@@ -10,11 +10,11 @@
 	
 	{{range .dir}}
 		{{if $is_pub}}
-			<a href="/admin/template_editor/view/public/{{.Name}}?file=">{{.Name}}</a><br />
+			<a href="/admin/template_editor/view/public/{{.Name}}?file=">{{.Name}}</a> <a href="/b/template_editor/switch_to_template?template_name={{.Name}}&template_type=public">[Switch]</a><br />
 		{{end}}
 		
 		{{if $is_priv}}
-			<a href="/b/template_editor/delete_private?template_name={{.Name}}">-</a> <a href="/admin/template_editor/view/private/{{.Name}}?file=">{{.Name}}</a><br />
+			<a href="/b/template_editor/delete_private?template_name={{.Name}}">-</a> <a href="/admin/template_editor/view/private/{{.Name}}?file=">{{.Name}}</a> <a href="/b/template_editor/switch_to_template?template_name={{.Name}}&template_type=private">[Switch]</a><br />
 		{{end}}
 		
 		{{if $is_mod}}

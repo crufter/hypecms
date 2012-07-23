@@ -217,6 +217,38 @@ func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]
 	return db.C("options").Update(q, upd)
 }
 
+func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
+	rule := map[string]interface{}{
+		"template_name": "must",
+		"template_type": "must",
+	}
+	dat, e_err := extract.New(rule).Extract(inp)
+	if e_err != nil { return e_err }
+	template_name := dat["template_name"].(string)
+	template_type := dat["template_type"].(string)
+	id := basic.CreateOptCopy(db)
+	q := m{"_id": id}
+	var upd m
+	if template_type == "private" {					// Such a pointless duplication here, rethink.
+		upd = m{
+			"$set": m{
+				"Template": 	template_name,
+				"TplIsPrivate":	true,
+			},
+		}
+	} else {
+		upd = m{
+			"$set": m{
+				"Template": 	template_name,
+			},
+			"$unset": m{
+				"TplIsPrivate": 1,
+			},
+		}
+	}
+	return db.C("options").Update(q, upd)
+}
+
 func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
 	var path string
 	if typ == "public" {
