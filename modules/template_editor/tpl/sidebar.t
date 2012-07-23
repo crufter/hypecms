@@ -1,4 +1,4 @@
-<div style="float: left; width: 20%;">
+<div id="left-sidebar">
 	<ul>
 		<li>
 			<a href="/admin/template_editor">Index</a>
@@ -22,4 +22,4 @@
 
 </div>
 
-<div style="float: right; width: 80%;">
+<div id="inner-content">

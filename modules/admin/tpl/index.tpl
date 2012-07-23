@@ -1,11 +1,10 @@
 {{require admin/header.t}}
 
-Installed modules:
-
 {{if .admin.error}}
 	{{.admin.error}}
 {{else}}
 	<ul>
+		<h3>Installed modules:</h3><br />
 		{{range .admin.menu}}
 		<li>
 			<a href="/admin/{{.}}">{{.}}</a>

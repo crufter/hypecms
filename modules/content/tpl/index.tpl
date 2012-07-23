@@ -1,7 +1,7 @@
 {{require admin/header.t}}
 {{require content/sidebar.t}}
 
-All enries: <br /><br />
+<h4>All enries: </h4>
 {{range .latest}}
 	{{require content/listing.t}}
 {{end}}
