@@ -58,7 +58,7 @@
 		{{range .dir}}
 			{{if $can_mod}}
 				{{if $current}}
-					<a href="/b/template_editor/delete_file?filepath={{$raw_path}}/{{.Name}}" title="Delete">-</a>&nbsp;&nbsp;
+					<a class="delete" href="/b/template_editor/delete_file?filepath={{$raw_path}}/{{.Name}}" title="Delete">-</a>&nbsp;&nbsp;
 				{{else}}
 					<!-- Soon you will be able to delete files in noncurrent templates too. -> <!-- TODO -->
 				{{end}}
