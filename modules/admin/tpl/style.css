@@ -13,3 +13,5 @@ li {list-style-type:none;}
 #left-sidebar {float:left; width:25%;}
 #inner-content {margin:1em 0; float:left;}
 h4{margin:0 0 1em 0;}
+.delete:hover {text-decoration:none;}
+.delete {content: "asd";}

@@ -30,7 +30,7 @@
 	{{if .content._tags}}
 		{{range .content._tags}}
 			{{if .}}
-				{{.name}} ({{.count}}) <a href="/b/content/pull_tags?content_id={{$content_id}}&tag_id={{._id}}">x</a> <br /> 
+				<a class="delete" href="/b/content/pull_tags?content_id={{$content_id}}&tag_id={{._id}}">-</a> {{.name}} ({{.count}})<br /> 
 			{{end}}
 		{{end}}
 		<br />
