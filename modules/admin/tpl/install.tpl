@@ -4,7 +4,7 @@
 There was an error getting the modules: {{.err}}
 {{else}}
 	<ul>
-	Choose a module to install:<br /><br />
+	<h3>Choose a module to install:</h3><br />
 	{{range .admin.modules}}
 		<li><a href="/admin/b/install/{{.}}">{{.}}</a></li>
 	{{end}}
