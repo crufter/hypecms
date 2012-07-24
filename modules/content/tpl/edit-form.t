@@ -8,17 +8,18 @@
 	<script src="/tpl/content/tag_finder.js"></script>
 	<style>
 	#autocomplete{
-		padding: 2px 5px;
+		display: none;
+		background: #f8f8f8;
+		position: absolute;
 		border-left: 1px solid #ccc;
 		border-right: 1px solid #ccc;
 		border-bottom: 1px solid #ccc;
 		box-shadow: 0px 0px 5px #888;
 	}
 	.tag-option{
-		padding: 2px;
+		padding: 0.5em 1em;
 		cursor: pointer;
 	}
-
 	.tag-option:hover{
 		background: #e8e8e8;
 	}
