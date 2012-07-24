@@ -1,7 +1,7 @@
 {{require admin/header.t}}
 {{require content/sidebar.t}}
 
-You gotta add/edit your {{.type}} content here.<br />
+<h4>Edit {{.type}} content</h4>
 <br />
 {{require content/edit-form.t}}
 
