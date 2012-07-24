@@ -1,4 +1,4 @@
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<script src="/shared/jquery.min.1.7.js"></script>
 <script src="/tpl/admin/basic.js"></script>
 <link rel="stylesheet" type="text/css" href="/tpl/admin/style.css" />
 <div id="admin-menu" class="clearfloat">
