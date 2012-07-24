@@ -70,6 +70,11 @@ func Convert(x interface{}) interface{} {
 			y[key] = Convert(val)
 		}
 		return (map[string]interface{})(y)
+	} else if d, ok := x.(map[string]interface{}); ok {
+		for key, val := range d {
+			d[key] = Convert(val)
+		}
+		return d
 	} else if z, ok := x.([]interface{}); ok {
 		for i, v := range z {
 			z[i] = Convert(v)
