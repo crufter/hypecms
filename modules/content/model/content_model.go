@@ -4,10 +4,13 @@ import(
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	ifaces "github.com/opesun/hypecms/interfaces"
+	"github.com/opesun/resolver"
 	"github.com/opesun/extract"
 	"github.com/opesun/jsonp"
+	"github.com/opesun/slugify"
 	"github.com/opesun/hypecms/model/basic"
 	"fmt"
+	"strings"
 )
 
 
@@ -122,6 +125,71 @@ func findContentAuthor(db *mgo.Database, content_id string) (bson.ObjectId, erro
 	return auth.(bson.ObjectId), nil
 }
 
+// TODO: rethink. TODO: Add number support.
+// Walks an entire JSON tree recursively, and converts everything to string it can find.
+func walkDeep(i interface{}) []string {
+	switch val := i.(type) {
+	case map[string]interface{}:
+		ret := []string{}
+		for _, v := range val {
+			ret = append(ret, walkDeep(v)...)
+		}
+		return ret
+	case []interface{}:
+		ret := []string{}
+		for _, v := range val {
+			ret = append(ret, walkDeep(v)...)
+		}
+		return ret
+	case string:
+		return []string{val}
+	case bson.M:
+		panic("This should definitely not happen, basic.Convert is no good.")
+	}
+	return []string{}
+}
+
+func filterDupes(s []string) []string{
+	ret := []string{}
+	c := map[string]struct{}{}
+	for _, v := range s {
+		if _, has := c[v]; !has {
+			c[v] = struct{}{}
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
+func filterTooShort(s []string, min_len int) []string{
+	ret := []string{}
+	for _, v := range s {
+		if len(v) >= min_len {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
+func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
+	var res interface{}
+	db.C("contents").Find(m{"_id": id}).One(&res)
+	dat := basic.Convert(res).(map[string]interface{})
+	resolver.ResolveOne(db, dat)
+	dat = basic.Convert(dat).(map[string]interface{})
+	non_split := walkDeep(dat)
+	split := []string{}
+	for _, v := range non_split {
+		split = append(split, strings.Split(v, ".")...)		// TODO: split by "," ":" and ";" too.
+	}
+	slugified := []string{}
+	for _, v := range split {
+		slugified = append(slugified, slugify.S(v))
+	}
+	slugified = filterDupes(slugified)
+	return filterTooShort(slugified, 3)
+}
+
 func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) (bson.ObjectId, error) {
 	id, hasid := dat["id"]
 	if hasid && len(id[0]) > 0 {
@@ -143,7 +211,13 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	}
 	err := basic.Inud(db, ev, ins_dat, "contents", "insert", "")
 	if err != nil { return "", err }
-	return ins_dat["_id"].(bson.ObjectId), nil
+	ret_id := ins_dat["_id"].(bson.ObjectId)
+	_, has_fulltext := rule["fulltext"]
+	if has_fulltext {
+		fulltext := generateFulltext(db, ret_id)
+		db.C("contents").Update(m{"_id": ret_id}, m{"$set": m{"fulltext": fulltext}})
+	}
+	return ret_id, nil
 }
 
 func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) error {
@@ -165,7 +239,14 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if has_tags {
 		addTags(db, upd_dat, id[0], "update")
 	}
-	return basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
+	ret_err := basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
+	_, has_fulltext := rule["fulltext"]
+	if has_fulltext {
+		id_bson := bson.ObjectIdHex(id[0])
+		fulltext := generateFulltext(db, id_bson)
+		db.C("contents").Update(m{"_id": id_bson}, m{"$set": m{"fulltext": fulltext}})
+	}
+	return ret_err
 }
 
 func Delete(db *mgo.Database, ev ifaces.Event, id []string, user_id bson.ObjectId) []error {
@@ -269,6 +350,22 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 	return basic.Convert(v).(map[string]interface{}), true
 }
 
+func SaveTypeConfig(db *mgo.Database, inp map[string][]string) error {
+	rule := map[string]interface{}{
+		"type": 		"must",
+		"safe_delete":	"must",
+	}
+	dat, err := extract.New(rule).Extract(inp)
+	fmt.Println(dat)
+	if err != nil { return err }
+	// TODO: finish.
+	return nil
+}
+
+func SavePersonalTypeConfig(db *mgo.Database, inp map[string][]string, user_id bson.ObjectId) error {
+	return nil
+}
+
 func findComment(db *mgo.Database, content_id, comment_id string) (map[string]interface{}, error) {
 	var v interface{}
 	q := bson.M{
@@ -318,7 +415,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"types": m {
 			"blog": m{
 				"rules" : m{
-					"title": 1, "slug":1, "content": 1, Tag_fieldname_displayed : 1,
+					"title": 1, "slug":1, "content": 1, Tag_fieldname_displayed: 1, "fulltext": false, "created": false, "created_by":false,
 				},
 			},
 		},
