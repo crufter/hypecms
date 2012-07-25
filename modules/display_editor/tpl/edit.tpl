@@ -5,7 +5,7 @@
 	<input name="name" value="{{.point.name}}"><br/>
 	<input type="hidden" name="prev_name" value="{{.point.name}}"><br/>
 	<br/>
-	Query:<br />
+	Queries:<br />
 	<textarea name="queries" rows="30" cols="75">{{.point.queries}}</textarea><br />
 	<br />
 	<input type="submit">
