@@ -9,9 +9,9 @@ import(
 )
 
 const(
-	Created_by			= "_created_by"
+	Created_by			= "_users_created_by"
 	Created				= "created"
-	Last_modified_by	= "_last_modified_by"
+	Last_modified_by	= "_users_last_modified_by"
 	Last_modified		= "last_modified"
 )
 
