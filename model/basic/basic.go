@@ -8,6 +8,13 @@ import(
 	"time"
 )
 
+const(
+	Created_by			= "_created_by"
+	Created				= "created"
+	Last_modified_by	= "_last_modified_by"
+	Last_modified		= "last_modified"
+)
+
 // by Id.
 func Find(db *mgo.Database, coll, id string) map[string]interface{} {
 	var v interface{}
@@ -150,19 +157,19 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 	}
 	for i, _ := range rule {
 		switch i {
-		case "created_by":
+		case Created_by:
 			if inserting {
 				dat[i] = user_id
 			}
-		case "last_modified_by":
+		case Last_modified_by:
 			if updating {
 				dat[i] = user_id
 			}
-		case "created":
+		case Created:
 			if inserting {
 				dat[i] = time.Now()
 			}
-		case "last_modified":
+		case Last_modified:
 			if updating {
 				dat[i] = time.Now()
 			}
