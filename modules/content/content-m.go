@@ -38,11 +38,6 @@ func Uninstall(uni *context.Uni) error {
 	return content_model.Uninstall(uni.Db, id)
 }
 
-func SaveTypeConfig(uni *context.Uni) error {
-	// id := scut.CreateOptCopy(uni.Db)
-	return nil
-}
-
 func SaveConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
 	return nil
@@ -181,6 +176,19 @@ func deleteTag(uni *context.Uni) error {
 	return content_model.DeleteTag(uni.Db, tag_id)
 }
 
+func SaveTypeConfig(uni *context.Uni) error {
+	// id := scut.CreateOptCopy(uni.Db)
+	return content_model.SaveTypeConfig(uni.Db, map[string][]string(uni.Req.Form))
+}
+
+// TODO: Ugly name.
+func SavePersonalTypeConfig(uni *context.Uni) error {
+	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
+	if !has { return fmt.Errorf("Can't find user id.") }
+	user_id := user_id_i.(bson.ObjectId)
+	return content_model.SavePersonalTypeConfig(uni.Db, map[string][]string(uni.Req.Form), user_id)
+}
+
 func minLev(opt map[string]interface{}, op string) int {
 	if v, ok := jsonp.Get(opt, "Modules.content." + op + "_level"); ok {
 		return int(v.(float64))
@@ -218,6 +226,10 @@ func Back(uni *context.Uni) error {
 		r = PullTags(uni)
 	case "delete_tag":
 		r = deleteTag(uni)
+	case "save_type_config":
+		r = SaveTypeConfig(uni)
+	case "save_personal_type_config":
+		r = SavePersonalTypeConfig(uni)
 	default:
 		return fmt.Errorf("Can't find action named \"" + action + "\" in user module.")
 	}

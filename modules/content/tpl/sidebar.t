@@ -3,10 +3,10 @@
 		<a href="/admin/content">List all contents</a>
 		{{range .content_menu}}
 			<li>
-			<a href="/admin/content/list/{{.}}">List {{.}}</a>
+			<a href="/admin/content/list/{{.}}">List {{.}} contents</a>
 				<ul>
-				<li><a href="/admin/content/edit/{{.}}">New {{.}} contents</a></li>
-				<li><a href="/admin/content/type-config/{{.}}">Edit {{.}} config</a></li>
+				<li><a href="/admin/content/edit/{{.}}">New {{.}} content</a></li>
+				<li><a href="/admin/content/type-config/{{.}}">Configure {{.}} content type</a></li>
 				</ul>
 			</li>
 		{{end}}

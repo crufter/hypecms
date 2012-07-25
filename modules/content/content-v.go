@@ -16,72 +16,91 @@ import(
 
 type m map[string]interface{}
 
-func Front(uni *context.Uni) error {
-	ed, ed_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
-	if ed_err == nil {
-		ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
-		if !hasu {
-			return fmt.Errorf("No user level found, or it is not an integer.")
+func UserEdit(uni *context.Uni, urimap map[string]string) error {
+	ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
+	if !hasu {
+		return fmt.Errorf("No user level found, or it is not an integer.")
+	}
+	_, hasid := urimap["id"]
+	if hasid && ulev < minLev(uni.Opt, "edit") {
+		return fmt.Errorf("You have no rights to edit a content.")
+	} else if ulev < minLev(uni.Opt, "insert") {
+		return fmt.Errorf("You have no rights to insert a content.")
+	}
+	Edit(uni, urimap)
+	uni.Dat["_hijacked"] = true
+	uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
+	return nil
+}
+
+func TagView(uni *context.Uni, urimap map[string]string) error {
+	list, err := content_model.ListContentsByTag(uni.Db, urimap["slug"])
+	if err != nil {
+		uni.Dat["error"] = err.Error()
+	} else {
+		uni.Dat["content_list"] = list
+	}
+	uni.Dat["_hijacked"] = true
+	uni.Dat["_points"] = []string{"tag"}
+	return nil
+}
+
+func TagSearch(uni *context.Uni, urimap map[string]string) error {
+	list, err := content_model.TagSearch(uni.Db, urimap["slug"])
+	if err != nil {
+		uni.Dat["error"] = err.Error()
+	} else {
+		uni.Dat["tag_list"] = list
+	}
+	uni.Dat["_hijacked"] = true
+	uni.Dat["_points"] = []string{"tag-search"}
+	return nil
+}
+
+func ContentView(uni *context.Uni, content_map map[string]string) error {
+	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
+	if !ok {
+		return nil
+	}
+	slug_keymap := map[string]struct{}{}
+	for _, v := range types.(map[string]interface{}) {
+		type_conf := v.(map[string]interface{})
+		if slugval, has := type_conf["slug"]; has {
+			slug_keymap[slugval.(string)] = struct{}{}
+		} else {
+			slug_keymap["_id"] = struct{}{}
 		}
-		_, hasid := ed["id"]
-		if hasid && ulev < minLev(uni.Opt, "edit") {
-			return fmt.Errorf("You have no rights to edit a content.")
-		} else if ulev < minLev(uni.Opt, "insert") {
-			return fmt.Errorf("You have no rights to insert a content.")
-		}
+	}
+	slug_keys := []string{}
+	for i, _ := range slug_keymap {
+		slug_keys = append(slug_keys, i)
+	}
+	content, found := content_model.FindContent(uni.Db, slug_keys, content_map["slug"])
+	if found {
 		uni.Dat["_hijacked"] = true
-		Edit(uni, ed)
-		uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
-		return nil
+		uni.Dat["_points"] = []string{"content"}
+		uni.Dat["content"] = content
 	}
-	tag_view, tag_view_err := routep.Comp("/tag/{slug}", uni.P)
+	return nil
+}
+
+func Front(uni *context.Uni) error {
+	edit_map, edit_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
+	if edit_err == nil {
+		return UserEdit(uni, edit_map)
+	}
+	tag_map, tag_err := routep.Comp("/tag/{slug}", uni.P)
 	// Tag view: list contents in that category.
-	if tag_view_err == nil {
-		list, err := content_model.ListContentsByTag(uni.Db, tag_view["slug"])
-		if err != nil {
-			uni.Dat["error"] = err.Error()
-		} else {
-			uni.Dat["content_list"] = list
-		}
-		uni.Dat["_points"] = []string{"tag"}
-		return nil
+	if tag_err == nil {
+		return TagView(uni, tag_map)
 	}
-	tag_search_view, tag_search_err := routep.Comp("/tag-search/{slug}", uni.P)
+	tag_search_map, tag_search_err := routep.Comp("/tag-search/{slug}", uni.P)
 	if tag_search_err == nil {
-		list, err := content_model.TagSearch(uni.Db, tag_search_view["slug"])
-		if err != nil {
-			uni.Dat["error"] = err.Error()
-		} else {
-			uni.Dat["tag_list"] = list
-		}
-		uni.Dat["_points"] = []string{"tag-search"}
-		return nil
+		return TagSearch(uni, tag_search_map)
 	}
-	m, err := routep.Comp("/{slug}", uni.P)
-	if err == nil && len(m["slug"]) > 0 {
-		types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
-		if !ok {
-			return nil
-		}
-		slug_keymap := map[string]struct{}{}
-		for _, v := range types.(map[string]interface{}) {
-			type_conf := v.(map[string]interface{})
-			if slugval, has := type_conf["slug"]; has {
-				slug_keymap[slugval.(string)] = struct{}{}
-			} else {
-				slug_keymap["_id"] = struct{}{}
-			}
-		}
-		slug_keys := []string{}
-		for i, _ := range slug_keymap {
-			slug_keys = append(slug_keys, i)
-		}
-		content, found := content_model.FindContent(uni.Db, slug_keys, m["slug"])
-		if found {
-			uni.Dat["_hijacked"] = true
-			uni.Dat["_points"] = []string{"content"}
-			uni.Dat["content"] = content
-		}
+	content_map, content_err := routep.Comp("/{slug}", uni.P)
+	if content_err == nil && len(content_map["slug"]) > 0 {
+		return ContentView(uni, content_map)
 	}
 	return nil
 }
@@ -100,7 +119,13 @@ func getSidebar(uni *context.Uni) []string {
 
 func Index(uni *context.Uni) error {
 	var v []interface{}
-	uni.Db.C("contents").Find(nil).Sort("-created").All(&v)
+	var q m
+	search_sl, has := uni.Req.Form["search"];
+	if has && len(search_sl[0]) > 0 {
+		q = m{"$and": content_model.GenerateQuery(search_sl[0])}
+		uni.Dat["search"] = search_sl[0]
+	}
+	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
@@ -126,14 +151,21 @@ func List(uni *context.Uni) error {
 		return fmt.Errorf("Can not extract typ at list.")
 	}
 	var v []interface{}
-	uni.Db.C("contents").Find(m{"type":typ}).Sort("-created").All(&v)
-	fmt.Println("v:", v)
+	q := m{"type":typ}
+	search_sl, has := uni.Req.Form["search"];
+	if has && len(search_sl[0]) > 0 {
+		q["$and"] = content_model.GenerateQuery(search_sl[0])
+		uni.Dat["search"] = search_sl[0]
+	}
+	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
 	return nil
 }
 
+// Both everyone and personal.
 func TypeConfig(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/type-config/{type}", uni.Req.URL.Path)
 	if err != nil {
@@ -149,6 +181,9 @@ func TypeConfig(uni *context.Uni) error {
 	}
 	uni.Dat["type"] = typ
 	uni.Dat["type_options"], _ = json.MarshalIndent(op, "", "    ")
+	uni.Dat["op"] = op
+	user_type_op, has := jsonp.Get(uni.Dat["_user"], "content_options." + typ)
+	uni.Dat["user_type_op"] = user_type_op
 	uni.Dat["_points"] = []string{"content/type-config"}
 	return nil
 }
