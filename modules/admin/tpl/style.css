@@ -4,10 +4,10 @@ body {margin:0em; font-size:16px; font-family:arial; line-height:1.4em;}
 a {text-decoration:none;}
 a:hover{text-decoration:underline;}
 li {list-style-type:none;}
-#admin-menu {background: #e2e2e2;}
+#admin-menu {background: #e2e2e2; border-bottom: 1px solid #d0d0d0;}
 	#admin-menu  a {display:block; margin-right:1em; float:left; padding:6px 12px;}
 	#admin-menu  a:hover {text-decoration:none; background:#E9BF83; /*color:#fff;*/}
-	#admin-menu #logo {font-size:18px; text-shadow: #efefef 1px 1px 1px; font-family:Days; float:right; color:#073966;}
+	#admin-menu #logo {font-size:18px; text-shadow: #f2f2f2; 1px 1px 1px; font-family:Days; float:right; color:#073966;}
 	#admin-menu #logo:hover {/*color:#fff;*/}
 #content {padding:0 1 em;}
 #left-sidebar {float:left; width:25%;}
@@ -17,4 +17,4 @@ h4{margin:0 0 1em 0;}
 .delete {content: "asd";}
 .you-are-here{position: absolute; margin: 5px 0 0 -15px;}
 #content-centered{width: 33.3%; margin:2em auto;}
-#module_text{font-size:32px; line-height:2em; margin-top: 1em; margin-left:1em; color:#cfcfcf}
+#module_text{font-size:32px; line-height:2em; margin-top: 1em; margin-left:1em; color:#c8c8c8}
