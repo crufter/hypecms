@@ -200,6 +200,7 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if has_tags {
 		addTags(db, ins_dat, "", "insert")
 	}
+	basic.Slug(rule, ins_dat)
 	err := basic.Inud(db, ev, ins_dat, "contents", "insert", "")
 	if err != nil { return "", err }
 	ret_id := ins_dat["_id"].(bson.ObjectId)
@@ -229,6 +230,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if has_tags {
 		addTags(db, upd_dat, id[0], "update")
 	}
+	basic.Slug(rule, upd_dat)
 	ret_err := basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
 	_, has_fulltext := rule["fulltext"]
 	if has_fulltext {

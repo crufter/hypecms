@@ -2,6 +2,7 @@ package basic
 
 import(
 	ifaces "github.com/opesun/hypecms/interfaces"
+	"github.com/opesun/slugify"
 	"labix.org/v2/mgo/bson"
 	"labix.org/v2/mgo"
 	"fmt"
@@ -173,6 +174,20 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 			if updating {
 				dat[i] = time.Now()
 			}
+		}
+	}
+}
+
+// If rule has slugs, then dat will already contain it if it was sent from UI.
+func Slug(rule map[string]interface{}, dat map[string]interface{}) {
+	_, has_slug := rule["slug"]
+	if has_slug {
+		if slug, has := dat["slug"]; has && len(slug.(string)) > 0 {
+			return
+		} else if name, has_name := dat["name"]; has_name {
+			dat["slug"] = slugify.S(name.(string))
+		} else if title, has_title := dat["title"]; has_title {
+			dat["slug"] = slugify.S(title.(string))
 		}
 	}
 }
