@@ -6,7 +6,9 @@ import(
 	"github.com/opesun/extract"
 	"github.com/opesun/hypecms/model/basic"
 	ifaces "github.com/opesun/hypecms/interfaces"
+	"crypto/sha1"
 	"fmt"
+	"io"
 )
 
 func FindUser(db *mgo.Database, id string) (map[string]interface{}, error) {
@@ -29,20 +31,14 @@ func NamePass(db *mgo.Database, name, encoded_pass string) (map[string]interface
 
 func Login(db *mgo.Database, inp map[string][]string) (map[string]interface{}, string, error) {
 	rule := map[string]interface{}{
-		"name": map[string]interface{}{
-			"must": 1,
-			"type":	"string",
-		},
-		"password": map[string]interface{}{
-			"must": 1,
-			"type": "string",
-		},
+		"name": "must",
+		"password": "must",
 	}
 	d, err := extract.New(rule).Extract(inp)
 	if err != nil {
 		return nil, "", err
 	}
-	user, err := NamePass(db, d["name"].(string), d["password"].(string))
+	user, err := NamePass(db, d["name"].(string), Encode(d["password"].(string)))
 	if err != nil {
 		return nil, "", err
 	}
@@ -63,9 +59,15 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]int
 	return user
 }
 
+func Encode(pass string) string {
+	h := sha1.New()
+	io.WriteString(h, pass)
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 // We should call the extract module here, also no name && pass but rather a map[string]interface{} containing all the things.
 func Register(db *mgo.Database, ev ifaces.Event, name, pass string) error {
-	u := bson.M{"name": name, "password": pass}
+	u := bson.M{"name": name, "password": Encode(pass)}
 	err := db.C("users").Insert(u)
 	if err != nil {
 		return fmt.Errorf("Name is not unique.")

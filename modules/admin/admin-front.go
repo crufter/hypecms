@@ -88,7 +88,7 @@ func AD(uni *context.Uni) error {
 		if admin_model.SiteHasAdmin(uni.Db) {
 			uni.Dat["_points"] = []string{"admin/login"}
 		} else {
-			uni.Dat["_points"] = []string{"admin/regadmin"}
+			uni.Dat["_points"] = []string{"admin/regfirstadmin"}
 		}
 		return nil
 	}

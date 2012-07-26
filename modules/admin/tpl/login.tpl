@@ -1,8 +1,15 @@
+{{require admin/outer-header.t}}
+
 <div>
-Lépj be
+	<h3>Login</h3>
 </div>
 <form method="post" action="/admin/b/adminlogin">
-<input name="name">
-<input name="password">
-<input type="submit">
+	Name<br />
+	<input name="name"><br />
+	Password<br />
+	<input name="password" type="password"><br />
+	<br />
+	<input type="submit">
 </form>
+
+{{require admin/outer-footer.t}}

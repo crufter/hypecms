@@ -3,6 +3,7 @@ package admin_model
 import(
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/extract"
 	"labix.org/v2/mgo"
@@ -41,7 +42,7 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 		"password": 		subr,
 		"password_again":	subr,
 	}
-	if mode == 2 || mode == 3 {
+	if mode != first_admin {
 		rule["name"] = subr
 	}
 	dat, err := extract.New(rule).Extract(post)
@@ -53,7 +54,7 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 	if  pass != pass_again {
 		return fmt.Errorf("Password and password again differs.")
 	}
-	a := map[string]interface{}{"password": pass}
+	a := map[string]interface{}{"password": user_model.Encode(pass)}
 	switch mode {					// Redundant in places for better readability.
 		case first_admin:
 			a["name"] = "admin"

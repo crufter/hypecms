@@ -31,7 +31,7 @@ func RegFirstAdmin(uni *context.Uni) error {
 	if admin_model.SiteHasAdmin(uni.Db) {
 		return fmt.Errorf("site already has an admin")
 	}
-	return admin_model.RegAdmin(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+	return admin_model.RegFirstAdmin(uni.Db, map[string][]string(uni.Req.Form))
 }
 
 func RegAdmin(uni *context.Uni) error {
