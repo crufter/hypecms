@@ -65,6 +65,11 @@ func Search(uni *context.Uni) error {
 		search = s[0]
 	}
 	points, ok := jsonp.Get(uni.Opt, "Display-points")
+	if !ok {
+		// return fmt.Errorf("There is no \"Display-points\" field in the option document.") // Rather than freezing we easily recover here below.
+		points = map[string]interface{}{}
+	}
+	// TODO: clean up here and make it more straightforward.
 	points_m := points.(map[string]interface{})
 	has_points := false
 	ps := []string{}
@@ -89,11 +94,11 @@ func Edit(uni *context.Uni, point_name string) error {
 	if !ok {
 		return fmt.Errorf("Can't find point named ", point_name)
 	}
-	var queries []interface{}
+	var queries map[string]interface{}
 	if q, has := point["queries"]; has {
-		queries = q.([]interface{})
+		queries = q.(map[string]interface{})
 	} else {
-		queries = []interface{}{map[string]interface{}{}}
+		queries = map[string]interface{}{}
 	}
 	query_b, err := json.MarshalIndent(queries, "", "    ")
 	var query string

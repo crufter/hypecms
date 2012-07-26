@@ -310,6 +310,11 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		},
 		"$set": m{
 			"Modules.content": content_options,
+			"Display-points.index.queries.blog": m{
+				"q":	m{ "type": "blog"},
+				"so":	"-created",
+				"p":	"page",
+			},
 		},
 	}
 	return db.C("options").Update(q, upd)
@@ -323,6 +328,7 @@ func Uninstall(db *mgo.Database, id bson.ObjectId) error {
 		},
 		"$unset": m{
 			"Modules.content": 1,
+			"Display-points.index.queries.blog": 1,
 		},
 	}
 	return db.C("options").Update(q, upd)

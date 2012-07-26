@@ -108,9 +108,9 @@ func queryErr(uni *context.Uni) {
 }
 
 // Runs the queries associated with a given Display Point.
-func runQueries(uni *context.Uni, queries []interface{}) {
+func runQueries(uni *context.Uni, queries map[string]interface{}) {
 	defer queryErr(uni)
-	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries)
+	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries, map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery)
 }
 
 func putJSON(uni *context.Uni) {
@@ -148,9 +148,9 @@ func D(uni *context.Uni) {
 	}
 	queries, queries_exists := jsonp.Get(uni.Opt, "Display-points." + point + ".queries")
 	if queries_exists {
-		qslice, ok := queries.([]interface{})
+		qmap, ok := queries.(map[string]interface{})
 		if ok {
-			runQueries(uni, qslice)
+			runQueries(uni, qmap)
 		}
 	}
 	if _, isjson := uni.Req.Form["json"]; isjson {

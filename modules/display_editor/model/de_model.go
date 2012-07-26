@@ -32,40 +32,39 @@ func New(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 }
 
 // Updates an existing display point. We warn if an unkown key is sent too.
-// Below description is copied from the description of display_model.RunQueries
-//
-// n:		name			string
-// c: 		collection		string
-// q: 		query			map[string]interface{}
-// sk: 		skip			float64 (int in fact)
-// l:		limit			float64 (int in fact)
+// See display_model.RunQueries for further explanation.
 func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
-	rule := map[string]interface{}{"name":1, "prev_name":1, "queries":1}
+	rule := map[string]interface{}{
+		"name":			"must",
+		"prev_name":	"must",
+		"queries":		"must",
+	}
 	r := extract.New(rule)
 	dat, err := r.Extract(inp)
 	if err != nil {
 		return err
 	}
 	if len(dat) != len(rule) {
-		return fmt.Errorf("Missing fields: %s", strings.Join(basic.CalcMiss(rule, dat), ", "))
+		return fmt.Errorf("Missing fields: %v", strings.Join(basic.CalcMiss(rule, dat), ", "))
 	}
 	que, err := jsonp.Decode(dat["queries"].(string))
 	if err != nil {
 		return err
 	}
-	que_s, ok := que.([]interface{})
+	que_m, ok := que.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("Queries is not a slice.")
+		return fmt.Errorf("Queries is not a map[string]interface{}.")
 	}
 	// TODO: this should be the job of extract module.
-	for _, v := range que_s {
+	for _, v := range que_m {
 		for i, _ := range v.(map[string]interface{}) {
 			switch i {
-			case "n":
 			case "c":
 			case "q":
 			case "sk":
 			case "l":
+			case "so":
+			case "p":
 			default:
 				return fmt.Errorf("Nonsensical field ", i)
 			}
@@ -73,7 +72,7 @@ func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 	}
 	upd := m{
 		"$set":m{
-			"Display-points." + dat["name"].(string) + ".queries": que_s,
+			"Display-points." + dat["name"].(string) + ".queries": que_m,
 		},
 	}
 	if dat["name"].(string) != dat["prev_name"].(string) {
