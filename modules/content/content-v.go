@@ -17,7 +17,7 @@ import(
 type m map[string]interface{}
 
 func UserEdit(uni *context.Uni, urimap map[string]string) error {
-	ulev, hasu := jsonp.GetI(uni.Opt, "_user.level")
+	ulev, hasu := jsonp.GetI(uni.Dat, "_user.level")
 	if !hasu {
 		return fmt.Errorf("No user level found, or it is not an integer.")
 	}
