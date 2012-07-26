@@ -51,7 +51,7 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]int
 	if len(user_id) > 0 {
 		user, err = FindUser(db, user_id)
 	}
-	if err != nil {
+	if err != nil || user == nil {
 		user = make(map[string]interface{})
 		user["level"] = 0
 	}

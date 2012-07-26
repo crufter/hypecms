@@ -6,6 +6,7 @@
 <form method="post" action="/admin/b/adminlogin">
 	Name<br />
 	<input name="name"><br />
+	<br />
 	Password<br />
 	<input name="password" type="password"><br />
 	<br />
