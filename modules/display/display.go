@@ -113,8 +113,22 @@ func runQueries(uni *context.Uni, queries []interface{}) {
 	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries)
 }
 
+func putJSON(uni *context.Uni) {
+	var v []byte
+	if _, format := uni.Req.Form["fmt"]; format {
+		v, _ = json.MarshalIndent(uni.Dat, "", "    ")
+	} else {
+		v, _ = json.Marshal(uni.Dat)
+	}
+	uni.Put(string(v))
+}
+
 // This is where the module starts if an error occured in a front hook.
 func DErr(uni *context.Uni, err error) {
+	if _, isjson := uni.Req.Form["json"]; isjson {
+		putJSON(uni)
+		return
+	}
 	uni.Put(err)
 }
 
@@ -140,13 +154,8 @@ func D(uni *context.Uni) {
 		}
 	}
 	if _, isjson := uni.Req.Form["json"]; isjson {
-		var v []byte
-		if _, format := uni.Req.Form["fmt"]; format {
-			v, _ = json.MarshalIndent(uni.Dat, "", "    ")
-		} else {
-			v, _ = json.Marshal(uni.Dat)
-		}
-		uni.Put(string(v))
+		putJSON(uni)
+		return
 	} else {
 		err := DisplayFile(uni, point)
 		if err != nil {
