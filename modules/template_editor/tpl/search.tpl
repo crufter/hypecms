@@ -14,7 +14,7 @@
 		{{end}}
 		
 		{{if $is_priv}}
-			<a href="/b/template_editor/delete_private?template_name={{.Name}}">-</a> <a href="/admin/template_editor/view/private/{{.Name}}?file=">{{.Name}}</a> <a href="/b/template_editor/switch_to_template?template_name={{.Name}}&template_type=private">[Switch]</a><br />
+			<a class="delete" href="/b/template_editor/delete_private?template_name={{.Name}}">-</a> <a href="/admin/template_editor/view/private/{{.Name}}?file=">{{.Name}}</a> <a href="/b/template_editor/switch_to_template?template_name={{.Name}}&template_type=private">[Switch]</a><br />
 		{{end}}
 		
 		{{if $is_mod}}

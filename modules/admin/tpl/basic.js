@@ -14,4 +14,10 @@ function(index, elem) {
 	}
 })
 
+if (pathname.split("/").length > 2) {
+	var modname = pathname.split("/")[2];
+	modname = modname.replace("_", " ")
+	$("#left-sidebar").append("<div id=\"module_text\">" + modname + "</div>");
+}
+
 })
