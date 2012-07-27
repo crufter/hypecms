@@ -39,7 +39,7 @@
 		{{if $current}}
 			<a href="/admin/template_editor/view?file={{.Path}}">{{.Name}}</a>/
 		{{else}}
-			<a href="/admin/template_editor/view/{{$typ}}/{{.Name}}?file={{.Path}}">{{.Name}}</a>/
+			<a href="/admin/template_editor/view/{{$typ}}/{{$name}}?file={{.Path}}">{{.Name}}</a>/
 		{{end}}
 	{{end}}
 	<br />
