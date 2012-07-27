@@ -213,8 +213,6 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	uni.Dat["type"] = typ
 	id, hasid := ma["id"]
 	var indb interface{}
-	_, tags_on := rules[content_model.Tag_fieldname_displayed]
-	uni.Dat["tags_on"] = tags_on
 	if hasid {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)

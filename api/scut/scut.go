@@ -44,7 +44,7 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 	already_in := map[string]struct{}{}
 	for _, v := range prior {
 		if _, contains := rule[v]; contains {
-			item := map[string]interface{}{"key":v}
+			item := map[string]interface{}{v:1, "key":v}
 			if dat != nil {
 				item["value"] = dat[v]
 			}
@@ -62,7 +62,7 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 	sort.Strings(keys)
 	for _, v := range keys {
 		if _, in := already_in[v]; !in {
-			item := map[string]interface{}{"key":v}
+			item := map[string]interface{}{v:1, "key":v}
 			if dat != nil {
 				item["value"] = dat[v]
 			}
