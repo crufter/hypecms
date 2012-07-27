@@ -7,7 +7,7 @@ li {list-style-type:none;}
 #admin-menu {background: #e2e2e2; border-bottom: 1px solid #d0d0d0;}
 	#admin-menu  a {display:block; margin-right:1em; float:left; padding:6px 12px;}
 	#admin-menu  a:hover {text-decoration:none; background:#E9BF83; /*color:#fff;*/}
-	#admin-menu #logo {font-size:18px; text-shadow: #f2f2f2; 1px 1px 1px; font-family:Days; float:right; color:#073966;}
+	#admin-menu #logo {font-size:18px; /*text-shadow: #f2f2f2; 1px 1px 1px;*/ font-family:Days; float:right; color:#073966;}
 	#admin-menu #logo:hover {/*color:#fff;*/}
 #content {padding:0 1 em;}
 #left-sidebar {float:left; width:25%;}
