@@ -217,7 +217,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
 		indb = basic.Convert(indb)
-		resolver.ResolveOne(uni.Db, indb)
+		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
 	} else {
 		uni.Dat["op"] = "insert"

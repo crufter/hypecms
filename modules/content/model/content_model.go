@@ -139,7 +139,12 @@ func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
 	var res interface{}
 	db.C("contents").Find(m{"_id": id}).One(&res)
 	dat := basic.Convert(res).(map[string]interface{})
-	resolver.ResolveOne(db, dat)
+	fields := map[string]interface{}{
+		"name":		1,
+		"slug":		1,
+		"title":	1,
+	}
+	resolver.ResolveOne(db, dat, fields)
 	dat = basic.Convert(dat).(map[string]interface{})
 	non_split := walkDeep(dat)
 	split := []string{}
