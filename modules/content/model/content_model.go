@@ -304,8 +304,19 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 	content_options := m{
 		"types": m {
 			"blog": m{
+				"comment_rules": m{
+					basic.Created: 		false,
+					basic.Created_by:	false,
+					"content":			1,
+				},
 				"rules" : m{
-					"title": 1, "slug":1, "content": 1, Tag_fieldname_displayed: 1, "fulltext": false, basic.Created: false, basic.Created_by:false,
+					"title": 			1,
+					"slug":				1,
+					"content": 			1,
+					Tag_fieldname_displayed: 1,
+					"fulltext": 		false,
+					basic.Created: 		false,
+					basic.Created_by:	false,
 				},
 			},
 		},
@@ -318,6 +329,8 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"$set": m{
 			"Modules.content": content_options,
 			"Display-points.index.queries.blog": m{
+				"c":	"contents",
+				"l":	10,
 				"q":	m{ "type": "blog"},
 				"so":	"-created",
 				"p":	"page",

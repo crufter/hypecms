@@ -7,6 +7,7 @@ import(
 	"github.com/opesun/extract"
 	"github.com/opesun/hypecms/model/basic"
 	"fmt"
+	"time"
 )
 
 func commentRequiredLevel(content_options map[string]interface{}) int {
@@ -52,6 +53,17 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 	return nil
 }
 
+// To be able to list all comments chronologically we insert it to a virtual collection named "comments", where there will be only a link.
+func insertToVirtual(db *mgo.Database, content_id, comment_id, author bson.ObjectId) error {
+	comment_link := map[string]interface{}{
+		"_contents_parent": content_id,
+		"comment_id":		comment_id,
+		"_users_author":	author,
+		"created":			time.Now().Unix(),
+	}
+	return db.C("comments").Insert(comment_link)
+}
+
 func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, inp map[string][]string, user_id bson.ObjectId) error {
 	dat, err := extract.New(rule).Extract(inp)
 	if err != nil {
@@ -62,14 +74,20 @@ func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 	if err != nil {
 		return err
 	}
-	dat["comment_id"] = bson.NewObjectId()
-	q := bson.M{ "_id": bson.ObjectIdHex(ids[0])}
+	content_id := bson.ObjectIdHex(ids[0])
+	comment_id := bson.NewObjectId()
+	dat["comment_id"] = comment_id
+	q := bson.M{ "_id": content_id}
 	upd := bson.M{
 		"$push": bson.M{
 			"comments": dat,
 		},
 	}
-	return db.C("contents").Update(q, upd)
+	err = db.C("contents").Update(q, upd)
+	if err == nil {
+		insertToVirtual(db, content_id, comment_id, user_id) 
+	}
+	return err
 }
 
 // Inp will contain content and comment ID too, as in Update.
