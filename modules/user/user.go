@@ -18,8 +18,12 @@ var Hooks = map[string]func(*context.Uni) error {
 }
 
 func BuildUser(uni *context.Uni) error {
-	c, _ := uni.Req.Cookie("user")
-	uni.Dat["_user"] = user_model.BuildUser(uni.Db, uni.Ev, c.Value)
+	c, err := uni.Req.Cookie("user")
+	if err == nil {
+		uni.Dat["_user"] = user_model.BuildUser(uni.Db, uni.Ev, c.Value)
+	} else {
+		uni.Dat["_user"] = user_model.EmptyUser()
+	}
 	return nil
 }
 

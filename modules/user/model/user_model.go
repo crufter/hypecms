@@ -45,6 +45,12 @@ func Login(db *mgo.Database, inp map[string][]string) (map[string]interface{}, s
 	return user, user["_id"].(bson.ObjectId).Hex(), nil
 }
 
+func EmptyUser() map[string]interface{} {
+	user := make(map[string]interface{})
+	user["level"] = 0
+	return user
+}
+
 func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]interface{} {
 	var user map[string]interface{}
 	var err error
@@ -52,8 +58,7 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]int
 		user, err = FindUser(db, user_id)
 	}
 	if err != nil || user == nil {
-		user = make(map[string]interface{})
-		user["level"] = 0
+		user = EmptyUser()
 	}
 	ev.Trigger("user.build", user)
 	return user
