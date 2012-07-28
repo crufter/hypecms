@@ -10,7 +10,7 @@
 <script src="/shared/CodeMirror-2.3/mode/xml/xml.js"></script>
 
 <style type="text/css">
-	.CodeMirror-scroll {height: 80%;}
+	.CodeMirror-scroll {height: 60%;}
 	.CodeMirror {border: 1px solid black;}
 	.cm-mustache {color: #004; font-weight: bold}
 </style>
@@ -19,13 +19,14 @@
 {{$current := .current}}
 {{$typ := .typ}}
 {{$name := .template_name}}
+{{$included := .included}}
 
 {{if .error}}
 	An error occured: {{.error}}
 {{else}}
 	{{$can_mod := .can_modify}}
 	{{$raw_path := .raw_path}}
-	{{if $can_mod}}private{{else}}public{{end}} &nbsp;&nbsp;
+	{{$typ}} &nbsp;&nbsp;
 	
 	<!-- Breadcrumb. -->
 	{{if $current}}
@@ -89,6 +90,14 @@
 				You can not modify this file because it is part of a public template. <a href="/b/template_editor/fork_public">Make a private template out of this by forking.</a>
 			{{end}}
 		</form>
+		<h3>Included files:</h3>
+		{{if .included}}
+			{{range .included}}
+				<a href="/admin/template_editor/view/{{.Typ}}/{{.Tempname}}?file=/{{.Filepath}}">{{.Filepath}}</a><br />
+			{{end}}
+		{{else}}
+			None.<br />
+		{{end}}
 	{{end}}
 	<!-- /File editing. -->
 {{end}}

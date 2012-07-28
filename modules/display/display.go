@@ -36,18 +36,8 @@ func getFile(root, fi string, opt map[string]interface{}, host string) ([]byte, 
 	if err == nil {
 		return b, nil
 	}
-	mp := getModTPath(fi)
+	mp := scut.GetModTPath(fi)
 	return ioutil.ReadFile(filepath.Join(root, mp[0], mp[1]))
-}
-
-// Inp:	"admin/this/that.txt"
-// []string{ "modules/admin/tpl", "this/that.txt"}
-func getModTPath(filename string) []string {
-	sl := []string{}
-	p := strings.Split(filename, "/")
-	sl = append(sl, filepath.Join("modules", p[0], "tpl"))
-	sl = append(sl, strings.Join(p[1:], "/"))
-	return sl
 }
 
 // Executes filep.tpl of a given template.

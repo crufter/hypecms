@@ -123,7 +123,7 @@ func ForkPublic(db *mgo.Database, opt map[string]interface{}, host, root string)
 
 // Taken from http://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
 // exists returns whether the given file or directory exists or not
-func exists(path string) (bool, error) {
+func Exists(path string) (bool, error) {
     _, err := os.Stat(path)
     if err == nil { return true, nil }
     if os.IsNotExist(err) { return false, nil }
@@ -141,7 +141,7 @@ func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string
 	from := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
 	to := filepath.Join(root, "templates", "public", public_name)
 	// copyrecur.CopyDir checks for existence too, but for safety reasons we check here in case copyrecur semantics change.
-	exis, exis_err := exists(to)
+	exis, exis_err := Exists(to)
 	if exis {
 		return fmt.Errorf("Public template with name " + public_name + " already exists.")
 	}
@@ -195,7 +195,7 @@ func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]
 	if e_err != nil { return e_err }
 	new_template_name := dat["new_template_name"].(string)
 	to := filepath.Join(root, "templates", "private", host, new_template_name)
-	e, e_err := exists(to)
+	e, e_err := Exists(to)
 	if e {
 		return fmt.Errorf("Private template named %v already exists.", new_template_name)
 	} else if e_err != nil {

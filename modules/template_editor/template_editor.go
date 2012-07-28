@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"github.com/opesun/hypecms/modules/template_editor/model"
+	"github.com/opesun/require"
 )
 
 // mod.GetHook accesses certain functions dynamically trough this.
@@ -119,6 +120,37 @@ func canMod(typ string) bool {
 	return typ == "private"
 }
 
+type ReqLink struct {
+	Typ 		string
+	Tempname	string
+	Filepath	string
+}
+
+func reqLinks(opt map[string]interface{}, s, root, host string) []ReqLink {
+	pos := require.RequirePositions(s)
+	ret := []ReqLink{}
+	for _, v := range pos {
+		fi := s[v[0]+10:v[1]-2]
+		var typ, path, name string
+		in_templ := fi
+		in_mod := scut.GetModTPath(fi)[1]
+		ex, err := template_editor_model.Exists(in_templ)
+		if err != nil { continue }
+		if ex {
+			typ = scut.TemplateType(opt)
+			path = in_templ
+			name = scut.TemplateName(opt)
+		} else {
+			path = in_mod
+			typ = "mod"
+			name = strings.Split(fi, "/")[0]
+		}
+		rl := ReqLink{typ, name, path}
+		ret = append(ret, rl)
+	}
+	return ret
+}
+
 func view(current bool, opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
 	ret := map[string]interface{}{}
 	tpath, path_err := threePath(host, typ, name)
@@ -153,6 +185,7 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 		if len(file_b) == 0 {
 			ret["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
 		} else {
+			ret["included"] = reqLinks(opt, string(file_b), root, host)
 			ret["file"] = string(file_b)
 		}
 	}

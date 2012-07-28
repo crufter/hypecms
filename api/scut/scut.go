@@ -6,6 +6,7 @@ import(
 	"labix.org/v2/mgo/bson"
 	"sort"
 	"path/filepath"
+	"strings"
 )
 
 // Iterates a [] coming from a mgo query and converts the "_id" members from bson.ObjectId to string.
@@ -112,6 +113,16 @@ func GetTPath(opt map[string]interface{}, host string) string {
 		return filepath.Join("templates", ttype, templ)
 	}
 	return filepath.Join("templates", ttype, host, templ)
+}
+
+// Inp:	"admin/this/that.txt"
+// []string{ "modules/admin/tpl", "this/that.txt"}
+func GetModTPath(filename string) []string {
+	sl := []string{}
+	p := strings.Split(filename, "/")
+	sl = append(sl, filepath.Join("modules", p[0], "tpl"))
+	sl = append(sl, strings.Join(p[1:], "/"))
+	return sl
 }
 
 func NotAdmin(user interface{}) bool {
