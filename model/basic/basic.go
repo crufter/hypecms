@@ -14,6 +14,8 @@ const(
 	Created				= "created"
 	Last_modified_by	= "_users_last_modified_by"
 	Last_modified		= "last_modified"
+	Version_datefield	= "version_date"
+	Version_parentfield	= "version_parent"
 )
 
 // by Id.
@@ -28,6 +30,14 @@ func Find(db *mgo.Database, coll, id string) map[string]interface{} {
 
 // Insert, and update/delete, by Id.
 func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, op, id string) error {
+	return InudOpt(db, ev, dat, coll, op, id, false)
+}
+
+func InudVersion(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, op, id string) error {
+	return InudOpt(db, ev, dat, coll, op, id, true)
+}
+
+func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, op, id string, version bool) error {
 	var err error
 	if (op == "update" || op == "delete") && len(id) != 24 {
 		if len(id) == 39 {
@@ -41,9 +51,30 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 		dat["_id"] = bson.NewObjectId()
 		err = db.C(coll).Insert(dat)
 	case "update":
-		q := bson.M{"_id": bson.ObjectIdHex(id)}
-		upd := bson.M{"$set": dat}
-		err = db.C(coll).Update(q, upd)
+		if version {
+			// Damn, mongodb does not allow to update the _id of a document.
+			var v interface{}
+			old_id := bson.ObjectIdHex(id)
+			err = db.C(coll).Find(bson.M{"_id":old_id}).One(&v)
+			if err != nil { return err }
+			if v == nil { return fmt.Errorf("Can't find document at update.") }
+			old_doc := v.(bson.M)
+			old_doc["_id"] = bson.NewObjectId()
+			old_doc[Version_parentfield] = old_id
+			old_doc[Version_datefield] = time.Now().Unix()
+			if typ, has_typ := old_doc["type"]; has_typ {
+				old_doc["type"] = typ.(string) + "_version"
+			}
+			err = db.C(coll).Insert(old_doc)
+			if err != nil { return err }
+			q := bson.M{"_id": old_id}
+			upd := bson.M{"$set": dat}
+			err = db.C(coll).Update(q, upd)
+		} else {
+			q := bson.M{"_id": bson.ObjectIdHex(id)}
+			upd := bson.M{"$set": dat}
+			err = db.C(coll).Update(q, upd)
+		}
 	case "delete":
 		var v interface{}
 		err = db.C(coll).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
