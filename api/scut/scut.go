@@ -13,7 +13,14 @@ import(
 // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 func Strify(v []interface{}) {
 	for _, val := range v {
-		val.(bson.M)["_id"] = val.(bson.M)["_id"].(bson.ObjectId).Hex()
+		switch value := val.(type) {
+		case bson.M:
+			value["_id"] = value["_id"].(bson.ObjectId).Hex()
+		case map[string]interface{}:
+			value["_id"] = value["_id"].(bson.ObjectId).Hex()
+		default:
+			panic("Insane type at Strify.")
+		}
 	}
 }
 
