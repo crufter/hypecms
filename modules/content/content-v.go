@@ -11,7 +11,7 @@ import(
 	"encoding/json"
 	"fmt"
 	"github.com/opesun/resolver"
-	//"strings"
+	"strings"
 )
 
 type m map[string]interface{}
@@ -27,7 +27,8 @@ func UserEdit(uni *context.Uni, urimap map[string]string) error {
 	} else if ulev < minLev(uni.Opt, "insert") {
 		return fmt.Errorf("You have no rights to insert a content.")
 	}
-	Edit(uni, urimap)
+	ed_err := Edit(uni, urimap)
+	if ed_err != nil { return ed_err }
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
 	return nil
@@ -205,6 +206,10 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	if !hast {
 		return fmt.Errorf("Can't extract type at edit.")
 	}
+	draft := strings.HasSuffix(typ, "_draft")
+	if draft {
+		typ = typ[:len(typ) - 6]
+	}
 	uni.Dat["content_type"] = typ
 	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !hasr {
@@ -213,7 +218,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	uni.Dat["type"] = typ
 	id, hasid := ma["id"]
 	var indb interface{}
-	if hasid {
+	if hasid && !draft {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
 		indb = basic.Convert(indb)
@@ -222,7 +227,21 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	} else {
 		uni.Dat["op"] = "insert"
 	}
-	f, ferr := scut.RulesToFields(rules, context.Convert(indb))
+	var dat interface{}
+	if draft {
+		d, err := content_model.BuildDraft(uni.Db, typ + "_draft", id)
+		if content_model.ParentIsDraft(d) {
+			uni.Dat["draft_parent"] = true
+		} else if content_model.ParentIsContent(d) {
+			uni.Dat["content_parent"] = true
+		}	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
+		if err != nil { return err }
+		dat = d
+		fmt.Println(d)
+	} else {
+		dat = context.Convert(indb)
+	}
+	f, ferr := scut.RulesToFields(rules, dat)
 	if ferr != nil {
 		return ferr
 	}
@@ -236,7 +255,8 @@ func AEdit(uni *context.Uni) error {
 	if err != nil {
 		return fmt.Errorf("Bad url at edit.")
 	}
-	Edit(uni, ma)
+	ed_err := Edit(uni, ma)
+	if ed_err != nil { return ed_err }
 	uni.Dat["_points"] = []string{"content/edit"}
 	return nil
 }

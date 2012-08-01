@@ -236,13 +236,14 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 		addTags(db, upd_dat, id[0], "update")
 	}
 	basic.Slug(rule, upd_dat)
-	ret_err := basic.Inud(db, ev, upd_dat, "contents", "update", id[0])
+	ret_err := basic.InudVersion(db, ev, upd_dat, "contents", "update", id[0])
+	if ret_err != nil { return ret_err }
 	_, has_fulltext := rule["fulltext"]
 	if has_fulltext {
 		id_bson := bson.ObjectIdHex(basic.StripId(id[0]))
 		saveFulltext(db, id_bson)
 	}
-	return ret_err
+	return nil
 }
 
 func Delete(db *mgo.Database, ev ifaces.Event, id []string, user_id bson.ObjectId) []error {

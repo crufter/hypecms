@@ -59,6 +59,25 @@ func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 	return uid.(bson.ObjectId), typ, nil
 }
 
+// We never update drafts.
+func SaveDraft(uni *context.Uni) error {
+	post := uni.Req.Form
+	typ_s, has_typ := post["type"]
+	if !has_typ { return fmt.Errorf("No type when saving draft.") }
+	typ := typ_s[0]
+	rules, has_rules := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
+	if !has_rules { return fmt.Errorf("Can't find rules of content type %v.", typ) }
+	draft_id, err := content_model.SaveDraft(uni.Db, rules, map[string][]string(post))
+	// Handle redirect.
+	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
+	redir := "/content/edit/" + typ + "_draft/" + draft_id.Hex()
+	if is_admin {
+		redir = "/admin" + redir
+	}
+	uni.Dat["redirect"] = redir 
+	return err
+}
+
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Ins(uni *context.Uni) error {
@@ -209,9 +228,17 @@ func Back(uni *context.Uni) error {
 	var r error
 	switch action {
 	case "insert":
-		r = Ins(uni)
+		if _, is_draft := uni.Req.Form["draft"]; is_draft {
+			r = SaveDraft(uni)
+		} else {
+			r = Ins(uni)
+		}
 	case "update":
-		r = Upd(uni)
+		if _, is_draft := uni.Req.Form["draft"]; is_draft {
+			r = SaveDraft(uni)
+		} else {
+			r = Upd(uni)
+		}
 	case "delete":
 		r = Del(uni)
 	case "insert_comment":
