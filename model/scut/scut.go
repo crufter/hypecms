@@ -9,16 +9,32 @@ import(
 	"strings"
 )
 
-// Called before display.
-func Strify(v []interface{}) {
-	for _, val := range v {
-		switch value := val.(type) {
-		case bson.M:
-			value["_id"] = value["_id"].(bson.ObjectId).Hex()
-		case map[string]interface{}:
-			value["_id"] = value["_id"].(bson.ObjectId).Hex()
-		default:
-			panic("Insane type at Strify.")
+// Converts all bson.ObjectId to string. Usually called before display.
+func Strify(v interface{}) {
+	switch value := v.(type) {
+	case bson.M:
+		for i, mem := range value {
+			if id, is_id := mem.(bson.ObjectId); is_id {
+				value[i] = id.Hex()
+			} else {
+				Strify(mem)
+			}
+		}
+	case map[string]interface{}:
+		for i, mem := range value {
+			if id, is_id := mem.(bson.ObjectId); is_id {
+				value[i] = id.Hex()
+			} else {
+				Strify(mem)
+			}
+		}
+	case []interface{}:
+		for i, mem := range value {
+			if id, is_id := mem.(bson.ObjectId); is_id {
+				value[i] = id.Hex()
+			} else {
+				Strify(mem)
+			}
 		}
 	}
 }
