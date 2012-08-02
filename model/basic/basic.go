@@ -199,11 +199,11 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 			}
 		case Created:
 			if inserting {
-				dat[i] = time.Now()
+				dat[i] = time.Now().Unix()
 			}
 		case Last_modified:
 			if updating {
-				dat[i] = time.Now()
+				dat[i] = time.Now().Unix()
 			}
 		}
 	}
@@ -224,7 +224,9 @@ func Slug(rule map[string]interface{}, dat map[string]interface{}) {
 }
 
 func StripId(str_id string) string {
-	if len(str_id) != 24 {
+	l := len(str_id)
+	if l != 24 {
+		if l < 38 { panic("Bad id at basic.StripId.") }
 		return str_id[13:37]
 	}
 	return str_id
