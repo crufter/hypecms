@@ -10,7 +10,7 @@ import (
 	"github.com/opesun/jsonp"
 	"github.com/opesun/require"
 	"github.com/opesun/hypecms/modules/display/model"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	"html/template"
 	"io/ioutil"
 	"path/filepath"

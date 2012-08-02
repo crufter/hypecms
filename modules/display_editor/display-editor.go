@@ -3,7 +3,7 @@ package display_editor
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"

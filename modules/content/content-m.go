@@ -2,7 +2,7 @@ package content
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/jsonp"
 	//"labix.org/v2/mgo"

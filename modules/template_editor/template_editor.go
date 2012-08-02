@@ -4,7 +4,7 @@ package template_editor
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	//"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"

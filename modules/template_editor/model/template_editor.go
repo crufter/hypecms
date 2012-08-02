@@ -4,7 +4,7 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/extract"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	"fmt"
 	"io/ioutil"
 	"os"

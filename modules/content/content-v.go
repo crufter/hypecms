@@ -6,7 +6,7 @@ import(
 	"github.com/opesun/routep"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"
-	"github.com/opesun/hypecms/api/scut"
+	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/content/model"
 	"encoding/json"
 	"fmt"
