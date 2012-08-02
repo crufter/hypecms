@@ -10,10 +10,10 @@ import (
 )
 
 const(
-	Tag_fieldname = "_tags"					// goes to database
-	Tag_fieldname_displayed = "tags"		// comes from user interface, it is in the rules
-	Collection_name = "tags"
-	Count_fieldname = "count"
+	Tag_fieldname 				= "_tags"					// goes to database
+	Tag_fieldname_displayed 	= "tags"		// comes from user interface, it is in the rules
+	Tag_cname 					= "tags"
+	Count_fieldname 			= "count"
 )
 
 type m map[string]interface{}
@@ -36,7 +36,7 @@ func mToSSlice(ma map[string]struct{}) []string {
 
 func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string) {
 	var i []interface{}
-	db.C(Collection_name).Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
+	db.C(Tag_cname).Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
 	ret_ids := []bson.ObjectId{}
 	contains := createM(slug_sl)
 	i = basic.Convert(i).([]interface{})
@@ -48,12 +48,12 @@ func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string
 	return ret_ids, mToSSlice(contains)
 }
 func inc(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C(Collection_name).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:1 }})
+	_, err := db.C(Tag_cname).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:1 }})
 	return err
 }
 
 func dec(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C(Collection_name).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:-1 }})
+	_, err := db.C(Tag_cname).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:-1 }})
 	return err
 }
 
@@ -64,7 +64,7 @@ func insert(db *mgo.Database, tag_sl []string) []bson.ObjectId {
 		id := bson.NewObjectId()
 		slug := slugify.S(v)
 		tag := m{"_id": id, "slug":slug, "name":v, Count_fieldname:0}
-		db.C(Collection_name).Insert(tag)
+		db.C(Tag_cname).Insert(tag)
 		ret = append(ret, id)
 	}
 	return ret
@@ -120,7 +120,7 @@ func toIdSlice(i []interface{}) []bson.ObjectId {
 func addToSet(db *mgo.Database, content_id bson.ObjectId, tag_ids []bson.ObjectId) {
 	q := m{"_id": content_id}
 	upd := m{"$addToSet": m{Tag_fieldname: m{"$each": tag_ids}}}
-	db.C("contents").Update(q, upd)
+	db.C(Cname).Update(q, upd)
 }
 
 func stripEmpty(sl []string) []string {
@@ -183,32 +183,32 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	dec(db, to_pull)
 	q := m{"_id": content["_id"].(bson.ObjectId) }
 	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
-	return db.C("contents").Update(q, upd)
+	return db.C(Cname).Update(q, upd)
 }
 
 func DeleteTag(db *mgo.Database, tag_id string) error {
 	tag_idstr := basic.StripId(tag_id)
 	tag_bsonid := bson.ObjectIdHex(tag_idstr)
-	err := db.C("tags").Remove(m{"_id":tag_bsonid})
+	err := db.C(Tag_cname).Remove(m{"_id":tag_bsonid})
 	if err != nil {return err}
 	return PullTagFromAll(db, tag_bsonid)
 }
 
 func PullTagFromAll(db *mgo.Database, tag_id bson.ObjectId) error {
-	_, err := db.C("tags").UpdateAll(nil, m{"$pull":m{Tag_fieldname:tag_id}})
+	_, err := db.C(Tag_cname).UpdateAll(nil, m{"$pull":m{Tag_fieldname:tag_id}})
 	return err
 }
 
 func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error) {
 	q := m{"slug": tag_slug}
 	var res interface{}
-	err := db.C("tags").Find(q).One(&res)
+	err := db.C(Tag_cname).Find(q).One(&res)
 	if err != nil { return nil, err }
 	if res == nil { return nil, fmt.Errorf("Can't find tag by slug.") }
 	tag := basic.Convert(res.(bson.M)).(map[string]interface{})
 	q = m{Tag_fieldname: tag["_id"].(bson.ObjectId)}
 	var contents []interface{}
-	err = db.C("contents").Find(q).All(&contents)
+	err = db.C(Cname).Find(q).All(&contents)
 	if err != nil { return nil, err }
 	if contents == nil { return nil, fmt.Errorf("Can't find contents.") }
 	return basic.Convert(contents).([]interface{}), nil
@@ -217,7 +217,7 @@ func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error)
 func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
 	var res []interface{}
 	q := m{"slug": bson.RegEx{ "^" + tag_slug, "u"}}
-	err := db.C("tags").Find(q).All(&res)
+	err := db.C(Tag_cname).Find(q).All(&res)
 	if err != nil { return nil, err }
 	if res == nil { return nil, fmt.Errorf("Can't find tags.") }
 	return res, nil

@@ -41,8 +41,12 @@
 	{{end}}
 {{end}}
 <input type="hidden" name="type" value="{{.type}}" />
-<input type="hidden" name="prev_draft" value="{{if .draft_parent}}{{$content._id}}{{end}}" />
-<input type="hidden" name="id" value="{{if .content_parent}}{{$content._id}}{{end}}" />
+{{if .is_draft}}
+	<input type="hidden" name="prev_draft" value="{{if .draft_parent}}{{$content._id}}{{end}}" /> <!-- For first draft-from-content you do not need to send it. -->
+	<input type="hidden" name="id" value="{{if .content_parent}}{{$content._id}}{{end}}" />
+{{else}}
+	<input type="hidden" name="id" value="{{.content._id}}" />
+{{end}}
 <input type="submit" name="draft" value="Save as draft"><br />
 <br />
 <input type="submit">

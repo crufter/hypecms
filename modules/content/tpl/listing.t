@@ -4,4 +4,8 @@
 {{else}}
 	<a href="/admin/content/edit/{{.type}}/{{._id}}">{{.name}}</a>
 {{end}}
+<!-- Has up to date draft. -->
+{{if .latest_draft}}
+	<span class="info"><a href="/admin/content/edit/{{.latest_draft.type}}/{{.latest_draft._id}}">Has draft</a></span>
+{{end}}
 <br />

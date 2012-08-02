@@ -13,6 +13,10 @@ import(
 	"strings"
 )
 
+const(
+	Cname = "contents"
+)
+
 // Precedence: type && op, type, op, all
 func requiredLevel(content_options map[string]interface{}, typ, op string) int {
 	type_op_lev, has := jsonp.Get(content_options, "types." + typ + "." + op + "_level")
@@ -236,7 +240,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 		addTags(db, upd_dat, id[0], "update")
 	}
 	basic.Slug(rule, upd_dat)
-	ret_err := basic.InudVersion(db, ev, upd_dat, "contents", "update", id[0])
+	ret_err := basic.InudVersion(db, ev, upd_dat, Cname, "update", id[0])
 	if ret_err != nil { return ret_err }
 	_, has_fulltext := rule["fulltext"]
 	if has_fulltext {
@@ -249,7 +253,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 func Delete(db *mgo.Database, ev ifaces.Event, id []string, user_id bson.ObjectId) []error {
 	var errs []error
 	for _, v := range id {
-		errs = append(errs, basic.Inud(db, ev, nil, "contents", "delete", v))
+		errs = append(errs, basic.Inud(db, ev, nil, Cname, "delete", v))
 	}
 	return errs
 }
@@ -278,7 +282,7 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 		query["$or"] = or
 	}
 	var v interface{}
-	db.C("contents").Find(query).One(&v)
+	db.C(Cname).Find(query).One(&v)
 	if v == nil {
 		return nil, false
 	}
@@ -290,8 +294,7 @@ func SaveTypeConfig(db *mgo.Database, inp map[string][]string) error {
 		"type": 		"must",
 		"safe_delete":	"must",
 	}
-	dat, err := extract.New(rule).Extract(inp)
-	fmt.Println(dat)
+	_, err := extract.New(rule).Extract(inp)	// _ = dat
 	if err != nil { return err }
 	// TODO: finish.
 	return nil
@@ -318,6 +321,8 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 					"fulltext": 		false,
 					basic.Created: 		false,
 					basic.Created_by:	false,
+					basic.Last_modified:	false,
+					basic.Last_modified_by:	false,
 				},
 			},
 		},
@@ -330,7 +335,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"$set": m{
 			"Modules.content": content_options,
 			"Display-points.index.queries.blog": m{
-				"c":	"contents",
+				"c":	Cname,
 				"l":	10,
 				"q":	m{ "type": "blog"},
 				"so":	"-created",

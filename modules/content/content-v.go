@@ -120,13 +120,21 @@ func getSidebar(uni *context.Uni) []string {
 
 func Index(uni *context.Uni) error {
 	var v []interface{}
-	var q m
+	visible_types := []string{}
+	types, has := jsonp.GetM(uni.Opt, "Modules.content.types")
+	if !has { return fmt.Errorf("Can't find content types.") }
+	for i, _ := range types {
+		visible_types = append(visible_types, i)
+	}
+	q := m{"type": m{"$in": visible_types}}
 	search_sl, has := uni.Req.Form["search"];
 	if has && len(search_sl[0]) > 0 {
-		q = m{"$and": content_model.GenerateQuery(search_sl[0])}
+		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
 	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
+	v = basic.Convert(v).([]interface{})
+	content_model.ConnectForDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
@@ -159,6 +167,8 @@ func List(uni *context.Uni) error {
 		uni.Dat["search"] = search_sl[0]
 	}
 	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
+	v = basic.Convert(v).([]interface{})
+	content_model.ConnectForDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
@@ -209,6 +219,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	draft := strings.HasSuffix(typ, "_draft")
 	if draft {
 		typ = typ[:len(typ) - 6]
+		uni.Dat["is_draft"] = true
 	}
 	uni.Dat["content_type"] = typ
 	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
@@ -220,10 +231,11 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	var indb interface{}
 	if hasid && !draft {
 		uni.Dat["op"] = "update"
-		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)
+		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)						// Ugly.
 		indb = basic.Convert(indb)
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
+		uni.Dat["latest_draft"] = content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
 	} else {
 		uni.Dat["op"] = "insert"
 	}
@@ -237,7 +249,6 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 		}	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
 		if err != nil { return err }
 		dat = d
-		fmt.Println(d)
 	} else {
 		dat = context.Convert(indb)
 	}
