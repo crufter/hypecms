@@ -180,13 +180,8 @@ func CalcMiss(rule map[string]interface{}, dat map[string]interface{}) []string 
 // Kind of an extension of the extract module.
 // Handles author fields 	(created_by, last_modified_by),
 // And time fields			(created, last_modified)
-func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user_id bson.ObjectId) {
-	var inserting, updating bool
-	if _, has_id := dat["id"]; has_id {
-		updating = true
-	} else {
-		inserting = true
-	}
+func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user_id bson.ObjectId, updating bool) {
+	inserting := !updating
 	for i, _ := range rule {
 		switch i {
 		case Created_by:
@@ -202,6 +197,7 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 				dat[i] = time.Now().Unix()
 			}
 		case Last_modified:
+			fmt.Println("lol")
 			if updating {
 				dat[i] = time.Now().Unix()
 			}
