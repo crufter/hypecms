@@ -203,7 +203,7 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if extr_err != nil {
 		return "", extr_err
 	}
-	basic.DateAndAuthor(rule, ins_dat, user_id)
+	basic.DateAndAuthor(rule, ins_dat, user_id, hasid)
 	ins_dat["type"] = typ[0]
 	_, has_tags := ins_dat[Tag_fieldname_displayed]
 	if has_tags {
@@ -233,7 +233,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	if extr_err != nil {
 		return extr_err
 	}
-	basic.DateAndAuthor(rule, upd_dat, user_id)
+	basic.DateAndAuthor(rule, upd_dat, user_id, hasid)
 	upd_dat["type"] = typ[0]
 	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
@@ -323,6 +323,9 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 					basic.Created_by:	false,
 					basic.Last_modified:	false,
 					basic.Last_modified_by:	false,
+				},
+				"non_versioned_fields": m{
+					"comments": 1,
 				},
 			},
 		},

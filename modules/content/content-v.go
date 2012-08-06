@@ -8,6 +8,7 @@ import(
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/content/model"
+	"github.com/opesun/hypecms/modules/display/model"
 	"encoding/json"
 	"fmt"
 	"github.com/opesun/resolver"
@@ -132,7 +133,9 @@ func Index(uni *context.Uni) error {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
+	skip_amount, paging := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
+	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
 	content_model.ConnectForDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
@@ -166,7 +169,9 @@ func List(uni *context.Uni) error {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	uni.Db.C("contents").Find(q).Sort("-created").All(&v)
+	skip_amount, paging := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
+	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
 	content_model.ConnectForDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
@@ -210,53 +215,104 @@ func Config(uni *context.Uni) error {
 	return nil
 }
 
-// Called from both admin and outside editing.
-func Edit(uni *context.Uni, ma map[string]string) error {
-	typ, hast := ma["type"]
-	if !hast {
-		return fmt.Errorf("Can't extract type at edit.")
-	}
-	draft := strings.HasSuffix(typ, "_draft")
-	if draft {
-		typ = typ[:len(typ) - 6]
-		uni.Dat["is_draft"] = true
-	}
-	uni.Dat["content_type"] = typ
-	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
-	if !hasr {
-		return fmt.Errorf("Can't find rules of " + typ)
-	}
-	uni.Dat["type"] = typ
-	id, hasid := ma["id"]
+func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, error) {
+	uni.Dat["is_content"] = true
 	var indb interface{}
-	if hasid && !draft {
+	if hasid {
 		uni.Dat["op"] = "update"
 		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)						// Ugly.
 		indb = basic.Convert(indb)
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
-		uni.Dat["latest_draft"] = content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
+		latest_draft := content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
+		scut.Strify(latest_draft)
+		uni.Dat["latest_draft"] = latest_draft
 	} else {
 		uni.Dat["op"] = "insert"
 	}
-	var dat interface{}
-	if draft {
-		d, err := content_model.BuildDraft(uni.Db, typ + "_draft", id)
-		if content_model.ParentIsDraft(d) {
-			uni.Dat["draft_parent"] = true
-		} else if content_model.ParentIsContent(d) {
+	return context.Convert(indb), nil
+}
+
+func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error) {
+	uni.Dat["is_draft"] = true
+	if hasid {
+		built, err := content_model.BuildDraft(uni.Db, typ + "_draft", id)
+		if err != nil { return nil, err }
+		d := built["data"].(map[string]interface{})
+		if content_model.HasContentParent(built) {
 			uni.Dat["content_parent"] = true
-		}	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
-		if err != nil { return err }
-		dat = d
-	} else {
-		dat = context.Convert(indb)
+			uni.Dat["up_to_date"] = content_model.IsDraftUpToDate(uni.Db, built, d)
+			uni.Dat["op"] = "update"
+		} else {	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
+			uni.Dat["op"] = "insert"
+		}
+		resolver.ResolveOne(uni.Db, d, nil)
+		scut.Strify(d)
+		scut.Strify(built)
+		uni.Dat["content"] = d
+		uni.Dat["draft"] = built
+		return d, nil
 	}
-	f, ferr := scut.RulesToFields(rules, dat)
-	if ferr != nil {
-		return ferr
+	uni.Dat["op"] = "insert"
+	return map[string]interface{}{}, nil
+}
+
+// You don't actually edit anything on a past version...
+func EditVersion(uni *context.Uni, typ, id string) (interface{}, error) {
+	return nil, nil
+}
+
+// Ex: realType of "blog_draft" is "blog".
+func realType(typ string) string {
+	li := strings.LastIndex(typ, "_")
+	if li != -1 {
+		return typ[0:li]
 	}
-	uni.Dat["fields"] = f
+	return typ
+}
+
+// Ex: subType of "blog_draft" is "draft", subtype of "blog" is "content".
+func subType(typ string) string {
+	li := strings.LastIndex(typ, "_")
+	if li != -1 {
+		return typ[li+1:]
+	}
+	return "content"
+}
+
+// Called from both admin and outside editing.
+// ma containts type and id members extracted out of the url.
+func Edit(uni *context.Uni, ma map[string]string) error {
+	typ, hast := ma["type"]
+	rtyp := realType(typ)
+	if !hast {
+		return fmt.Errorf("Can't extract type at edit.")
+	}
+	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + rtyp + ".rules")
+	if !hasr {
+		return fmt.Errorf("Can't find rules of " + rtyp)
+	}
+	uni.Dat["content_type"] = rtyp
+	uni.Dat["type"] = rtyp
+	id, hasid := ma["id"]
+	var field_dat interface{}
+	var err error
+	subt := subType(typ)
+	switch subt {
+	case "content":
+		field_dat, err = EditContent(uni, typ, id, hasid)
+	case "draft":
+		field_dat, err = EditDraft(uni, rtyp, id, hasid)
+	case "version":
+		if !hasid { return fmt.Errorf("Version must have id.") }
+		field_dat, err = EditVersion(uni, rtyp, id)
+	default:
+		panic(fmt.Sprintf("Unkown content subtype: %v.", subt))
+	}
+	if err != nil { return err }
+	fields, err := scut.RulesToFields(rules, field_dat)
+	if err != nil { return err }
+	uni.Dat["fields"] = fields
 	return nil
 }
 

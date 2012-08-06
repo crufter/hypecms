@@ -96,6 +96,7 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 }
 
 // Takes an extraction/validation rule, a document and from that creates a slice which can be easily displayed by a templating engine as a html form.
+// Takes interface{}s and not map[string]interface{}s to include type checking here, and avoid that boilerplate in caller. 
 func RulesToFields(rule interface{}, dat interface{}) ([]map[string]interface{}, error) {
 	rm, rm_ok := rule.(map[string]interface{})
 	if !rm_ok {

@@ -3,6 +3,7 @@ package content
 import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/jsonp"
 	//"labix.org/v2/mgo"
@@ -88,9 +89,7 @@ func Ins(uni *context.Uni) error {
 		return fmt.Errorf("Can't find content type rules " + typ)
 	}
 	id, err := content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 	// Handling redirect.
 	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
 	redir := "/content/edit/" + typ + "/" + id.Hex()
@@ -109,7 +108,16 @@ func Upd(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	return content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	err := content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	if err != nil { return err }
+	// We must set redirect because it can come from draft edit too.
+	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
+	redir := "/content/edit/" + typ + "/" + basic.StripId(uni.Req.Form["id"][0])
+	if is_admin {
+		redir = "/admin" + redir
+	}
+	uni.Dat["redirect"] = redir
+	return nil
 }
 
 func Del(uni *context.Uni) error {

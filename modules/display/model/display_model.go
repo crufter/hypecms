@@ -8,7 +8,9 @@ import(
 	"strconv"
 )
 
-func doPaging(db *mgo.Database, collection string, query map[string]interface{}, page_num_key string, get map[string][]string, pnq string, limit int) (int, []paging.Pelem) {
+// png = path and query
+// In the cms you can access it from uni.P + "?" + uni.Req.URL.RawQuery.
+func DoPaging(db *mgo.Database, collection string, query map[string]interface{}, page_num_key string, get map[string][]string, pnq string, limit int) (int, []paging.Pelem) {
 	var current_page int
 	num_str, has := get[page_num_key]
 	if !has {
@@ -58,7 +60,7 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		if p, pok := v["p"]; pok {
 			if limit, lok := v["l"]; lok {	// Only makes sense with limit.
-				skip_amount, navigation := doPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, int(limit.(float64)))
+				skip_amount, navigation := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, int(limit.(float64)))
 				qs[name + "_navi"] = navigation
 				q.Skip(skip_amount)
 			}

@@ -33,14 +33,20 @@ func RevertToVersion(db *mgo.Database, ev ifaces.Event, inp map[string][]string,
 }
 
 // We never update drafts, we always insert a new one.
+// A draft will have the next fields: id, type, created, up_to_date, parent_content/draft_content/none/both, data
+// The saved input resides in the data.
 func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[string][]string) (bson.ObjectId, error) {
 	for i, _ := range content_rules {
 		content_rules[i] = 1
 	}
-	content_rules["id"] 		= 	"must"		// Needed?
-	content_rules["type"] 		= 	"must"
-	content_rules["prev_draft"]	= 	1
+	content_rules["type"] 				= 	"must"
+	content_rules["parent_content"] 	= 	"must"
+	content_rules["parent_draft"]		= 	"must"
 	dat, err := extract.New(content_rules).Extract(inp)
+	parent_content_id_str := dat["parent_content"].(string)
+	parent_draft_id_str := dat["parent_draft"].(string)
+	delete(dat, "parent_content")
+	delete(dat, "parent_draft")
 	if err != nil { return "", err }
 	ins := m{
 		"created":		time.Now().Unix(),
@@ -48,14 +54,12 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 		"type":			dat["type"].(string) + "_draft",
 		"up_to_date":	true,
 	}
-	id_str := dat["id"].(string)
-	if len(id_str) > 0 {
-		parent_id := bson.ObjectIdHex(basic.StripId(id_str))
+	
+	if len(parent_content_id_str) > 0 {
+		parent_id := bson.ObjectIdHex(basic.StripId(parent_content_id_str))
 		ins["parent_content"] = parent_id
 	}
-	parent_draft_id, has := dat["prev_draft"]
-	if has && len(parent_draft_id.(string)) > 0 {
-		parent_draft_id_str := parent_draft_id.(string)
+	if len(parent_draft_id_str) > 0 {
 		parent_draft_id := bson.ObjectIdHex(basic.StripId(parent_draft_id_str))
 		q := m{"_id": parent_draft_id}
 		upd := m{
@@ -79,17 +83,21 @@ func mergeWithParent(dat, parent map[string]interface{}) map[string]interface{} 
 	return parent
 }
 
-// Parent can be content or draft.
-func ParentIsContent(draft map[string]interface{}) bool {
-	if parent_content_i, has_parent_cont := draft["parent_content"]; has_parent_cont && parent_content_i != nil {
+// Parent can be content/draft/both/none.
+func HasContentParent(draft map[string]interface{}) bool {
+	if parent_content_i, has_parent_cont := draft["parent_content"]; has_parent_cont {
+		_, ok := parent_content_i.(bson.ObjectId)
+		if !ok { panic("\"parent_content\" field is not an instance of bson.ObjectId.") }
 		return true
 	}
 	return false
 }
 
 // Parent can be content or draft.
-func ParentIsDraft(draft map[string]interface{}) bool {
-	if parent_draft_i, has_parent_draft := draft["parent_draft"]; has_parent_draft && parent_draft_i != nil {
+func HasDraftParent(draft map[string]interface{}) bool {
+	if parent_draft_i, has_parent_draft := draft["parent_draft"]; has_parent_draft {
+		_, ok := parent_draft_i.(bson.ObjectId)
+		if !ok { panic("\"parent_draft\" field is not an instance of bson.ObjectId.") }
 		return true
 	}
 	return false
@@ -97,14 +105,15 @@ func ParentIsDraft(draft map[string]interface{}) bool {
 
 // It's possible that it has no parent at all, then it is a fresh new draft, first version.
 func HasNoParent(draft map[string]interface{}) bool {
-	if !ParentIsContent(draft) && !ParentIsDraft(draft) {
+	if !HasContentParent(draft) && !HasDraftParent(draft) {
 		return true
 	}
 	return false
 }
 
+// Queries a draft and rebuilds it. Queries its parent too, and merges it with the input fields saved in "data".
+// The returned draft will be like a simple draft in the database, but in the data field it will contain fields of the parent plus the fresher saved input data.
 // draft_typ example: blog_draft
-// Queries a draft and rebuilds it (queries its parent too, and merges it with the input fields saved in "data"),
 func BuildDraft(db *mgo.Database, draft_typ, draft_id string) (map[string]interface{}, error) {
 	if !strings.HasSuffix(draft_typ, "_draft") { return nil, fmt.Errorf("Draft type does not end with \"_draft\".") }
 	d_id := bson.ObjectIdHex(basic.StripId(draft_id))
@@ -118,12 +127,10 @@ func BuildDraft(db *mgo.Database, draft_typ, draft_id string) (map[string]interf
 	if !has_typ { return nil, fmt.Errorf("Draft has no type.") }
 	typ, is_str := typ_i.(string)
 	if !is_str { return nil, fmt.Errorf("Draft type is not a string.") }
-	if typ != draft_typ { return nil, fmt.Errorf("Draft type is not the expected one.") }
+	if typ != draft_typ { return nil, fmt.Errorf("Draft type is not the expected one: %v instead if %v.", typ, draft_typ) }
 	var parent_id bson.ObjectId
-	if ParentIsContent(draft) {
+	if HasContentParent(draft) {
 		parent_id = draft["parent_content"].(bson.ObjectId)
-	} else if ParentIsDraft(draft) {
-		parent_id = draft["parent_draft"].(bson.ObjectId)
 	}
 	var par interface{}
 	q = m{"_id": parent_id}
@@ -132,8 +139,8 @@ func BuildDraft(db *mgo.Database, draft_typ, draft_id string) (map[string]interf
 	if err == nil || par != nil {
 		parent = basic.Convert(par).(map[string]interface{})
 	}
-	dat := draft["data"].(map[string]interface{})
-	return mergeWithParent(dat, parent), nil
+	draft["data"] = mergeWithParent(draft["data"].(map[string]interface{}), parent)
+	return draft, nil
 }
 
 // Takes a content list and connects an up to date draft to each content if it exists.
@@ -163,7 +170,7 @@ func ConnectForDrafts(db *mgo.Database, content_list []interface{}) error {
 				content["latest_draft"] = v		// This will be shown errorenously if the content will never have a last modified field.
 				continue
 			}
-			if content_last_mod.(int) < draft[basic.Created].(int) {
+			if content_last_mod.(int64) < draft[basic.Created].(int64) {
 				content["latest_draft"] = v
 			}
 		}
@@ -180,8 +187,21 @@ func GetUpToDateDraft(db *mgo.Database, content_id bson.ObjectId, content map[st
 	draft := latest_draft.(bson.M)
 	content_last_mod, has_last_mod := content[basic.Last_modified]
 	if !has_last_mod { return draft }
-	if content_last_mod.(int) < draft[basic.Created].(int) {
+	if content_last_mod.(int64) < draft[basic.Created].(int64) {
 		return draft
 	}
 	return nil
+}
+
+// Takes a draft, and a parent content and decides if the draft is up to date or not.
+func IsDraftUpToDate(db *mgo.Database, draft, parent map[string]interface{}) bool {
+	parent_last_mod, has_last_mod := parent[basic.Last_modified]
+	if !has_last_mod { return true }
+	fresher_than_parent := parent_last_mod.(int64) < draft[basic.Created].(int64)
+	if !fresher_than_parent { return false }
+	var v interface{}
+	q := m{"parent_content": draft["parent_content"]} 
+	db.C("contents").Find(q).Sort("-created").One(&v)	// TODO: no error checking here.
+	if v.(bson.M)["_id"].(bson.ObjectId) != draft["_id"].(bson.ObjectId) { return false }
+	return true
 }

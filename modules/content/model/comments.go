@@ -69,7 +69,7 @@ func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 	if err != nil {
 		return err
 	}
-	basic.DateAndAuthor(rule, dat, user_id)
+	basic.DateAndAuthor(rule, dat, user_id, false)
 	ids, err := basic.ExtractIds(inp, []string{"content_id"})
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func UpdateComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 	if err != nil {
 		return err
 	}
-	basic.DateAndAuthor(rule, dat, user_id)
+	basic.DateAndAuthor(rule, dat, user_id, true)
 	ids, err := basic.ExtractIds(inp, []string{"content_id", "comment_id"})
 	if err != nil {
 		return err

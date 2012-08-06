@@ -7,5 +7,12 @@
 	{{require content/listing.t}}
 {{end}}
 
+<br />
+<div class="navi">
+	{{range .paging}}
+		<a href="{{.Url}}">{{.Page}}</a> 
+	{{end}}
+</div>
+
 {{require content/footer.t}}
 {{require admin/footer.t}}

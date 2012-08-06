@@ -1,3 +1,23 @@
+{{if .is_draft}}
+	{{if .draft.parent_draft}}
+		<a href="/admin/content/edit/{{.type}}_draft/{{.draft.parent_draft}}">Parent draft.</a><br />
+		<br />
+	{{end}}
+	{{if .content_parent}}
+		{{if .up_to_date}}
+			This draft is up to date.<br />
+		{{else}}
+			This draft is <b>NOT</b> up to date.<br />
+		{{end}}
+		<br />
+	{{end}}
+{{end}}
+{{if .is_content}}
+	{{if .latest_draft}}
+	<a href="/admin/content/edit/{{.type}}_draft/{{.latest_draft._id}}">Latest draft available.</a><br />
+	<br />
+	{{end}}
+{{end}}
 <form action="/b/content/{{.op}}" method="post">
 {{$content := .content}}
 {{range .fields}}
@@ -41,12 +61,11 @@
 	{{end}}
 {{end}}
 <input type="hidden" name="type" value="{{.type}}" />
-{{if .is_draft}}
-	<input type="hidden" name="prev_draft" value="{{if .draft_parent}}{{$content._id}}{{end}}" /> <!-- For first draft-from-content you do not need to send it. -->
-	<input type="hidden" name="id" value="{{if .content_parent}}{{$content._id}}{{end}}" />
-{{else}}
-	<input type="hidden" name="id" value="{{.content._id}}" />
-{{end}}
+<!-- These params are here for draft support. -->
+	<input type="hidden" name="parent_content" value="{{if .is_draft}}{{.draft.parent_content}}{{else}}{{$content._id}}{{end}}" />
+	<input type="hidden" name="parent_draft" value="{{if .is_draft}}{{.draft._id}}{{end}}" />
+<!-- /Draft params. -->
+<input type="hidden" name="id" value="{{if .is_draft}}{{.draft.parent_content}}{{else}}{{$content._id}}{{end}}" />
 <input type="submit" name="draft" value="Save as draft"><br />
 <br />
-<input type="submit">
+<input type="submit" {{if .is_draft}}name="create-content-from-draft"{{end}} value="Save as content">
