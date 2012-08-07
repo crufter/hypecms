@@ -11,6 +11,24 @@ import(
 	"strings"
 )
 
+const(
+	no_right_draft = "You have no rights to save a draft of type %v."
+)
+
+func compLev(req_lev, user_level int, typ string) error {
+	if user_level >= req_lev { return nil }
+	return fmt.Errorf(no_right_draft, typ)
+}
+
+// content_type_options: Modules.content.types.[type]
+func AllowsDraft(content_type_options map[string]interface{}, user_level int, typ string) error {
+	req_lev := 300
+	val, has := content_type_options["draft_level"]
+	if !has { return compLev(req_lev, user_level, typ) }
+	req_lev = int(val.(int64))
+	return compLev(req_lev, user_level, typ)
+}
+
 // Implementation of versioning is in basic.InudVersion.
 func RevertToVersion(db *mgo.Database, ev ifaces.Event, inp map[string][]string, non_versioned_fields []string) error {
 	rule := map[string]interface{}{
@@ -29,6 +47,7 @@ func RevertToVersion(db *mgo.Database, ev ifaces.Event, inp map[string][]string,
 	for _, v := range non_versioned_fields {
 		delete(old_version, v)
 	}
+	old_version["_contents_reverted_to"] = id
 	return basic.InudVersion(db, ev, old_version, Cname, "update", parent_id.Hex())
 }
 
@@ -145,7 +164,7 @@ func BuildDraft(db *mgo.Database, draft_typ, draft_id string) (map[string]interf
 
 // Takes a content list and connects an up to date draft to each content if it exists.
 // A draft is up to date if it is newer than the last saved comment, and newer than any other draft.
-func ConnectForDrafts(db *mgo.Database, content_list []interface{}) error {
+func ConnectWithDrafts(db *mgo.Database, content_list []interface{}) error {
 	ids := []bson.ObjectId{}
 	cache := map[string]int{}
 	for i, doc_i := range content_list {

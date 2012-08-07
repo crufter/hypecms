@@ -66,6 +66,10 @@ func SaveDraft(uni *context.Uni) error {
 	typ_s, has_typ := post["type"]
 	if !has_typ { return fmt.Errorf("No type when saving draft.") }
 	typ := typ_s[0]
+	content_type_opt, has_opt := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
+	if !has_opt { return fmt.Errorf("Can't find options of content type %v.", typ) }
+	allows := content_model.AllowsDraft(content_type_opt, scut.ULev(uni.Dat["_user"]), typ)
+	if allows != nil { return allows }
 	rules, has_rules := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !has_rules { return fmt.Errorf("Can't find rules of content type %v.", typ) }
 	draft_id, err := content_model.SaveDraft(uni.Db, rules, map[string][]string(post))
@@ -80,8 +84,7 @@ func SaveDraft(uni *context.Uni) error {
 }
 
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
-// TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
-func Ins(uni *context.Uni) error {
+func Insert(uni *context.Uni) error {
 	uid, typ, prep_err := prepareOp(uni, "insert")
 	if prep_err != nil { return prep_err }
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
@@ -101,7 +104,7 @@ func Ins(uni *context.Uni) error {
 }
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
-func Upd(uni *context.Uni) error {
+func Update(uni *context.Uni) error {
 	uid, typ, prep_err := prepareOp(uni, "insert")
 	if prep_err != nil { return prep_err }
 	rule, hasrule := jsonp.Get(uni.Opt, "Modules.content.types." + typ + ".rules")
@@ -120,7 +123,7 @@ func Upd(uni *context.Uni) error {
 	return nil
 }
 
-func Del(uni *context.Uni) error {
+func Delete(uni *context.Uni) error {
 	uid, _, prep_err := prepareOp(uni, "insert")
 	if prep_err != nil { return prep_err }
 	id, has := uni.Req.Form["id"]
@@ -239,16 +242,16 @@ func Back(uni *context.Uni) error {
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
 			r = SaveDraft(uni)
 		} else {
-			r = Ins(uni)
+			r = Insert(uni)
 		}
 	case "update":
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
 			r = SaveDraft(uni)
 		} else {
-			r = Upd(uni)
+			r = Update(uni)
 		}
 	case "delete":
-		r = Del(uni)
+		r = Delete(uni)
 	case "insert_comment":
 		r = InsertComment(uni)
 	case "update_comment":

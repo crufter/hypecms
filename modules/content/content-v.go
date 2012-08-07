@@ -137,7 +137,7 @@ func Index(uni *context.Uni) error {
 	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
 	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
-	content_model.ConnectForDrafts(uni.Db, v)
+	content_model.ConnectWithDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
@@ -173,7 +173,7 @@ func List(uni *context.Uni) error {
 	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
 	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
-	content_model.ConnectForDrafts(uni.Db, v)
+	content_model.ConnectWithDrafts(uni.Db, v)
 	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
