@@ -7,7 +7,37 @@ import(
 	"github.com/opesun/paging"
 	"github.com/opesun/resolver"
 	"strconv"
+	"strings"
 )
+
+// Cuts a long string at max_char_count, taking a word boundary into account.
+func Excerpt(s string, max_char_count int) string {
+	if len(s) < max_char_count { return s }
+	ind := strings.LastIndex(s[:max_char_count], " ")
+	if ind == -1 { return s }
+	return s[0:ind]
+	
+}
+
+func GetOnlyPair(c map[string]interface{}) (string, interface{}) {
+	for i, v := range c {
+		return i, v
+	}
+	return "", nil
+}
+
+// conf := map[string]interface{}{"content": 
+// Maybe we could modify this to be able to create excerpts from multiple fields.
+func CreateExcerpts(res []interface{}, conf map[string]interface{}) {
+	fieldname, max_char_i := GetOnlyPair(conf)
+	max_char := max_char_i.(int64)
+	for _, v := range res {
+		doc := v.(map[string]interface{})
+		field_val, ok := doc[fieldname].(string)
+		if !ok { continue }
+		doc["excerpt"] = Excerpt(field_val, int(max_char))
+	}
+}
 
 // png = path and query
 // In the cms you can access it from uni.P + "?" + uni.Req.URL.RawQuery.
@@ -69,6 +99,12 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		var res []interface{}
 		err := q.All(&res)
 		if err != nil { qs[name] = err.Error() }
+		if ex, ex_ok := v["ex"]; ex_ok {
+			ex_m, ex_is_m := ex.(map[string]interface{})
+			if ex_is_m && len(ex_m) == 1 { 
+				CreateExcerpts(res, ex_m)
+			}
+		}
 		qs[name] = res
 	}
 	for i, _ := range qs {
