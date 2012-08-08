@@ -30,7 +30,7 @@ func GetOnlyPair(c map[string]interface{}) (string, interface{}) {
 // Maybe we could modify this to be able to create excerpts from multiple fields.
 func CreateExcerpts(res []interface{}, conf map[string]interface{}) {
 	fieldname, max_char_i := GetOnlyPair(conf)
-	max_char := max_char_i.(int64)
+	max_char := max_char_i.(float64)
 	for _, v := range res {
 		doc := v.(map[string]interface{})
 		field_val, ok := doc[fieldname].(string)
