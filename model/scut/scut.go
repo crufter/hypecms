@@ -128,7 +128,8 @@ func TemplateName(opt map[string]interface{}) string {
 	return tpl.(string)
 }
 
-// Observes opt and gives you back a string describing the path of your template eg "templates/public/template_name"
+// Observes opt and gives you back the path of your template eg
+// "templates/public/template_name" or "templates/private/hostname/template_name"
 func GetTPath(opt map[string]interface{}, host string) string {
 	templ := TemplateName(opt)
 	ttype := TemplateType(opt)
