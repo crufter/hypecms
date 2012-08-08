@@ -36,7 +36,8 @@ func UserEdit(uni *context.Uni, urimap map[string]string) error {
 }
 
 func TagView(uni *context.Uni, urimap map[string]string) error {
-	list, err := content_model.ListContentsByTag(uni.Db, urimap["slug"])
+	fieldname := "slug"		// This should not be hardcoded.
+	list, err := content_model.ListContentsByTag(uni.Db, fieldname, urimap["slug"])
 	if err != nil {
 		uni.Dat["error"] = err.Error()
 	} else {
