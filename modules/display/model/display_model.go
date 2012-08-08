@@ -4,6 +4,7 @@ import(
 	"labix.org/v2/mgo"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/paging"
 	"github.com/opesun/resolver"
 	"strconv"
@@ -98,23 +99,18 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		var res []interface{}
 		err := q.All(&res)
-		if err != nil { qs[name] = err.Error() }
+		if err != nil { qs[name] = err.Error(); continue }
+		res = basic.Convert(res).([]interface{})
 		if ex, ex_ok := v["ex"]; ex_ok {
 			ex_m, ex_is_m := ex.(map[string]interface{})
 			if ex_is_m && len(ex_m) == 1 { 
 				CreateExcerpts(res, ex_m)
 			}
 		}
+		dont_query := map[string]interface{}{"password":0}
+		resolver.ResolveAll(db, res, dont_query)
+		scut.Strify(res)
 		qs[name] = res
-	}
-	for i, _ := range qs {
-		// Can be []pagin.Pelem too.
-		if _, is_islice := qs[i].([]interface{}); is_islice {
-			qs[i] = basic.Convert(qs[i]).([]interface{})
-			dont_query := map[string]interface{}{"password":0}
-			resolver.ResolveAll(db, qs[i].([]interface{}), dont_query)
-			basic.IdsToStrings(qs[i])
-		}
 	}
 	return qs
 }
