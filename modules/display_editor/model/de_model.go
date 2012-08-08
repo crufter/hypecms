@@ -65,8 +65,9 @@ func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 			case "l":
 			case "so":
 			case "p":
+			case "ex":
 			default:
-				return fmt.Errorf("Nonsensical field ", i)
+				return fmt.Errorf("Nonsensical field %v.", i)
 			}
 		}
 	}
