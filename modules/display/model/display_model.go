@@ -5,6 +5,7 @@ import(
 	"github.com/opesun/jsonp"
 	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/paging"
+	"github.com/opesun/resolver"
 	"strconv"
 )
 
@@ -74,6 +75,8 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		// Can be []pagin.Pelem too.
 		if _, is_islice := qs[i].([]interface{}); is_islice {
 			qs[i] = basic.Convert(qs[i]).([]interface{})
+			dont_query := map[string]interface{}{"password":0}
+			resolver.ResolveAll(db, qs[i].([]interface{}), dont_query)
 			basic.IdsToStrings(qs[i])
 		}
 	}
