@@ -86,8 +86,12 @@
 				<input type="hidden" name="filepath" value="{{$raw_path}}"><br />
 				<input type="submit">
 			{{else}}
-				<br />
-				You can not modify this file because it is part of a public template. <a href="/b/template_editor/fork_public">Make a private template out of this by forking.</a>
+				{{if .is_mod}}
+					<!-- Intentionally left blank. -->
+				{{else}}
+					<br />
+					You can not modify this file because it is part of a public template. <a href="/b/template_editor/fork_public">Make a private template out of this by forking.</a>
+				{{end}}
 			{{end}}
 		</form>
 		<h3>Included files:</h3>

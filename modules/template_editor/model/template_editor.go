@@ -12,6 +12,7 @@ import (
 	"github.com/opesun/copyrecur"
 	"github.com/opesun/hypecms/model/basic"
 	"strings"
+	"github.com/opesun/require"
 )
 
 type m map[string]interface{}
@@ -259,6 +260,50 @@ func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
 	fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, path))
 	if read_err != nil { return nil, read_err }
 	return Contains(fileinfos, search_str), nil
+}
+
+type ReqLink struct {
+	Typ 		string
+	Tempname	string
+	Filepath	string
+}
+
+func ReqLinks(opt map[string]interface{}, file, root, host string) []ReqLink {
+	pos := require.RequirePositions(file)
+	ret := []ReqLink{}
+	for _, v := range pos {
+		fi := file[v[0]+10:v[1]-2]		// cut {{require anything/anything.t}} => anything/anything.t
+		var typ, path, name string
+		exists_in_template, err := Exists(filepath.Join(root, scut.GetTPath(opt, host), fi))
+		if err != nil { continue }
+		if exists_in_template {
+			typ = scut.TemplateType(opt)
+			path = fi
+			name = scut.TemplateName(opt)
+		} else {
+			path = scut.GetModTPath(fi)[1]
+			typ = "mod"
+			name = strings.Split(fi, "/")[0]
+		}
+		rl := ReqLink{typ, name, path}
+		ret = append(ret, rl)
+	}
+	return ret
+}
+
+type Breadc struct {
+	Name string
+	Path string
+}
+
+// fs is strings.Split(filepath, "/") where filepath is "aboutus/joe.tpl"
+func CreateBreadCrumb(fs []string) []Breadc {
+	ret := []Breadc{}
+	for i:=1; i<len(fs); i++ {
+		str := strings.Replace(filepath.Join(fs[:i+1]...), "\\", "/", -1)
+		ret = append(ret, Breadc{fs[i], "/" + str})
+	}
+	return ret
 }
 
 func Install(db *mgo.Database, id bson.ObjectId) error {

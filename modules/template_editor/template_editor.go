@@ -12,8 +12,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"github.com/opesun/hypecms/modules/template_editor/model"
-	"github.com/opesun/require"
+	te_model "github.com/opesun/hypecms/modules/template_editor/model"
 )
 
 // mod.GetHook accesses certain functions dynamically trough this.
@@ -26,35 +25,35 @@ var Hooks = map[string]func(*context.Uni) error {
 }
 
 func NewFile(uni *context.Uni) error {
-	return template_editor_model.NewFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.NewFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func SaveFile(uni *context.Uni) error {
-	return template_editor_model.SaveFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.SaveFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func DeleteFile(uni *context.Uni) error {
-	return template_editor_model.DeleteFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.DeleteFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func ForkPublic(uni *context.Uni) error {
-	return template_editor_model.ForkPublic(uni.Db, uni.Opt, uni.Req.Host, uni.Root)
+	return te_model.ForkPublic(uni.Db, uni.Opt, uni.Req.Host, uni.Root)
 }
 
 func PublishPrivate(uni *context.Uni) error {
-	return template_editor_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Req.Host, uni.Root)
+	return te_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Req.Host, uni.Root)
 }
 
 func DeletePrivate(uni *context.Uni) error {
-	return template_editor_model.DeletePrivate(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.DeletePrivate(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func ForkPrivate(uni *context.Uni) error {
-	return template_editor_model.ForkPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.ForkPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func SwitchToTemplate(uni *context.Uni) error {
-	return template_editor_model.SwitchToTemplate(uni.Db, map[string][]string(uni.Req.Form))
+	return te_model.SwitchToTemplate(uni.Db, map[string][]string(uni.Req.Form))
 }
 
 // main.runBackHooks invokes this trough mod.GetHook.
@@ -87,20 +86,6 @@ func Back(uni *context.Uni) error {
 	return r
 }
 
-type Breadc struct {
-	Name string
-	Path string
-}
-
-func createBreadCrumb(fs []string) []Breadc {
-	ret := []Breadc{}
-	for i:=1; i<len(fs); i++ {
-		str := strings.Replace(filepath.Join(fs[:i+1]...), "\\", "/", -1)
-		ret = append(ret, Breadc{fs[i], "/" + str})
-	}
-	return ret
-}
-
 func threePath(host, typ, name string) (string, error) {
 	var ret string
 	switch typ {
@@ -120,37 +105,6 @@ func canMod(typ string) bool {
 	return typ == "private"
 }
 
-type ReqLink struct {
-	Typ 		string
-	Tempname	string
-	Filepath	string
-}
-
-func reqLinks(opt map[string]interface{}, s, root, host string) []ReqLink {
-	pos := require.RequirePositions(s)
-	ret := []ReqLink{}
-	for _, v := range pos {
-		fi := s[v[0]+10:v[1]-2]
-		var typ, path, name string
-		in_templ := fi
-		in_mod := scut.GetModTPath(fi)[1]
-		ex, err := template_editor_model.Exists(in_templ)
-		if err != nil { continue }
-		if ex {
-			typ = scut.TemplateType(opt)
-			path = in_templ
-			name = scut.TemplateName(opt)
-		} else {
-			path = in_mod
-			typ = "mod"
-			name = strings.Split(fi, "/")[0]
-		}
-		rl := ReqLink{typ, name, path}
-		ret = append(ret, rl)
-	}
-	return ret
-}
-
 func view(current bool, opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
 	ret := map[string]interface{}{}
 	tpath, path_err := threePath(host, typ, name)
@@ -159,7 +113,7 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 		return ret
 	}
 	ret["template_name"] = name
-	ret["breadcrumb"] = createBreadCrumb(strings.Split(filepath_str, "/"))
+	ret["breadcrumb"] = te_model.CreateBreadCrumb(strings.Split(filepath_str, "/"))
 	ret["can_modify"] = canMod(typ)
 	ret["current"] = current
 	ret["typ"] = typ
@@ -168,7 +122,7 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 	}
 	ret["filepath"] = filepath.Join(tpath, filepath_str)
 	ret["raw_path"] = filepath_str
-	if template_editor_model.IsDir(filepath_str) {
+	if te_model.IsDir(filepath_str) {
 		fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, tpath, filepath_str))
 		if read_err != nil {
 			ret["error"] = read_err.Error()
@@ -185,7 +139,7 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 		if len(file_b) == 0 {
 			ret["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
 		} else {
-			ret["included"] = reqLinks(opt, string(file_b), root, host)
+			ret["included"] = te_model.ReqLinks(opt, string(file_b), root, host)
 			ret["file"] = string(file_b)
 		}
 	}
@@ -224,7 +178,7 @@ func View(uni *context.Uni, typ, name string) error {
 func Index(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/index"}
 	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
-	uni.Dat["can_modify"] = template_editor_model.CanModifyTemplate(uni.Opt)
+	uni.Dat["can_modify"] = te_model.CanModifyTemplate(uni.Opt)
 	return nil
 }
 
@@ -239,7 +193,7 @@ func search(uni *context.Uni, path string) error {
 	if has {
 		term = term_s[0]
 	}
-	uni.Dat["dir"] = template_editor_model.Contains(fileinfos, term)
+	uni.Dat["dir"] = te_model.Contains(fileinfos, term)
 	return nil
 }
 
@@ -292,13 +246,13 @@ func AD(uni *context.Uni) error {
 // admin.Install invokes this trough mod.GetHook.
 func Install(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	return template_editor_model.Install(uni.Db, id)
+	return te_model.Install(uni.Db, id)
 }
 
 // Admin Install invokes this trough mod.GetHook.
 func Uninstall(uni *context.Uni) error {
 	id := uni.Dat["_option_id"].(bson.ObjectId)
-	return template_editor_model.Uninstall(uni.Db, id)
+	return te_model.Uninstall(uni.Db, id)
 }
 
 // main.runDebug invokes this trough mod.GetHook.
