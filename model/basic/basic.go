@@ -122,35 +122,6 @@ func Convert(x interface{}) interface{} {
 	return x
 }
 
-func convertMapId(x map[string]interface{}) {
-	if id, has_id := x["_id"]; has_id {
-		x["_id"] = id.(bson.ObjectId).Hex()
-	}
-}
-
-// Used in views, where we dont want to show display ObjectIdHex("ab889d8ec889") but rather "ab889d8ec889".
-// x must be a result map[string]interface{} or result []interface{}
-func IdsToStrings(x interface{}) {
-	if ma, ok := x.(map[string]interface{}); ok {
-		convertMapId(ma)
-	} else if ma_sl, sl_ok := x.([]interface{}); sl_ok {
-		for _, v := range ma_sl {
-			convertMapId(v.(map[string]interface{}))
-		}
-	} else {
-		panic("Wrong input for IdsToString.")
-	}
-}
-
-// Takes a query map and converts the "_id" member of it from string to bson.ObjectId
-func StringToId(query map[string]interface{}) {
-	if id_i, has := query["_id"]; has {
-		if id_s, is_str := id_i.(string); is_str {
-			query["_id"] = bson.ObjectIdHex(id_s)
-		}
-	}
-}
-
 func CreateCopy(db *mgo.Database, collname, sortfield string) bson.ObjectId {
 	var v interface{}
 	db.C(collname).Find(nil).Sort(sortfield).Limit(1).One(&v)
