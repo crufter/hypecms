@@ -311,7 +311,7 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 				"comment_rules": m{
 					basic.Created: 		false,
 					basic.Created_by:	false,
-					"content":			1,
+					"comment_content":	1,
 				},
 				"rules" : m{
 					"title": 			1,
