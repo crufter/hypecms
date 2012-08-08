@@ -2,6 +2,8 @@ package content_model
 
 import (
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/resolver"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/slugify"
@@ -199,8 +201,11 @@ func PullTagFromAll(db *mgo.Database, tag_id bson.ObjectId) error {
 	return err
 }
 
-func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error) {
-	q := m{"slug": tag_slug}
+func ListContentsByTag(db *mgo.Database, field, value string) ([]interface{}, error) {
+	q := m{field: value}
+	if field == "_id" {
+		q[field] = bson.ObjectIdHex(basic.StripId(value))
+	}
 	var res interface{}
 	err := db.C(Tag_cname).Find(q).One(&res)
 	if err != nil { return nil, err }
@@ -211,7 +216,11 @@ func ListContentsByTag(db *mgo.Database, tag_slug string) ([]interface{}, error)
 	err = db.C(Cname).Find(q).All(&contents)
 	if err != nil { return nil, err }
 	if contents == nil { return nil, fmt.Errorf("Can't find contents.") }
-	return basic.Convert(contents).([]interface{}), nil
+	contents = basic.Convert(contents).([]interface{})
+	dont_query := map[string]interface{}{"password":0}
+	resolver.ResolveAll(db, contents, dont_query)
+	scut.Strify(contents)
+	return contents, nil
 }
 
 func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
