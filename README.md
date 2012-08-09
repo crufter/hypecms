@@ -24,7 +24,7 @@ Stuff already working
 - Versioning of site state: any install/uninstall/configuration will create a newer version of site state, so you can revert to any previous version.
 - Custom view editor: run any queries at any part of the page. The query builder generates excerpts, paging links etc.
 - Any file is displayed as is, you dont even have to use any dynamic features of the CMS, you can simply copy-paste html pages and they will be displayed as if they were
-dynamic content. In the templates, PHP-like require functionality is available.
+dynamic content. Even in these html files, PHP-like require functionality is available.
 
 Demo
 =======
