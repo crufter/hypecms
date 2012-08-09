@@ -85,9 +85,9 @@ func appendParams(str string, err error) string {
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
-		v.Del("error")   // When you do an illegal operation, result will be success=false,reason=x, but when you do a legal
+		v.Del("error")
 		v.Del("ok")
-		if err == nil { // operation after that, you will be redirected to the same page. Result would be success=true,reason=x, to avoid it we do v.Del("reason")
+		if err == nil {
 			v.Set("ok", "true")
 		} else {
 			v.Set("error", err.Error())
