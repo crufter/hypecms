@@ -2,8 +2,7 @@ package content_model
 
 import (
 	"github.com/opesun/hypecms/model/basic"
-	"github.com/opesun/hypecms/model/scut"
-	"github.com/opesun/resolver"
+	"github.com/opesun/hypecms/model/patterns"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/slugify"
@@ -49,14 +48,13 @@ func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string
 	}
 	return ret_ids, mToSSlice(contains)
 }
+
 func inc(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C(Tag_cname).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:1 }})
-	return err
+	return patterns.IncAll(db, Tag_cname, ids, Count_fieldname, 1)
 }
 
 func dec(db *mgo.Database, ids []bson.ObjectId) error {
-	_, err := db.C(Tag_cname).UpdateAll(m{"_id": m{"$in":ids}}, m{"$inc":m{Count_fieldname:-1 }})
-	return err
+	return patterns.IncAll(db, Tag_cname, ids, Count_fieldname, -1)
 }
 
 func insert(db *mgo.Database, tag_sl []string) []bson.ObjectId {
@@ -188,46 +186,21 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	return db.C(Cname).Update(q, upd)
 }
 
+// Deletes a tag entirely.
 func DeleteTag(db *mgo.Database, tag_id string) error {
-	tag_idstr := basic.StripId(tag_id)
-	tag_bsonid := bson.ObjectIdHex(tag_idstr)
-	err := db.C(Tag_cname).Remove(m{"_id":tag_bsonid})
+	err := patterns.DeleteById(db, Tag_cname, tag_id)
 	if err != nil {return err}
-	return PullTagFromAll(db, tag_bsonid)
+	return PullTagFromAll(db, tag_id)
 }
 
-func PullTagFromAll(db *mgo.Database, tag_id bson.ObjectId) error {
-	_, err := db.C(Tag_cname).UpdateAll(nil, m{"$pull":m{Tag_fieldname:tag_id}})
-	return err
+func PullTagFromAll(db *mgo.Database, tag_id string) error {
+	return patterns.PullFromAll(db, Tag_cname, Tag_fieldname, patterns.ToIdWithCare(tag_id))
 }
 
-func ListContentsByTag(db *mgo.Database, field, value string) ([]interface{}, error) {
-	q := m{field: value}
-	if field == "_id" {
-		q[field] = bson.ObjectIdHex(basic.StripId(value))
-	}
-	var res interface{}
-	err := db.C(Tag_cname).Find(q).One(&res)
-	if err != nil { return nil, err }
-	if res == nil { return nil, fmt.Errorf("Can't find tag by slug.") }
-	tag := basic.Convert(res.(bson.M)).(map[string]interface{})
-	q = m{Tag_fieldname: tag["_id"].(bson.ObjectId)}
-	var contents []interface{}
-	err = db.C(Cname).Find(q).All(&contents)
-	if err != nil { return nil, err }
-	if contents == nil { return nil, fmt.Errorf("Can't find contents.") }
-	contents = basic.Convert(contents).([]interface{})
-	dont_query := map[string]interface{}{"password":0}
-	resolver.ResolveAll(db, contents, dont_query)
-	scut.Strify(contents)
-	return contents, nil
+func ListContentsByTag(db *mgo.Database, field string, value interface{}) ([]interface{}, error) {
+	return patterns.FindParentAndChildren(db, Tag_cname, field, value, Cname, Tag_fieldname)
 }
 
 func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
-	var res []interface{}
-	q := m{"slug": bson.RegEx{ "^" + tag_slug, "u"}}
-	err := db.C(Tag_cname).Find(q).All(&res)
-	if err != nil { return nil, err }
-	if res == nil { return nil, fmt.Errorf("Can't find tags.") }
-	return res, nil
+	return patterns.FieldStartsWith(db, Tag_cname, "slug", tag_slug)
 }
