@@ -9,6 +9,7 @@ import (
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/hypecms/modules/display_editor"
 	"github.com/opesun/hypecms/modules/template_editor"
+	"github.com/opesun/hypecms/modules/custom_actions"
 )
 
 func GetHook(modname string, method string) func(*context.Uni) error {
@@ -16,12 +17,12 @@ func GetHook(modname string, method string) func(*context.Uni) error {
 	switch modname {
 	case "content":
 		r = content.Hooks[method]
-	case "tag":
-
 	case "user":
 		r = user.Hooks[method]
 	case "skeleton":
 		r = skeleton.Hooks[method]
+	case "custom_actions":
+		r = custom_actions.Hooks[method]
 	case "display_editor":
 		r = display_editor.Hooks[method]
 	case "template_editor":
