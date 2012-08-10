@@ -101,13 +101,13 @@ func appendParams(str string, err error, action_name string) string {
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
 		v.Del("error")
-		v.Del("ok")
+		v.Del("ok")	// See *1
 		v.Del("action")
 		if len(action_name) > 0 {	// runDebug calls this function with an empty action name.
 			v.Set("action", action_name)
 		}
 		if err == nil {
-			v.Set("ok", "true")
+			v.Set("ok", "true")	// This could be left out, but hey. *1
 		} else {
 			v.Set("error", err.Error())
 		}
