@@ -90,7 +90,7 @@ func runFrontHooks(uni *context.Uni) {
 }
 
 // This is real basic yet, it would be cool to include all elements of result.
-func appendParams(str string, err error) string {
+func appendParams(str string, err error, action_name string) string {
 	p := strings.Split(str, "?")
 	var inp string
 	if len(p) > 1 {
@@ -102,6 +102,10 @@ func appendParams(str string, err error) string {
 	if parserr == nil {
 		v.Del("error")
 		v.Del("ok")
+		v.Del("action")
+		if len(action_name) > 0 {	// runDebug calls this function with an empty action name.
+			v.Set("action", action_name)
+		}
 		if err == nil {
 			v.Set("ok", "true")
 		} else {
@@ -116,7 +120,7 @@ func appendParams(str string, err error) string {
 }
 
 // After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
-func handleBacks(uni *context.Uni, err error) {
+func handleBacks(uni *context.Uni, err error, action_name string) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
 		fmt.Println("	", err)
@@ -137,7 +141,7 @@ func handleBacks(uni *context.Uni, err error) {
 		} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
 			redir = post_red[1]
 		}
-		redir = appendParams(redir, err)
+		redir = appendParams(redir, err, action_name)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
 }
@@ -145,6 +149,7 @@ func handleBacks(uni *context.Uni, err error) {
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	var err error
+	var action_name string
 	if len(uni.Paths) > 2 {
 		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
@@ -152,7 +157,8 @@ func runBackHooks(uni *context.Uni) {
 		} else {
 			if h := mod.GetHook(modname, "Back"); h != nil {
 				if len(uni.Paths) > 3 {
-					uni.Dat["_action"] = uni.Paths[3]
+					action_name = uni.Paths[3]
+					uni.Dat["_action"] = action_name
 					err = h(uni)
 				} else {
 					err = fmt.Errorf(no_action, modname)
@@ -164,20 +170,22 @@ func runBackHooks(uni *context.Uni) {
 	} else {
 		err = fmt.Errorf(no_module_at_back)
 	}
-	handleBacks(uni, err)
+	handleBacks(uni, err, action_name)
 }
 
 func runAdminHooks(uni *context.Uni) {
 	l := len(uni.Paths)
 	var err error
 	if l > 2 && uni.Paths[2] == "b" {
+		var action_name string
 		if l > 3 {
-			uni.Dat["_action"] = uni.Paths[3]
+			action_name = uni.Paths[3]
+			uni.Dat["_action"] = action_name
 			err = admin.AB(uni)
 		} else {
 			err = fmt.Errorf(adminback_no_module)
 		}
-		handleBacks(uni, err)
+		handleBacks(uni, err, action_name)
 	} else {
 		err = admin.AD(uni)
 		if err == nil {
@@ -201,7 +209,7 @@ func runDebug(uni *context.Uni) {
 	} else {
 		err = fmt.Errorf("No module specified to test.")
 	}
-	handleBacks(uni, err)
+	handleBacks(uni, err, "")
 }
 
 func buildUser(uni *context.Uni) error {
