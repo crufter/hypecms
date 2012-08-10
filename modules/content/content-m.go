@@ -91,7 +91,7 @@ func Insert(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	id, err := content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	id, err := content_model.Insert(uni.Db, uni.Ev, rule.(map[string]interface{}), uni.Req.Form, uid)
 	if err != nil { return err }
 	// Handling redirect.
 	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
@@ -111,7 +111,7 @@ func Update(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find content type rules " + typ)
 	}
-	err := content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), map[string][]string(uni.Req.Form), uid)
+	err := content_model.Update(uni.Db, uni.Ev, rule.(map[string]interface{}), uni.Req.Form, uid)
 	if err != nil { return err }
 	// We must set redirect because it can come from draft edit too.
 	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
@@ -148,7 +148,7 @@ func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int) (s
 }
 
 func InsertComment(uni *context.Uni) error {
-	inp := map[string][]string(uni.Req.Form)
+	inp := uni.Req.Form
 	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
@@ -165,7 +165,7 @@ func InsertComment(uni *context.Uni) error {
 }
 
 func UpdateComment(uni *context.Uni) error {
-	inp := map[string][]string(uni.Req.Form)
+	inp := uni.Req.Form
 	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err

@@ -57,7 +57,7 @@ func dec(db *mgo.Database, ids []bson.ObjectId) error {
 	return patterns.IncAll(db, Tag_cname, ids, Count_fieldname, -1)
 }
 
-func insert(db *mgo.Database, tag_sl []string) []bson.ObjectId {
+func insertTags(db *mgo.Database, tag_sl []string) []bson.ObjectId {
 	ret := []bson.ObjectId{}
 	for _, v := range tag_sl {
 		if len(v) == 0 { continue }
@@ -102,7 +102,7 @@ func handleCount(db *mgo.Database, old_ids []bson.ObjectId, new_ids []bson.Objec
 	}
 }
 
-func merge(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
+func mergeIds(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
 	ret := []bson.ObjectId{}
 	ret = append(ret, a...)
 	ret = append(ret, b...)
@@ -147,15 +147,15 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string
 	switch mod {
 		case "insert":
 			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
-			inserted_ids := insert(db, to_insert_slugs)
-			all_ids := merge(existing_ids, inserted_ids)
+			inserted_ids := insertTags(db, to_insert_slugs)
+			all_ids := mergeIds(existing_ids, inserted_ids)
 			inc(db, all_ids)
 			dat[Tag_fieldname] = all_ids
 		case "update":
 			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
-			inserted_ids := insert(db, to_insert_slugs)
+			inserted_ids := insertTags(db, to_insert_slugs)
 			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
-			new_ids := merge(existing_ids, inserted_ids)
+			new_ids := mergeIds(existing_ids, inserted_ids)
 			inc_ids := diffIds(new_ids, old_ids)
 			inc(db, inc_ids)
 			addToSet(db, content["_id"].(bson.ObjectId), new_ids)

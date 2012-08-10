@@ -10,6 +10,8 @@ import(
 )
 
 type m map[string]interface{}
+func (mm m) Valami() {
+}
 
 func isLegalOption(vote_options []string, input_vote string) bool {
 	in := false
@@ -39,12 +41,14 @@ func generateVoteQuery(doc_id, user_id bson.ObjectId, vote_options []string) map
 // Vote options are mutually exclusive.
 // Example:
 // {
-//		"type": "vote"
-//		"c": "contents",
+//		"type": 		"vote",
+//		"c": 			"contents",
+//		"doc_type":		"blog"					// Optional
 //		"vote_options": ["like", "dislike"]
 // }
 func Vote(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string) error {
 	collection := action["c"].(string)
+	doc_type, has_dt := action["doc_typ"]
 	vote_options		:= jsonp.ToStringSlice(action["vote_options"].([]interface{}))
 	rules := map[string]interface{}{
 		"document_id": 		"must",
@@ -57,6 +61,7 @@ func Vote(db *mgo.Database, user, action map[string]interface{}, inp map[string]
 	doc_id := patterns.ToIdWithCare(dat["document_id"].(string))
 	user_id := user["_id"].(bson.ObjectId)
 	q := generateVoteQuery(doc_id, user_id, vote_options)
+	if has_dt { q["type"] = doc_type.(string) }
 	upd := m{
 		"$addToSet": m{
 			input_vote: user_id,
@@ -66,16 +71,4 @@ func Vote(db *mgo.Database, user, action map[string]interface{}, inp map[string]
 		},
 	}
 	return db.C(collection).Update(q, upd)
-}
-
-func RunAction(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string, action_name string) error {
-	typ := action["type"].(string)
-	var r error
-	switch typ {
-	case "vote":
-		r = Vote(db, user, action, inp)
-	default:
-		r = fmt.Errorf("Unkown action %v at RunAction.", action_name)
-	}
-	return r
 }

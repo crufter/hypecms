@@ -19,10 +19,24 @@ var Hooks = map[string]func(*context.Uni) error {
 }
 
 func Back(uni *context.Uni) error {
-	action := uni.Dat["_action"].(string)
-	act, has := jsonp.GetM(uni.Opt, "Modules.custom_actions.actions." + action)
-	if !has { return fmt.Errorf("Can't find action %v in custom actions module.", action) }
-	return ca_model.RunAction(uni.Db, uni.Dat["_user"].(map[string]interface{}), act, map[string][]string(uni.Req.Form), action)
+	action_name := uni.Dat["_action"].(string)
+	action, has := jsonp.GetM(uni.Opt, "Modules.custom_actions.actions." + action_name)
+	if !has { return fmt.Errorf("Can't find action %v in custom actions module.", action_name) }
+	db := uni.Db
+	user := uni.Dat["_user"].(map[string]interface{})
+	opt := uni.Opt
+	inp := map[string][]string(uni.Req.Form)
+	typ := action["type"].(string)
+	var r error
+	switch typ {
+	case "vote":
+		r = ca_model.Vote(db, user, action, inp)
+	case "respond_content":
+		r = ca_model.RespondContent(db, user, action, inp, opt)
+	default:
+		r = fmt.Errorf("Unkown action %v at RunAction.", action_name)
+	}
+	return r
 }
 
 func Test(uni *context.Uni) error {

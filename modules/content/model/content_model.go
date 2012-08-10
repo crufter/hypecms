@@ -190,7 +190,24 @@ func GenerateQuery(s string) []interface{} {
 	return and
 }
 
+func mergeMaps(a, b map[string]interface{}) {
+	if a == nil || b == nil { return }
+	for i, v := range b {
+		_, has := a[i]
+		if has { panic("Overwriting existing value.") }
+		a[i] = v
+	}
+}
+
 func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) (bson.ObjectId, error) {
+	return insert(db, ev, rule, dat, user_id, nil)
+}
+
+func InsertWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) (bson.ObjectId, error) {
+	return insert(db, ev, rule, dat, user_id, fixvals)
+}
+
+func insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) (bson.ObjectId, error) {
 	id, hasid := dat["id"]
 	if hasid && len(id[0]) > 0 {
 		return "", fmt.Errorf("Can't insert an object wich already has an id.")
@@ -210,6 +227,7 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 		addTags(db, ins_dat, "", "insert")
 	}
 	basic.Slug(rule, ins_dat)
+	mergeMaps(ins_dat, fixvals)
 	err := basic.Inud(db, ev, ins_dat, "contents", "insert", "")
 	if err != nil { return "", err }
 	ret_id := ins_dat["_id"].(bson.ObjectId)
@@ -221,6 +239,14 @@ func Insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 }
 
 func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId) error {
+	return update(db, ev, rule, dat, user_id, nil)
+}
+
+func UpdateWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) error {
+	return update(db, ev, rule, dat, user_id, fixvals)
+}
+
+func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) error {
 	id, hasid := dat["id"]
 	if !hasid {
 		return fmt.Errorf("No id when updating content.")
@@ -240,6 +266,7 @@ func Update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 		addTags(db, upd_dat, id[0], "update")
 	}
 	basic.Slug(rule, upd_dat)
+	mergeMaps(upd_dat, fixvals)
 	ret_err := basic.InudVersion(db, ev, upd_dat, Cname, "update", id[0])
 	if ret_err != nil { return ret_err }
 	_, has_fulltext := rule["fulltext"]

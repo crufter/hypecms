@@ -99,7 +99,9 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		// err = db.C(coll).Find
 		// Not implemented yet.
 	}
-	ev.Trigger(coll + "." + op, dat)
+	if ev != nil {
+		ev.Trigger(coll + "." + op, dat)
+	}
 	return nil
 }
 
