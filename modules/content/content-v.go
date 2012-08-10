@@ -41,6 +41,7 @@ func TagView(uni *context.Uni, urimap map[string]string) error {
 	if err != nil {
 		uni.Dat["error"] = err.Error()
 	} else {
+		display_model.CreateExcerpts(list, m{"content":float64(300)})
 		uni.Dat["content_list"] = list
 	}
 	uni.Dat["_hijacked"] = true
