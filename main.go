@@ -24,25 +24,40 @@ import (
 
 const (
 	unfortunate_error			= "An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	unexported_front			= " module does not export Front hook."
-	unexported_back				= " module does not export Back hook."
-	no_user_module_build_hook	= "user module does not export build hook"
+	unexported_front			= "Module %v does not export Front hook."
+	unexported_back				= "Module %v does not export Back hook."
+	no_user_module_build_hook	= "User module does not export build hook."
 	no_module_at_back			= "Tried to run a back hook, but no module was specified."
-	no_action					= "No action specified when accessing module "
+	no_action					= "No action specified when accessing module %v."
 	adminback_no_module			= "No module specified when accessing admin back."
-	cant_run_back				= "Can't run back hook of not installed module "
-	cant_test					= "Can't test module because it is not even installed: "
+	cant_run_back				= "Can't run back hook of not installed module %v."
+	cant_test					= "Can't test module because it is not even installed: %v."
 )
 
-var DB_USER = ""
-var DB_PASS = ""
-var DB_ADDR = "127.0.0.1:27017"
-var DEBUG = *flag.Bool("debug", true, "debug mode")
-var DB_NAME = *flag.String("db", "hypecms", "db name to connect to")
-var PORT_NUM = *flag.String("p", "80", "port to listen on")
-var ABSOLUTE_PATH = "c:/gowork/src/github.com/opesun/hypecms"
-var OPT_CACHE = *flag.Bool("opt_cache", false, "cache option document")
-var SERVE_FILES = *flag.Bool("serve_files", true, "serve files from Go or not")
+// See handleFlags methods about these vars and their uses.
+var(
+	DB_USER 		string
+	DB_PASS 		string
+	DB_ADDR 		string
+	ABS_PATH 	string
+	DEBUG			bool
+	DB_NAME			string
+	PORT_NUM		string
+	OPT_CACHE		bool
+	SERVE_FILES		bool
+)
+
+func handleFlags() {
+	flag.StringVar(&DB_USER, "db_user", "", "database username")
+	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
+	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
+	flag.StringVar(&ABS_PATH, "abs_path", "c:/gowork/src/github.com/opesun/hypecms", "absolute path")
+	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
+	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
+	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
+	flag.BoolVar(&OPT_CACHE, "opt_cache", false, "cache option document")
+	flag.BoolVar(&SERVE_FILES, "serve_files", true, "serve files from Go or not")
+}		
 
 // Quickly print the data to http response.
 var Put func(...interface{})
@@ -59,7 +74,7 @@ func runFrontHooks(uni *context.Uni) {
 			if h := mod.GetHook(modname, "Front"); h != nil {
 				err = h(uni)
 			} else {
-				err = fmt.Errorf(modname + unexported_front)
+				err = fmt.Errorf(unexported_front, modname)
 				break
 			}
 			if _, ok := uni.Dat["_hijacked"]; ok {
@@ -133,17 +148,17 @@ func runBackHooks(uni *context.Uni) {
 	if len(uni.Paths) > 2 {
 		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
-			err = fmt.Errorf(cant_run_back + modname)
+			err = fmt.Errorf(cant_run_back, modname)
 		} else {
 			if h := mod.GetHook(modname, "Back"); h != nil {
 				if len(uni.Paths) > 3 {
 					uni.Dat["_action"] = uni.Paths[3]
 					err = h(uni)
 				} else {
-					err = fmt.Errorf(no_action + modname)
+					err = fmt.Errorf(no_action, modname)
 				}
 			} else {
-				err = fmt.Errorf(modname + unexported_back)
+				err = fmt.Errorf(unexported_back, modname)
 			}
 		}
 	} else {
@@ -179,7 +194,7 @@ func runDebug(uni *context.Uni) {
 	if len(uni.Paths) > 2 {
 		modname := uni.Paths[2]
 		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
-			err = fmt.Errorf(cant_test + modname)
+			err = fmt.Errorf(cant_test, modname)
 		} else {
 			err = mod.GetHook(modname, "Test")(uni)
 		}
@@ -197,7 +212,6 @@ func buildUser(uni *context.Uni) error {
 	return fmt.Errorf(no_user_module_build_hook)
 }
 
-// A runSite-ban van egy két hardcore-olt dolog (lásd forrást)
 func runSite(uni *context.Uni) {
 	buildUser(uni)
 	switch uni.Paths[1] {
@@ -224,7 +238,7 @@ func err() {
 	}
 }
 
-// A getSite gets the freshest option document, caches it and creates an instance of context.Uni.
+// getSite gets the freshest option document, caches it and creates an instance of context.Uni.
 func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	Put = func(a ...interface{}) {
 		io.WriteString(w, fmt.Sprint(a...)+"\n")
@@ -236,7 +250,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		Req:   		req,
 		Put:   		Put,
 		Dat:   		make(map[string]interface{}),
-		Root:  		ABSOLUTE_PATH,
+		Root:  		ABS_PATH,
 		P:     		req.URL.Path,
 		Paths: 		strings.Split(req.URL.Path, "/"),
 		GetHook:	mod.GetHook,
@@ -256,9 +270,9 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 			serveTemplateFile(w, req, uni)
 		} else if !has_sfx {
 			if uni.Paths[1] == "shared" {
-				http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, req.URL.Path))
+				http.ServeFile(w, req, filepath.Join(ABS_PATH, req.URL.Path))
 			} else {
-				http.ServeFile(w, req, filepath.Join(ABSOLUTE_PATH, "uploads", req.Host, req.URL.Path))
+				http.ServeFile(w, req, filepath.Join(ABS_PATH, "uploads", req.Host, req.URL.Path))
 			}
 		} else {
 			uni.Put("Don't do that.")
@@ -282,6 +296,7 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 }
 
 func main() {
+	handleFlags()
 	flag.Parse()
 	fmt.Println("Server has started.")
 	defer func() {
