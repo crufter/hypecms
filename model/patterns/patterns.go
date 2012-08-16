@@ -96,3 +96,11 @@ func IncAll(db *mgo.Database, collname string, ids []bson.ObjectId, fieldname st
 	_, err := db.C(collname).UpdateAll(q, upd)
 	return err
 }
+
+func Satisfies(db *mgo.Database, collname string, id bson.ObjectId, query map[string]interface{}) (bool, error) {
+	query["_id"] = id
+	count, err := db.C(collname).Find(query).Count()
+	if err != nil { return false, err }
+	if count == 1 { return true, nil }
+	return false, fmt.Errorf("Does not satisfy.")
+}
