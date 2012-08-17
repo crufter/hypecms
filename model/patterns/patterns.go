@@ -82,16 +82,18 @@ func DeleteById(db *mgo.Database, collname string, id interface{}) error {
 	return db.C(collname).Remove(q)
 }
 
-func IncAll(db *mgo.Database, collname string, ids []bson.ObjectId, fieldname string, num int) error {
+func IncAll(db *mgo.Database, collname string, ids []bson.ObjectId, fieldnames []string, num int) error {
 	q := m{
 		"_id": m{
 			"$in": ids,
 		},
 	}
+	fields_to_inc := m{}
+	for _, v := range fieldnames {
+		fields_to_inc[v] = num
+	}
 	upd := m{
-		"$inc": m{
-			fieldname: num,
-		},
+		"$inc": fields_to_inc,
 	}
 	_, err := db.C(collname).UpdateAll(q, upd)
 	return err

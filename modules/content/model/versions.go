@@ -92,6 +92,7 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 	}
 	draft_id := bson.NewObjectId()
 	ins["_id"] = draft_id
+	ins["kind"] = "draft"
 	return draft_id, db.C(Cname).Insert(ins)
 }
 

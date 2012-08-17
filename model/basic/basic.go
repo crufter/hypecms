@@ -62,12 +62,14 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 			old_doc["_id"] = bson.NewObjectId()
 			old_doc[Version_parentfield] = old_id
 			old_doc[Version_datefield] = time.Now().Unix()
+			old_doc["kind"] = "version"
 			if typ, has_typ := old_doc["type"]; has_typ {
 				old_doc["type"] = typ.(string) + "_version"
 			}
 			err = db.C(coll).Insert(old_doc)
 			if err != nil { return err }
 			q := bson.M{"_id": old_id}
+			dat["kind"] = "live"
 			upd := bson.M{"$set": dat}
 			err = db.C(coll).Update(q, upd)
 		} else {

@@ -224,7 +224,7 @@ func insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	ins_dat["type"] = typ[0]
 	_, has_tags := ins_dat[Tag_fieldname_displayed]
 	if has_tags {
-		addTags(db, ins_dat, "", "insert")
+		addTags(db, ins_dat, "", "insert", typ[0])
 	}
 	basic.Slug(rule, ins_dat)
 	mergeMaps(ins_dat, fixvals)
@@ -263,7 +263,7 @@ func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	upd_dat["type"] = typ[0]
 	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
-		addTags(db, upd_dat, id[0], "update")
+		addTags(db, upd_dat, id[0], "update", typ[0])
 	}
 	basic.Slug(rule, upd_dat)
 	mergeMaps(upd_dat, fixvals)

@@ -49,12 +49,12 @@ func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string
 	return ret_ids, mToSSlice(contains)
 }
 
-func inc(db *mgo.Database, ids []bson.ObjectId) error {
-	return patterns.IncAll(db, Tag_cname, ids, Count_fieldname, 1)
+func inc(db *mgo.Database, ids []bson.ObjectId, typ string) error {
+	return patterns.IncAll(db, Tag_cname, ids, []string{Count_fieldname, typ + "_" + Count_fieldname}, 1)
 }
 
-func dec(db *mgo.Database, ids []bson.ObjectId) error {
-	return patterns.IncAll(db, Tag_cname, ids, Count_fieldname, -1)
+func dec(db *mgo.Database, ids []bson.ObjectId, typ string) error {
+	return patterns.IncAll(db, Tag_cname, ids, []string{Count_fieldname, typ + "_" + Count_fieldname}, -1)
 }
 
 func insertTags(db *mgo.Database, tag_sl []string) []bson.ObjectId {
@@ -91,14 +91,15 @@ func diffIds(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
 }
 
 // "a, b, c" ... "a, c" => decrement b, old node.js version logic
-func handleCount(db *mgo.Database, old_ids []bson.ObjectId, new_ids []bson.ObjectId) {
+// Not used ATM.
+func handleCount(db *mgo.Database, old_ids []bson.ObjectId, new_ids []bson.ObjectId, typ string) {
 	dec_ids := diffIds(old_ids, new_ids)
 	inc_ids := diffIds(new_ids, old_ids)
 	if len(inc_ids) > 0 {
-		inc(db, inc_ids)
+		inc(db, inc_ids, typ)
 	}
 	if len(dec_ids) > 0 {
-		dec(db, dec_ids)
+		dec(db, dec_ids, typ)
 	}
 }
 
@@ -134,7 +135,7 @@ func stripEmpty(sl []string) []string {
 }
 
 // Creates nonexisting tags if needed and pushes the tag ids into the content, and increments the tag counters.
-func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string) {
+func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod, typ string) {
 	content := map[string]interface{}{}
 	if mod != "insert" {
 		content = find(db, basic.StripId(id))
@@ -149,7 +150,7 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string
 			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
 			inserted_ids := insertTags(db, to_insert_slugs)
 			all_ids := mergeIds(existing_ids, inserted_ids)
-			inc(db, all_ids)
+			inc(db, all_ids, typ)
 			dat[Tag_fieldname] = all_ids
 		case "update":
 			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
@@ -157,7 +158,7 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string
 			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
 			new_ids := mergeIds(existing_ids, inserted_ids)
 			inc_ids := diffIds(new_ids, old_ids)
-			inc(db, inc_ids)
+			inc(db, inc_ids, typ)
 			addToSet(db, content["_id"].(bson.ObjectId), new_ids)
 		default:
 			panic("Bad mode at addTags.")
@@ -169,6 +170,7 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod string
 func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	content_id = basic.StripId(content_id)
 	content := find(db, content_id)
+	typ := content["type"].(string)
 	if content == nil { return fmt.Errorf("Cant find content when pulling tags.") }
 	tag_objectids := content[Tag_fieldname].([]interface{})
 	cache := createMObjectId(toIdSlice(tag_objectids))
@@ -180,7 +182,7 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 			to_pull = append(to_pull, tag_objectid)
 		}
 	}
-	dec(db, to_pull)
+	dec(db, to_pull, typ)
 	q := m{"_id": content["_id"].(bson.ObjectId) }
 	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
 	return db.C(Cname).Update(q, upd)
