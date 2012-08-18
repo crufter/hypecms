@@ -35,8 +35,13 @@ func mToSSlice(ma map[string]struct{}) []string {
 	return ret
 }
 
-func separateTags(db *mgo.Database, slug_sl []string) ([]bson.ObjectId, []string) {
+func separateTags(db *mgo.Database, tag_sl []string) ([]bson.ObjectId, []string) {
 	var i []interface{}
+	slug_sl := []string{}
+	for _, val := range tag_sl {
+		slug := slugify.S(val)
+		slug_sl = append(slug_sl, slug)
+	}
 	db.C(Tag_cname).Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
 	ret_ids := []bson.ObjectId{}
 	contains := createM(slug_sl)
