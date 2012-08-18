@@ -74,8 +74,19 @@ func SaveDraft(uni *context.Uni) error {
 	if !has_rules { return fmt.Errorf("Can't find rules of content type %v.", typ) }
 	draft_id, err := content_model.SaveDraft(uni.Db, rules, map[string][]string(post))
 	// Handle redirect.
-	is_admin := strings.Index(uni.Req.Referer(), "admin") != -1
-	redir := "/content/edit/" + typ + "_draft/" + draft_id.Hex()
+	referer := uni.Req.Referer()
+	is_admin := strings.Index(referer, "admin") != -1
+	var redir string
+	if err == nil {		// Go to the fresh draft if we succeeded to save it.
+		redir = "/content/edit/" + typ + "_draft/" + draft_id.Hex()
+	} else {			// Go back to the previous draft if we couldn't save the new one, or to the insert page if we tried to save a parentless draft.
+		val, has := uni.Req.Form[content_model.Parent_draft_field]
+		if has {
+			redir = "/content/edit/" + typ + "_draft/" + val[0]
+		} else {
+			redir = "/content/edit/" + typ + "_draft/"
+		}
+	}
 	if is_admin {
 		redir = "/admin" + redir
 	}
@@ -240,12 +251,14 @@ func Back(uni *context.Uni) error {
 	switch action {
 	case "insert":
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
+			fmt.Println("///////////////////////////////////draft")
 			r = SaveDraft(uni)
 		} else {
 			r = Insert(uni)
 		}
 	case "update":
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
+			fmt.Println("///////////////////////////////////draft")
 			r = SaveDraft(uni)
 		} else {
 			r = Update(uni)

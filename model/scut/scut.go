@@ -170,3 +170,17 @@ func Merge(a map[string]interface{}, b map[string]interface{}) {
 		a[i] = v
 	}
 }
+
+// CanonicalHost(uni.Req.Host, uni.Opt)
+func Host(host string, opt map[string]interface{}) string {
+	alias_whitelist, has_alias_whitelist := opt["host_alias_whitelist"]
+	if has_alias_whitelist {
+		awm := alias_whitelist.(map[string]interface{})
+		if _, allowed := awm[host]; !allowed && len(awm) > 0 {	// To prevent entirely locking yourself out of the site. Still can introduce problems if misused.
+			panic("Unapproved host alias.")
+		}
+	}
+	canon_host, has_canon := opt["canonical_host"]
+	if !has_canon { return host }
+	return canon_host.(string)
+}

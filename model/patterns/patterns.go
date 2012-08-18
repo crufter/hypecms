@@ -1,4 +1,5 @@
 // Package pattern contains (should, lol) reusable database patterns.
+// These functions are intended as inner building blocks of saner APIs.
 package patterns
 
 
@@ -25,20 +26,30 @@ func ToIdWithCare(id interface{}) bson.ObjectId {
 
 // Finds a doc by field-value equality.
 func FindEq(db *mgo.Database, coll, field string, value interface{}) (map[string]interface{}, error) {
-	if field == "_id" {
-		value = ToIdWithCare(value)
-	}
 	q := m{field: value}
+	return FindQ(db, coll, q)
+}
+
+// Finds a doc by query.
+func FindQ(db *mgo.Database, coll string, query map[string]interface{}) (map[string]interface{}, error) {
+	id, has := query["_id"]
+	if has {
+		query["_id"] = ToIdWithCare(id)
+	}
 	var res interface{}
-	err := db.C(coll).Find(q).One(&res)
+	err := db.C(coll).Find(query).One(&res)
 	if err != nil { return nil, err }
 	if res == nil { return nil, fmt.Errorf("Can't find document at FindEq.") }
 	doc := basic.Convert(res.(bson.M)).(map[string]interface{})
 	return doc, nil
 }
 
-func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, parent_id bson.ObjectId) ([]interface{}, error) {
-	q := m{parent_fk_field: parent_id}
+func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, parent_id bson.ObjectId, additional_query map[string]interface{}) ([]interface{}, error) {
+	q := map[string]interface{}{}
+	if additional_query != nil {
+		q = additional_query
+	}
+	q[parent_fk_field] = parent_id
 	var children []interface{}
 	err := db.C(children_coll).Find(q).All(&children)
 	if err != nil { return nil, err }
@@ -52,10 +63,10 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 // Finds a document in [parent_coll] collection based on [field] [value] equality, then queries
 // [children_coll] for documents which has the _id of that document in their parent_fk_field.
 // Returns children list only, no parent.
-func FindParentAndChildren(db *mgo.Database, parent_coll string, field string, value interface{}, children_coll, parent_fk_field string) ([]interface{}, error)  {
-	parent, err := FindEq(db, parent_coll, field, value)
+func FindParentAndChildren(db *mgo.Database, parent_coll string, parent_q map[string]interface{}, children_coll, parent_fk_field string, children_q map[string]interface{}) ([]interface{}, error)  {
+	parent, err := FindQ(db, parent_coll, parent_q)
 	if err != nil { return nil, err }
-	return FindChildren(db, children_coll, parent_fk_field, parent["_id"].(bson.ObjectId))
+	return FindChildren(db, children_coll, parent_fk_field, parent["_id"].(bson.ObjectId), children_q)
 }
 
 func FieldStartsWith(db *mgo.Database, collname, fieldname, val string) ([]interface{}, error) {

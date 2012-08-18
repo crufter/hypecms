@@ -39,9 +39,10 @@ var(
 	DB_USER 		string
 	DB_PASS 		string
 	DB_ADDR 		string
-	ABS_PATH 	string
+	ABS_PATH 		string
 	DEBUG			bool
 	DB_NAME			string
+	ADDR			string
 	PORT_NUM		string
 	OPT_CACHE		bool
 	SERVE_FILES		bool
@@ -55,6 +56,7 @@ func handleFlags() {
 	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
 	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
 	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
+	flag.StringVar(&ADDR, "addr", "", "address to start http server")
 	flag.BoolVar(&OPT_CACHE, "opt_cache", false, "cache option document")
 	flag.BoolVar(&SERVE_FILES, "serve_files", true, "serve files from Go or not")
 }		
@@ -126,21 +128,29 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 		fmt.Println("	", err)
 	}
 	_, is_json := uni.Req.Form["json"]
+	redir := uni.Req.Referer()
+	if red, ok := uni.Dat["redirect"]; ok {
+		redir = red.(string)
+	} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
+		redir = post_red[1]
+	}
 	if is_json {
+		var cont map[string]interface{}
+		cont_i, has := uni.Dat["_cont"]
+		if has {
+			cont = cont_i.(map[string]interface{})
+		} else {
+			cont = map[string]interface{}{}
+		}
+		cont["redirect"] = redir
 		var v []byte
 		if _, fmt := uni.Req.Form["fmt"]; fmt {
-			v, _ = json.MarshalIndent(uni.Dat["_cont"], "", "    ")
+			v, _ = json.MarshalIndent(cont, "", "    ")
 		} else {
-			v, _ = json.Marshal(uni.Dat["_cont"])
+			v, _ = json.Marshal(cont)
 		}
 		uni.Put(string(v))
 	} else {
-		redir := uni.Req.Referer()
-		if red, ok := uni.Dat["redirect"]; ok {
-			redir = red.(string)
-		} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
-			redir = post_red[1]
-		}
 		redir = appendParams(redir, err, action_name)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
@@ -264,11 +274,12 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		GetHook:	mod.GetHook,
 	}
 	uni.Ev = context.NewEv(uni)
-	opt, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)
+	opt, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)	// Tricky part about the host, see comments at main_model.
 	if err != nil {
 		uni.Put(err.Error())
 		return
 	}
+	uni.Req.Host = scut.Host(req.Host, opt)
 	uni.Opt = opt
 	first_p := uni.Paths[1]
 	last_p := uni.Paths[len(uni.Paths)-1]
@@ -323,14 +334,14 @@ func main() {
 		dial = DB_USER + ":" + DB_PASS + "@" + dial
 	}
 	session, err := mgo.Dial(DB_ADDR)
-	db := session.DB(DB_NAME)
 	if err != nil {
 		panic(err)
 	}
+	db := session.DB(DB_NAME)
 	defer session.Close()
 	http.HandleFunc("/",
 		func(w http.ResponseWriter, req *http.Request) {
 			getSite(db, w, req)
 		})
-	http.ListenAndServe("127.0.0.1:"+PORT_NUM, nil)
+	http.ListenAndServe(ADDR + ":" + PORT_NUM, nil)
 }

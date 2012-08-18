@@ -23,7 +23,7 @@ func set(c map[string]string, key, val string) {
 }
 
 // mutex locked map get
-func has(c map[string]string, str string) (interface{}, bool) {
+func has(c map[string]string, str string) (string, bool) {
 	mut := new(sync.Mutex)
 	mut.Lock()
 	v, ok := c[str]
@@ -31,13 +31,16 @@ func has(c map[string]string, str string) (interface{}, bool) {
 	return v, ok
 }
 
+// This is an artifact from the old version, we don't need the map here.
+// Leave it as is, we may migrate back to the "multiple http servers from one process" approach. *1
 var cache = make(map[string]string)
 
 func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, error) {
+	host = "anything"	// See *1
 	ret := map[string]interface{}{}
 	if val, ok := has(cache, host); cache_it && ok {
 		var v interface{}
-		json.Unmarshal([]byte(val.(string)), &v)
+		json.Unmarshal([]byte(val), &v)
 		if v == nil {
 			return nil, fmt.Errorf(cached_opt_inv)
 		}

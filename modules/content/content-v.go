@@ -37,7 +37,16 @@ func UserEdit(uni *context.Uni, urimap map[string]string) error {
 
 func TagView(uni *context.Uni, urimap map[string]string) error {
 	fieldname := "slug"		// This should not be hardcoded.
-	list, err := content_model.ListContentsByTag(uni.Db, fieldname, urimap["slug"])
+	specific := len(urimap) == 2
+	var search_value string
+	var children_query map[string]interface{}
+	if specific { 
+		children_query["type"] = urimap["first"]
+		search_value = urimap["second"]
+	} else {
+		search_value = urimap["first"]
+	}
+	list, err := content_model.ListContentsByTag(uni.Db, fieldname, search_value, children_query)
 	if err != nil {
 		uni.Dat["error"] = err.Error()
 	} else {
@@ -93,7 +102,7 @@ func Front(uni *context.Uni) error {
 	if edit_err == nil {
 		return UserEdit(uni, edit_map)
 	}
-	tag_map, tag_err := routep.Comp("/tag/{slug}", uni.P)
+	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
 	if tag_err == nil {
 		return TagView(uni, tag_map)
@@ -243,7 +252,9 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 		d := built["data"].(map[string]interface{})
 		if content_model.HasContentParent(built) {
 			uni.Dat["content_parent"] = true
-			uni.Dat["up_to_date"] = content_model.IsDraftUpToDate(uni.Db, built, d)
+			fresher, err := content_model.IsDraftUpToDate(uni.Db, built, d)
+			if err != nil { return nil, err }
+			uni.Dat["up_to_date"] = fresher
 			uni.Dat["op"] = "update"
 		} else {	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
 			uni.Dat["op"] = "insert"
@@ -296,7 +307,8 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	}
 	uni.Dat["content_type"] = rtyp
 	uni.Dat["type"] = rtyp
-	id, hasid := ma["id"]
+	id, ok := ma["id"]
+	hasid := ok && len(id) > 0	// Corrigate routep.Comp because it sets a map key with an empty value...
 	var field_dat interface{}
 	var err error
 	subt := subType(typ)
@@ -304,6 +316,7 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	case "content":
 		field_dat, err = EditContent(uni, typ, id, hasid)
 	case "draft":
+		fmt.Println(rtyp, id, hasid)
 		field_dat, err = EditDraft(uni, rtyp, id, hasid)
 	case "version":
 		if !hasid { return fmt.Errorf("Version must have id.") }

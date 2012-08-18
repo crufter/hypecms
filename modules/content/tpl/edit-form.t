@@ -14,7 +14,7 @@
 {{end}}
 {{if .is_content}}
 	{{if .latest_draft}}
-	<a href="/admin/content/edit/{{.type}}_draft/{{.latest_draft._id}}">Latest draft available.</a><br />
+	<a href="/admin/content/edit/{{.type}}_draft/{{.latest_draft._id}}">A fresher draft is available.</a><br />
 	<br />
 	{{end}}
 {{end}}
