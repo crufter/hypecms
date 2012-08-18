@@ -58,6 +58,7 @@ func RevertToVersion(db *mgo.Database, ev ifaces.Event, inp map[string][]string,
 // A draft will have the next fields: id, type, created, up_to_date, parent_content/draft_content/none/both, data.
 // The saved input resides in the data.
 func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[string][]string) (bson.ObjectId, error) {
+	t := time.Now()
 	for i, _ := range content_rules {
 		content_rules[i] = 1
 	}
@@ -77,11 +78,11 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 		"up_to_date":	true,
 	}
 	if len(parent_content_id_str) > 0 {
-		parent_id := bson.ObjectIdHex(basic.StripId(parent_content_id_str))
+		parent_id := patterns.ToIdWithCare(parent_content_id_str)
 		ins[Parent_content_field] = parent_id
 	}
 	if len(parent_draft_id_str) > 0 {
-		parent_draft_id := bson.ObjectIdHex(basic.StripId(parent_draft_id_str))
+		parent_draft_id := patterns.ToIdWithCare(parent_draft_id_str)
 		q := m{"_id": parent_draft_id}
 		upd := m{
 			"$unset": m{
@@ -95,7 +96,9 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 	draft_id := bson.NewObjectId()
 	ins["_id"] = draft_id
 	ins["kind"] = "draft"
-	return draft_id, db.C(Cname + Draft_collection_postfix).Insert(ins)
+	err = db.C(Cname + Draft_collection_postfix).Insert(ins)
+	fmt.Println(time.Since(t))
+	return draft_id, err
 }
 
 // draft["data"] will contain draft["data"] merged with all of the parent's fields.
@@ -222,8 +225,8 @@ func IsDraftUpToDate(db *mgo.Database, draft, parent map[string]interface{}) (bo
 	fresher_than_parent := parent_last_mod.(int64) < draft[basic.Created].(int64)
 	if !fresher_than_parent { return false, nil }
 	var v interface{}
-	q := m{Parent_content_field: draft[Parent_content_field]} 
-	err := db.C(Cname + Draft_collection_postfix).Find(q).Sort("-created").One(&v)	// TODO: no error checking here.
+	q := m{Parent_content_field: draft[Parent_content_field], "up_to_date": true} 
+	err := db.C(Cname + Draft_collection_postfix).Find(q).One(&v)	// TODO: no error checking here.
 	if err != nil { return false, err }
 	if v == nil { return false, fmt.Errorf("Can't find any draft at IsDraftUpToDate.") }
 	if v.(bson.M)["_id"].(bson.ObjectId) != draft["_id"].(bson.ObjectId) { return false, nil }
