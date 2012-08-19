@@ -7,17 +7,19 @@ import(
 	"labix.org/v2/mgo/bson"
 	"path/filepath"
 	"strings"
+	"io/ioutil"
 )
 
-// Converts all bson.ObjectId to string. Usually called before display.
-func Strify(v interface{}) {
+// Converts all bson.ObjectId s to string. Usually called before displaying a database query result.
+// Input is the result from the database.
+func IdsToStrings(v interface{}) {
 	switch value := v.(type) {
 	case bson.M:
 		for i, mem := range value {
 			if id, is_id := mem.(bson.ObjectId); is_id {
 				value[i] = id.Hex()
 			} else {
-				Strify(mem)
+				IdsToStrings(mem)
 			}
 		}
 	case map[string]interface{}:
@@ -25,7 +27,7 @@ func Strify(v interface{}) {
 			if id, is_id := mem.(bson.ObjectId); is_id {
 				value[i] = id.Hex()
 			} else {
-				Strify(mem)
+				IdsToStrings(mem)
 			}
 		}
 	case []interface{}:
@@ -33,7 +35,7 @@ func Strify(v interface{}) {
 			if id, is_id := mem.(bson.ObjectId); is_id {
 				value[i] = id.Hex()
 			} else {
-				Strify(mem)
+				IdsToStrings(mem)
 			}
 		}
 	}
@@ -109,6 +111,7 @@ func RulesToFields(rule interface{}, dat interface{}) ([]map[string]interface{},
 	return abcKeys(rm, datm, []string{"title", "name", "slug"}), nil
 }
 
+// Gives you back the type of the currently used template (either "private" or public).
 func TemplateType(opt map[string]interface{}) string {
 	_, priv := opt["TplIsPrivate"]
 	var ttype string
@@ -120,12 +123,36 @@ func TemplateType(opt map[string]interface{}) string {
 	return ttype
 }
 
+// Gives you back the name of the current template in use.
 func TemplateName(opt map[string]interface{}) string {
 	tpl, has_tpl := opt["Template"]
 	if !has_tpl {
 		tpl = "default"
 	}
 	return tpl.(string)
+}
+
+// Decides if a given relative filepath (filep) is a possible module filepath.
+func PossibleModPath(filep string) bool {
+	sl := strings.Split(filep, "/")
+	return len(sl) >= 2
+}
+
+// TODO: Implement file caching here.
+// Reads the fi relative filepath from either the current template, or the fallback module tpl folder if fi has at least one slash in it.
+// file_reader is optional, falls back to simple ioutil.ReadFile if not given. file_reader will be a custom file_reader with caching soon.
+func GetFile(root, fi string, opt map[string]interface{}, host string, file_reader func(string) ([]byte, error)) ([]byte, error) {
+	if file_reader == nil {
+		file_reader = ioutil.ReadFile
+	}
+	p := GetTPath(opt, host)
+	b, err := file_reader(filepath.Join(root, p, fi))
+	if err == nil {
+		return b, nil
+	}
+	if !PossibleModPath(fi) { return nil, fmt.Errorf("Not found.") }
+	mp := GetModTPath(fi)
+	return file_reader(filepath.Join(root, mp[0], mp[1]))
 }
 
 // Observes opt and gives you back the path of your template eg
@@ -149,10 +176,12 @@ func GetModTPath(filename string) []string {
 	return sl
 }
 
+// Checks if the user is an admin or not.
 func NotAdmin(user interface{}) bool {
 	return ULev(user) < 300
 }
 
+// Gives back the user level.
 func ULev(useri interface{}) int {
 	if useri == nil {
 		return 0
@@ -165,6 +194,7 @@ func ULev(useri interface{}) int {
 	return int(ulev.(int))
 }
 
+// Merges b into a (overwriting members in a.
 func Merge(a map[string]interface{}, b map[string]interface{}) {
 	for i, v := range b {
 		a[i] = v
@@ -172,6 +202,7 @@ func Merge(a map[string]interface{}, b map[string]interface{}) {
 }
 
 // CanonicalHost(uni.Req.Host, uni.Opt)
+// Gives you back the canonical address of the site so it can be made available from different domains.
 func Host(host string, opt map[string]interface{}) string {
 	alias_whitelist, has_alias_whitelist := opt["host_alias_whitelist"]
 	if has_alias_whitelist {

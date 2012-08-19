@@ -109,7 +109,7 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		dont_query := map[string]interface{}{"password":0}
 		resolver.ResolveAll(db, res, dont_query)
-		scut.Strify(res)
+		scut.IdsToStrings(res)
 		qs[name] = res
 	}
 	return qs

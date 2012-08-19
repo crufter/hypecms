@@ -149,7 +149,7 @@ func Index(uni *context.Uni) error {
 	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
 	content_model.ConnectWithDrafts(uni.Db, v)
-	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
 	return nil
@@ -158,7 +158,7 @@ func Index(uni *context.Uni) error {
 func ListTags(uni *context.Uni) error {
 	var v []interface{}
 	uni.Db.C("tags").Find(nil).All(&v)
-	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/tags"}
 	return nil
@@ -185,7 +185,7 @@ func List(uni *context.Uni) error {
 	uni.Dat["paging"] = paging
 	v = basic.Convert(v).([]interface{})
 	content_model.ConnectWithDrafts(uni.Db, v)
-	scut.Strify(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
@@ -236,7 +236,7 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
 		latest_draft := content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
-		scut.Strify(latest_draft)
+		scut.IdsToStrings(latest_draft)
 		uni.Dat["latest_draft"] = latest_draft
 	} else {
 		uni.Dat["op"] = "insert"
@@ -260,8 +260,8 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 			uni.Dat["op"] = "insert"
 		}
 		resolver.ResolveOne(uni.Db, d, nil)
-		scut.Strify(d)
-		scut.Strify(built)
+		scut.IdsToStrings(d)
+		scut.IdsToStrings(built)
 		uni.Dat["content"] = d
 		uni.Dat["draft"] = built
 		return d, nil

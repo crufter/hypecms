@@ -1,8 +1,8 @@
 // Module Display will execute the given "Display Points" ([]string found in uni.Dat["_points"]).
 // If there is no "_points" set in uni.Dat, then it will execute the Display Point which name matches the http Request Path.
-// A given Display Point can contain queries, they will be run, after that, a tpl file which matches the name of the Display Point will be executed.
+// A given Display Point can contain queries, they will be run, after that, a tpl file which matches the name of the Display Point will be executed as a Go template.
 //
-// Caution: there is some real tricky (ugly?) hackage going on in this package at getFile/getTPath/getModTPath to support the logic behind the fallback files.
+// Caution: there is some slightly tricky (ugly?) hackage going on in this package at getFile/getTPath/getModTPath to support the logic behind the fallback files.
 package display
 
 import (
@@ -12,14 +12,13 @@ import (
 	"github.com/opesun/hypecms/modules/display/model"
 	"github.com/opesun/hypecms/model/scut"
 	"html/template"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"runtime/debug"
 	"encoding/json"
 	"fmt"
 )
 
+// Prints errors during template file display to http response. (Kinda nonsense now as it is.)
 func displErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
@@ -29,22 +28,11 @@ func displErr(uni *context.Uni) {
 	}
 }
 
-// TODO: Implement file caching here.
-func getFile(root, fi string, opt map[string]interface{}, host string) ([]byte, error) {
-	p := scut.GetTPath(opt, host)
-	b, err := ioutil.ReadFile(filepath.Join(root, p, fi))
-	if err == nil {
-		return b, nil
-	}
-	mp := scut.GetModTPath(fi)
-	return ioutil.ReadFile(filepath.Join(root, mp[0], mp[1]))
-}
-
-// Executes filep.tpl of a given template.
+// Tries to dislay a template file.
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
 		func(root, fi string) ([]byte, error) {
-			return getFile(uni.Root, fi, uni.Opt, uni.Req.Host)
+			return scut.GetFile(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
 		})
 	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
@@ -55,13 +43,13 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 	return fmt.Errorf("cant find template file ", `"`, filep, `"`)
 }
 
-// If a given .tpl can not be found in the template folder, it will try identify the module which can have that .tpl file. 
+// Tries to display a module file.
 func DisplayFallback(uni *context.Uni, filep string) error {
 	if strings.Index(filep, "/") != -1 {
-		if len(strings.Split(filep, "/")) >= 2 {
+		if scut.PossibleModPath(filep) {
 			file, err := require.R("", filep + ".tpl",			// Tricky, care.
 				func(root, fi string) ([]byte, error) {
-					return getFile(uni.Root, fi, uni.Opt, uni.Req.Host)
+					return scut.GetFile(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
 				})
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
@@ -76,6 +64,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 	return fmt.Errorf("fallback filep contains no slash, so there nothing to fall back")
 }
 
+// Tries to display the relative filepath filep as either a template file or a module file.
 func DisplayFile(uni *context.Uni, filep string) error {
 	defer displErr(uni)
 	err := DisplayTemplate(uni, filep)
@@ -88,6 +77,7 @@ func DisplayFile(uni *context.Uni, filep string) error {
 	return nil
 }
 
+// Prints errors during query running to http response. (Kinda nonsense now as it is.)
 func queryErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
@@ -103,6 +93,7 @@ func runQueries(uni *context.Uni, queries map[string]interface{}) {
 	uni.Dat["queries"] = display_model.RunQueries(uni.Db, queries, map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery)
 }
 
+// Prints all available data to http response as a JSON.
 func putJSON(uni *context.Uni) {
 	var v []byte
 	if _, format := uni.Req.Form["fmt"]; format {
@@ -122,7 +113,7 @@ func DErr(uni *context.Uni, err error) {
 	uni.Put(err)
 }
 
-// This is where the module starts if there were no error in the front hook.
+// Displays a display point.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
 	var point string
