@@ -160,6 +160,7 @@ func locReader(s string) (map[string]interface{}, error) {
 	return v.(map[string]interface{}), err
 }
 
+// Extracts used multilingual variables from a template with regexp.
 func CollectFromTempl(file_content string) map[string]struct{} {
 	r := regexp.MustCompile(".loc.([a-zA-Z_.:/-])*")
 	s := r.FindAllString(file_content, -1)
@@ -182,6 +183,7 @@ func CollectFromMap(dat map[string]interface{}) map[string]struct{} {
 	return c
 }
 
+// Takes a list of localization filenames and tries to load every one of them, first from the template, then from the modules.
 func ReadFiles(root, tplpath string, user_langs []string, locfiles map[string]struct{}, loc_reader func (s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
 	ret := map[string]interface{}{}
 	for i, _ := range locfiles {
