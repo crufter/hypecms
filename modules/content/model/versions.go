@@ -82,6 +82,7 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 		ins[Parent_content_field] = parent_id
 	}
 	if len(parent_draft_id_str) > 0 {
+		// Mark parent draft as obsolete.
 		parent_draft_id := patterns.ToIdWithCare(parent_draft_id_str)
 		q := m{"_id": parent_draft_id}
 		upd := m{
@@ -226,7 +227,7 @@ func IsDraftUpToDate(db *mgo.Database, draft, parent map[string]interface{}) (bo
 	if !fresher_than_parent { return false, nil }
 	var v interface{}
 	q := m{Parent_content_field: draft[Parent_content_field], "up_to_date": true} 
-	err := db.C(Cname + Draft_collection_postfix).Find(q).One(&v)	// TODO: no error checking here.
+	err := db.C(Cname + Draft_collection_postfix).Find(q).Sort("-created").One(&v)	// Sorting is just for safety purposes.
 	if err != nil { return false, err }
 	if v == nil { return false, fmt.Errorf("Can't find any draft at IsDraftUpToDate.") }
 	if v.(bson.M)["_id"].(bson.ObjectId) != draft["_id"].(bson.ObjectId) { return false, nil }
