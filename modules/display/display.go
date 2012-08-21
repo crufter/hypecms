@@ -28,6 +28,41 @@ func displErr(uni *context.Uni) {
 	}
 }
 
+func merge(a interface{}, b map[string]interface{}) map[string]interface{} {
+	if a == nil { return b }
+	if b == nil { return a.(map[string]interface{}) }
+	a_m := a.(map[string]interface{})
+	for i, v := range b {
+		a_m[i] = v
+	}
+	return a_m
+}
+
+func toStringSlice(a interface{}) []string {
+	if a == nil { return nil }
+	switch val := a.(type) {
+	case []interface{}:
+		return jsonp.ToStringSlice(val)
+	case []string:
+		return val
+	}
+	return nil
+}
+
+func get(dat map[string]interface{}, s ...string) interface{} {
+	if len(s) > 0 {
+		if len(s[0]) > 0 {
+			if string(s[0][0]) == "$" {
+				s[0] = s[0][1:]
+			}
+		}
+	}
+	access := strings.Join(s, ".")
+	val, has := jsonp.Get(dat, access)
+	if !has { return access }
+	return val
+}
+
 // Tries to dislay a template file.
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
@@ -36,7 +71,17 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 		})
 	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
-		t, _ := template.New("template_name").Parse(string(file))
+		langs, has := jsonp.Get(uni.Dat, "_user.languages")																		// _user always has language member
+		if !has { langs = []string{"en"} }
+		langs_s := toStringSlice(langs)
+		loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)		// TODO: think about errors here.
+		uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
+		funcMap := template.FuncMap{
+			"get": func(s ...string) interface{} {
+				return get(uni.Dat, s...)
+			},
+		}
+		t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
 		t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 		return nil
 	}
@@ -53,7 +98,18 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 				})
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
-				t, _ := template.New("template_name").Parse(string(file))
+				langs, has := jsonp.Get(uni.Dat, "_user.languages")																				// _user always has language member
+				if !has { langs = []string{"en"} }
+				langs_s := toStringSlice(langs)
+				if !has { langs = []string{"en"} }
+				loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)			// TODO: think about errors here.
+				uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
+				funcMap := template.FuncMap{
+					"get": func(s ...string) interface{} {
+						return get(uni.Dat, s...)
+					},
+				}
+				t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
 				t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 				return nil
 			}
@@ -104,7 +160,7 @@ func putJSON(uni *context.Uni) {
 	uni.Put(string(v))
 }
 
-// This is where the module starts if an error occured in a front hook.
+// This is called if an error occured in a front hook.
 func DErr(uni *context.Uni, err error) {
 	if _, isjson := uni.Req.Form["json"]; isjson {
 		putJSON(uni)
@@ -133,6 +189,12 @@ func D(uni *context.Uni) {
 		if ok {
 			runQueries(uni, qmap)
 		}
+	}
+	langs, _ := jsonp.Get(uni.Dat, "_user.languages")																	// _user always has language member
+	langs_s := toStringSlice(langs)
+	loc, _ := display_model.LoadLocStrings(uni.Dat, langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)		// TODO: think about errors here.
+	if loc != nil {
+		uni.Dat["loc"] = loc
 	}
 	if _, isjson := uni.Req.Form["json"]; isjson {
 		putJSON(uni)

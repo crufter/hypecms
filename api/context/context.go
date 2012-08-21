@@ -7,22 +7,31 @@ import (
 	"labix.org/v2/mgo"
 	"net/http"
 	"strings"
-	"fmt"
+	//"fmt"
 )
 
 // General context for the application.
 type Uni struct {
-	Db    *mgo.Database
-	W     http.ResponseWriter
-	Req   *http.Request
-	P     string					// Path string
-	Paths []string 					// Path slice, contains the url (after the domain) splitted by "/"
-	Opt   map[string]interface{}	// Freshest options from database.
-	Dat   map[string]interface{} 	// General communication channel.
-	Put   func(...interface{})   	// Just a convenienc function to allow fast output to http response.
-	Root  string                 	// Absolute path of the application.
-	Ev	  *Ev
+	Db		*mgo.Database
+	W		http.ResponseWriter
+	Req		*http.Request
+	P		string						// Path string
+	Paths	[]string 					// Path slice, contains the url (after the domain) splitted by "/"
+	opt		string						// Original string representation of the option, if one needs a version which is guaranteedly untinkered.
+	Opt		map[string]interface{}		// Freshest options from database.
+	Dat		map[string]interface{} 		// General communication channel.
+	Put		func(...interface{})   		// Just a convenience function to allow fast output to http response.
+	Root	string                 		// Absolute path of the application.
+	Ev		*Ev
 	GetHook	func(string, string) func(*Uni) error 
+}
+
+func (u *Uni) SetOriginalOpt(s string) {
+	u.opt = s
+}
+
+func (u *Uni) OriginalOpt() string {
+	return u.opt
 }
 
 // With the help of this type it's possible for the model to not have direct access to everything (*context.Uni), but still trigger events,
@@ -53,7 +62,7 @@ func (e *Ev) Trigger(eventname string, params ...interface{}) {
 }
 
 func (e *Ev) TriggerAll(eventnames ...string) {
-	fmt.Println("Triggered event ", eventnames)
+	//fmt.Println("Triggered event ", eventnames)
 	for _, acc_path := range eventnames {
 		subscribed, has := jsonp.GetS(e.uni.Opt, acc_path)
 		if has {

@@ -29,7 +29,7 @@ func adErr(uni *context.Uni) {
 // Registering yourself as admin is possible if the site has no admin yet.
 func RegFirstAdmin(uni *context.Uni) error {
 	if admin_model.SiteHasAdmin(uni.Db) {
-		return fmt.Errorf("site already has an admin")
+		return fmt.Errorf("site already has an admin.")
 	}
 	return admin_model.RegFirstAdmin(uni.Db, map[string][]string(uni.Req.Form))
 }
@@ -68,7 +68,7 @@ func requireLev(usr interface{}, lev int) bool {
 
 func SaveConfig(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights to update options collection.")
+		return fmt.Errorf("No rights to save config.")
 	}
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
@@ -86,7 +86,7 @@ func SaveConfig(uni *context.Uni) error {
 // InstallB handles both installing and uninstalling.
 func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights")
+		return fmt.Errorf("No rights to install or uninstall a module.")
 	}
 	ma, err := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
 	if err != nil {

@@ -9,6 +9,7 @@ import(
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func FindUser(db *mgo.Database, id string) (map[string]interface{}, error) {
@@ -51,7 +52,22 @@ func EmptyUser() map[string]interface{} {
 	return user
 }
 
-func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]interface{} {
+func ParseAcceptLanguage(l string) []string {
+	ret := []string{}
+	sl := strings.Split(l, ",")
+	c := map[string]struct{}{}
+	for _, v := range sl {
+		lang := string(strings.Split(v, ";")[0][0:2])
+		_, has := c[lang]
+		if !has {
+			c[lang] = struct{}{}
+			ret = append(ret, lang)
+		}
+	}
+	return ret
+}
+
+func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string, http_header map[string][]string) map[string]interface{} {
 	var user map[string]interface{}
 	var err error
 	if len(user_id) > 0 {
@@ -59,6 +75,15 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string) map[string]int
 	}
 	if err != nil || user == nil {
 		user = EmptyUser()
+	}
+	_, langs_are_set := user["languages"]
+	if !langs_are_set {
+		langs, has := http_header["Accept-Language"]
+		if has {
+			user["languages"] = ParseAcceptLanguage(langs[0])
+		} else {
+			user["languages"] = []string{"en"}
+		}
 	}
 	ev.Trigger("user.build", user)
 	return user

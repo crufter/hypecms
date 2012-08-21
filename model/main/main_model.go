@@ -35,14 +35,16 @@ func has(c map[string]string, str string) (string, bool) {
 // Leave it as is, we may migrate back to the "multiple http servers from one process" approach. *1
 var cache = make(map[string]string)
 
-func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, error) {
+func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, string, error) {
 	host = "anything"	// See *1
 	ret := map[string]interface{}{}
+	var ret_str string
 	if val, ok := has(cache, host); cache_it && ok {
+		ret_str = val
 		var v interface{}
 		json.Unmarshal([]byte(val), &v)
 		if v == nil {
-			return nil, fmt.Errorf(cached_opt_inv)
+			return nil, "", fmt.Errorf(cached_opt_inv)
 		}
 		ret = v.(map[string]interface{})
 		delete(ret, "_id")
@@ -55,17 +57,18 @@ func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]inte
 		}
 		enc, merr := json.Marshal(res)
 		if merr != nil {
-			return nil, fmt.Errorf(cant_encode_config)
+			return nil, "", fmt.Errorf(cant_encode_config)
 		}
 		str := string(enc)
+		ret_str = str
 		set(cache, host, str)
 		var v interface{}
 		json.Unmarshal([]byte(str), &v)
 		if v == nil {
-			return nil, fmt.Errorf(cant_unmarshal)
+			return nil, "", fmt.Errorf(cant_unmarshal)
 		}
 		ret = v.(map[string]interface{})
 		delete(ret, "_id")
 	}
-	return ret, nil
+	return ret, ret_str, nil
 }

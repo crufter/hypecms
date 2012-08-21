@@ -274,13 +274,14 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		GetHook:	mod.GetHook,
 	}
 	uni.Ev = context.NewEv(uni)
-	opt, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)	// Tricky part about the host, see comments at main_model.
+	opt, opt_str, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)	// Tricky part about the host, see comments at main_model.
 	if err != nil {
 		uni.Put(err.Error())
 		return
 	}
 	uni.Req.Host = scut.Host(req.Host, opt)
 	uni.Opt = opt
+	uni.SetOriginalOpt(opt_str)
 	first_p := uni.Paths[1]
 	last_p := uni.Paths[len(uni.Paths)-1]
 	if SERVE_FILES && strings.Index(last_p, ".") != -1 {
