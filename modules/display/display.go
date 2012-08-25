@@ -7,6 +7,7 @@ package display
 
 import (
 	"github.com/opesun/hypecms/api/context"
+	"github.com/russross/blackfriday"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/require"
 	"github.com/opesun/hypecms/modules/display/model"
@@ -63,6 +64,37 @@ func get(dat map[string]interface{}, s ...string) interface{} {
 	return val
 }
 
+func validFormat(format string) bool {
+	switch format {
+	case "md":
+		return true
+	}
+	return false
+}
+
+// Does format conversions.
+// Currently only: markdown -> html
+func GetFileAndConvert(root, fi string, opt map[string]interface{}, host string, file_reader func(string) ([]byte, error)) ([]byte, error) {
+	file, err := scut.GetFile(root, fi, opt, host, nil)
+	if err != nil { return file, err }
+	spl := strings.Split(fi, ".")
+	extension := spl[len(spl)-1]
+	// In tpl files the first line contains the extension information, like "--md". (An entry point can't change it's extension.)
+	if extension == "tpl" {
+		strfile := string(file)
+		newline_pos := strings.Index(strfile, "\n")
+		if newline_pos > 3 && validFormat(strfile[2:newline_pos-1]) {	// "--" plus at least 1 characer.
+			extension = strfile[2:newline_pos-1]
+			file = file[newline_pos:]
+		}
+	}
+	switch extension {
+	case "md":
+		file = blackfriday.MarkdownCommon(file)
+	}
+	return file, nil
+}
+
 // Tries to dislay a template file.
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
@@ -82,10 +114,11 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 			},
 		}
 		t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
+		uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 		t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 		return nil
 	}
-	return fmt.Errorf("cant find template file ", `"`, filep, `"`)
+	return fmt.Errorf("Cant find template file %v.", filep)
 }
 
 // Tries to display a module file.
@@ -94,7 +127,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 		if scut.PossibleModPath(filep) {
 			file, err := require.R("", filep + ".tpl",			// Tricky, care.
 				func(root, fi string) ([]byte, error) {
-					return scut.GetFile(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
+					return GetFileAndConvert(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
 				})
 			if err == nil {
 				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
@@ -110,14 +143,15 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 					},
 				}
 				t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
+				uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 				t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
 				return nil
 			}
-			return fmt.Errorf("cant find fallback template file ", `"`, filep, `"`)
+			return fmt.Errorf("Cant find fallback file %v.", filep)
 		}
-		return fmt.Errorf("fallback filep is too long")
+		return fmt.Errorf("Fallback path is too long.")
 	}
-	return fmt.Errorf("fallback filep contains no slash, so there nothing to fall back")
+	return fmt.Errorf("Nothing to fall back to.")	// No slash in fallback path means no modulename to fall back to.	
 }
 
 // Tries to display the relative filepath filep as either a template file or a module file.
@@ -157,6 +191,7 @@ func putJSON(uni *context.Uni) {
 	} else {
 		v, _ = json.Marshal(uni.Dat)
 	}
+	uni.W.Header().Set("Content-Type", "application/json; charset=utf-8")
 	uni.Put(string(v))
 }
 

@@ -61,11 +61,8 @@
 	{{end}}
 {{end}}
 <input type="hidden" name="type" value="{{.type}}" />
-<!-- These params are here for draft support. -->
-	<input type="hidden" name="parent_content" value="{{if .is_draft}}{{.draft.parent_content}}{{else}}{{$content._id}}{{end}}" />
-	<input type="hidden" name="parent_draft" value="{{if .is_draft}}{{.draft._id}}{{end}}" />
-<!-- /Draft params. -->
-<input type="hidden" name="id" value="{{if .is_draft}}{{.draft.parent_content}}{{else}}{{$content._id}}{{end}}" />
+<input type="hidden" name="draft_id" value="{{if .is_draft}}{{.draft._id}}{{end}}" />
+<input type="hidden" name="id" value="{{if .is_draft}}{{.draft.draft_of}}{{else}}{{$content._id}}{{end}}" />
 <input type="submit" name="draft" value="Save as draft"><br />
 <br />
 <input type="submit" {{if .is_draft}}name="create-content-from-draft"{{end}} value="Save as content">

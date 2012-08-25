@@ -7,6 +7,7 @@ import(
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"
 	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/model/patterns"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/hypecms/modules/display/model"
 	"encoding/json"
@@ -236,8 +237,11 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
 		latest_draft := content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
-		scut.IdsToStrings(latest_draft)
 		uni.Dat["latest_draft"] = latest_draft
+		timeline, err := content_model.ContentTimeline(uni.Db, indb.(map[string]interface{}))
+		if err != nil { return nil, err }
+		uni.Dat["timeline"] = timeline
+		scut.IdsToStrings(latest_draft)
 	} else {
 		uni.Dat["op"] = "insert"
 	}
@@ -247,10 +251,10 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error) {
 	uni.Dat["is_draft"] = true
 	if hasid {
-		built, err := content_model.BuildDraft(uni.Db, typ + "_draft", id)
+		built, err := content_model.BuildDraft(uni.Db, typ, id)
 		if err != nil { return nil, err }
 		d := built["data"].(map[string]interface{})
-		if content_model.HasContentParent(built) {
+		if _, draft_of_sg := built["draft_of"]; draft_of_sg {
 			uni.Dat["content_parent"] = true
 			fresher, err := content_model.IsDraftUpToDate(uni.Db, built, d)
 			if err != nil { return nil, err }
@@ -260,10 +264,13 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 			uni.Dat["op"] = "insert"
 		}
 		resolver.ResolveOne(uni.Db, d, nil)
+		uni.Dat["content"] = d
+		timeline, err := content_model.DraftTimeline(uni.Db, patterns.ToIdWithCare(id))
+		if err != nil { return nil, err }
+		uni.Dat["timeline"] = timeline
+		uni.Dat["draft"] = built
 		scut.IdsToStrings(d)
 		scut.IdsToStrings(built)
-		uni.Dat["content"] = d
-		uni.Dat["draft"] = built
 		return d, nil
 	}
 	uni.Dat["op"] = "insert"

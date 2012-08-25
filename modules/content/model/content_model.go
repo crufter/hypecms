@@ -208,27 +208,22 @@ func InsertWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 }
 
 func insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) (bson.ObjectId, error) {
-	id, hasid := dat["id"]
-	if hasid && len(id[0]) > 0 {
-		return "", fmt.Errorf("Can't insert an object wich already has an id.")
-	}
-	typ, hastype := dat["type"]
-	if !hastype {
-		return "", fmt.Errorf("No type when inserting content.")
-	}
+	// Could check for id here, alert if we found one.
+	rule["type"] 	= 	"must"
+	rule["draft_id"] =	"must"	// Can be draft, or version.
 	ins_dat, extr_err := extract.New(rule).Extract(dat)
 	if extr_err != nil {
 		return "", extr_err
 	}
-	basic.DateAndAuthor(rule, ins_dat, user_id, hasid)
-	ins_dat["type"] = typ[0]
+	typ := ins_dat["type"].(string)
+	basic.DateAndAuthor(rule, ins_dat, user_id, false)
 	_, has_tags := ins_dat[Tag_fieldname_displayed]
 	if has_tags {
-		addTags(db, ins_dat, "", "insert", typ[0])
+		addTags(db, ins_dat, "", "insert", typ)
 	}
 	basic.Slug(rule, ins_dat)
 	mergeMaps(ins_dat, fixvals)
-	err := basic.Inud(db, ev, ins_dat, "contents", "insert", "")
+	err := basic.InudVersion(db, ev, ins_dat, "contents", "insert", "")
 	if err != nil { return "", err }
 	ret_id := ins_dat["_id"].(bson.ObjectId)
 	_, has_fulltext := rule["fulltext"]
@@ -247,31 +242,28 @@ func UpdateWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 }
 
 func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) error {
-	id, hasid := dat["id"]
-	if !hasid {
-		return fmt.Errorf("No id when updating content.")
-	}
-	typ, hastype := dat["type"]
-	if !hastype {
-		return fmt.Errorf("No type when updating content.")
-	}
+	rule["id"] 				= 	"must"
+	rule["type"] 			= 	"must"
+	rule["draft_id"] 		=	"must"
 	upd_dat, extr_err := extract.New(rule).Extract(dat)
 	if extr_err != nil {
 		return extr_err
 	}
-	basic.DateAndAuthor(rule, upd_dat, user_id, hasid)
+	id := upd_dat["id"].(string)
+	typ := upd_dat["type"].(string)
+	basic.DateAndAuthor(rule, upd_dat, user_id, true)
 	upd_dat["type"] = typ[0]
 	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
-		addTags(db, upd_dat, id[0], "update", typ[0])
+		addTags(db, upd_dat, id, "update", typ)
 	}
 	basic.Slug(rule, upd_dat)
 	mergeMaps(upd_dat, fixvals)
-	ret_err := basic.InudVersion(db, ev, upd_dat, Cname, "update", id[0])
-	if ret_err != nil { return ret_err }
+	err := basic.InudVersion(db, ev, upd_dat, Cname, "update", id)
+	if err != nil { return err }
 	_, has_fulltext := rule["fulltext"]
+	id_bson := bson.ObjectIdHex(basic.StripId(id))
 	if has_fulltext {
-		id_bson := bson.ObjectIdHex(basic.StripId(id[0]))
 		saveFulltext(db, id_bson)
 	}
 	return nil

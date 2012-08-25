@@ -17,8 +17,20 @@ const(
 	Last_modified_by				= "_users_last_modified_by"
 	Last_modified					= "last_modified"
 	Version_datefield				= "version_date"
-	Version_parentfield				= "_version_parent"		// _[collname]_version_parent, like: _contents_version_parent (ugly :S)
+	Fresh							= "fresh"				// Saved into a version, pointing to the "living" doc.
+	Prev_version					= "previous_version"	// Goes into the "living" doc.	
 )
+
+func ToIdWithCare(id interface{}) bson.ObjectId {
+	switch val := id.(type) {
+	case bson.ObjectId:
+	case string:
+		id = bson.ObjectIdHex(StripId(val))
+	default:
+		panic(fmt.Sprintf("Can't create bson.ObjectId out of %T", val))
+	}
+	return id.(bson.ObjectId)
+}
 
 // by Id.
 func Find(db *mgo.Database, coll, id string) map[string]interface{} {
@@ -69,17 +81,62 @@ func Delete(db *mgo.Database, collname string, id bson.ObjectId) error {
 	return Move(db, collname, collname + Delete_collection_postfix, id)
 }
 
-func SaveVersion(db *mgo.Database, coll string, old_id bson.ObjectId) error {
-	// Damn, mongodb does not allow to update the _id of a document.
+// Version id for insert, live id for querying.
+func SaveVersion(db *mgo.Database, coll string, version_id, live_id, version_parent, root bson.ObjectId) error {
 	var v interface{}
-	err := db.C(coll).Find(bson.M{"_id": old_id}).One(&v)
+	err := db.C(coll).Find(bson.M{"_id": live_id}).One(&v)
 	if err != nil { return err }
-	if v == nil { return fmt.Errorf("Can't find document at SaveVersion.") }
-	old_doc := v.(bson.M)
-	old_doc["_id"] = bson.NewObjectId()
-	old_doc["_" + coll + Version_parentfield] = old_id
-	old_doc[Version_datefield] = time.Now().Unix()
-	return db.C(coll + Version_collection_postfix).Insert(old_doc)
+	copy := v.(bson.M)
+	if version_parent != "" {
+		copy["-parent"] = version_parent	// This can be either a version, or a draft.
+	}
+	if root != "" {
+		copy["root"] = root					// This can be either a version, or a draft.
+	}
+	copy[Version_datefield] = time.Now().Unix()
+	copy["_id"] = version_id
+	fmt.Println("version is being saved XXXXXX")
+	return db.C(coll + Version_collection_postfix).Insert(copy)
+}
+
+// Query draft. Parent will be itself the draft, but we must extract the root from the draft.
+// If it has none, he will become the root.
+func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (parent, root bson.ObjectId, err error) {
+	parent = draft_id
+	var v interface{}
+ 	err = db.C(coll + "_draft").Find(bson.M{"_id": draft_id}).One(&v)
+	if err != nil { return }
+	draft := v.(bson.M)
+	if roo, has_roo := draft["root"]; has_roo {
+		root = roo.(bson.ObjectId)
+	} else {
+		root = parent
+	}
+	return
+}
+
+// Query content. Get "pointing_to" field, query that version.
+// Return the version as parent.
+// Return its root as root, or itself as root if it has none.
+func GetParentTroughContent(db *mgo.Database, coll string, content_id bson.ObjectId) (parent, root bson.ObjectId, err error) {
+	var content_doc_i interface{}
+	err = db.C(coll).Find(bson.M{"_id": content_id}).One(&content_doc_i)
+	if err != nil { return }
+	content_doc := content_doc_i.(bson.M)
+	var v interface{}
+	err = db.C(coll + Version_collection_postfix).Find(bson.M{"_id": content_doc["pointing_to"].(bson.ObjectId)}).One(&v)
+	fmt.Println("lol125")
+	if err != nil { return }
+	fmt.Println("lol1257")
+	parent_version := v.(bson.M)
+	parent = parent_version["_id"].(bson.ObjectId)
+	roo, has_roo := parent_version["root"]
+	if has_roo {
+		root = roo.(bson.ObjectId)
+	} else {
+		root = parent
+	}
+	return
 }
 
 // At update uses $set, does not replace document.
@@ -94,28 +151,58 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 	}
 	switch op {
 	case "insert":
-		dat["_id"] = bson.NewObjectId()
-		err = db.C(coll).Insert(dat)
-	case "update":
-		bson_id := bson.ObjectIdHex(id)
-		if version {
-			err = SaveVersion(db, coll, bson_id)
+		ins_id := bson.NewObjectId()
+		version_id := bson.NewObjectId()
+		dat["_id"] = ins_id
+		// At an insert, the parent can be only a draft.
+		dat["pointing_to"] = version_id
+		draft_i, has_draft := dat["draft_id"]
+		var parent, root bson.ObjectId
+		if has_draft && len(draft_i.(string)) > 0 {
+			draft_id := ToIdWithCare(draft_i.(string))
+			parent, root, err = GetDraftParent(db, coll, draft_id)
 			if err != nil { return err }
 		}
-		q := bson.M{"_id": bson_id}
+		dat["root"] = version_id
+		err = db.C(coll).Insert(dat)
+		if err != nil { return err }
+		if version {
+			err = SaveVersion(db, coll, version_id, ins_id, parent, root)
+		}
+	case "update":
+		live_id := bson.ObjectIdHex(id)
+		version_id := bson.NewObjectId()
+		var parent, root bson.ObjectId
+		var err error
+		draft_i, has_draft := dat["draft_id"]
+		if has_draft && len(draft_i.(string)) > 0 {
+			draft_id := ToIdWithCare(draft_i.(string))
+			parent, root, err = GetDraftParent(db, coll, draft_id)
+		} else {
+			parent, root, err = GetParentTroughContent(db, coll, live_id)
+		}
+		if err != nil { return err }
+		q := bson.M{"_id": live_id}
+		dat["pointing_to"] = version_id		// Points to the new version now.
+		if root != "" {
+			dat["root"] = root
+		}
 		upd := bson.M{"$set": dat}
 		err = db.C(coll).Update(q, upd)
+		if err != nil { return err }
+		if version {
+			// Dat must contain -parent
+			err = SaveVersion(db, coll, version_id, live_id, parent, root)
+		}
 	case "delete":
-		bson_id := bson.ObjectIdHex(id)
-		err = Delete(db, coll, bson_id)
+		live_id := bson.ObjectIdHex(id)
+		err = Delete(db, coll, live_id)
 	case "restore":
 		// err = db.C(coll).Find
 		// Not implemented yet.
 	}
 	if err != nil { return err }
-	if ev != nil {
-		ev.Trigger(coll + "." + op, dat)
-	}
+	ev.Trigger(coll + "." + op, dat)
 	return nil
 }
 

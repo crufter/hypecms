@@ -80,9 +80,11 @@ func SaveDraft(uni *context.Uni) error {
 	if err == nil {		// Go to the fresh draft if we succeeded to save it.
 		redir = "/content/edit/" + typ + "_draft/" + draft_id.Hex()
 	} else {			// Go back to the previous draft if we couldn't save the new one, or to the insert page if we tried to save a parentless draft.
-		val, has := uni.Req.Form[content_model.Parent_draft_field]
-		if has {
-			redir = "/content/edit/" + typ + "_draft/" + val[0]
+		draft_id, has_draft_id := uni.Req.Form[content_model.Parent_draft_field]
+		if has_draft_id && len(draft_id[0]) > 0 {
+			redir = "/content/edit/" + typ + "_draft/" + draft_id[0]
+		} else if id, has_id := uni.Req.Form["id"]; has_id {
+			redir = "/content/edit/" + typ + "/" + id[0]
 		} else {
 			redir = "/content/edit/" + typ + "_draft/"
 		}
