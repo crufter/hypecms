@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <script src="/shared/jquery.min.1.7.js"></script>
@@ -11,6 +12,7 @@
 	<a href="/admin/install">Install modules</a>
 	<a href="/admin/uninstall">Uninstall modules</a>
 	<a href="/admin/b/logout">Logout</a>
+	<a href="/">Home page</a>
 	<a TARGET="_blank" id="logo" href="http://www.github.com/opesun/hypecms">HypeCMS</a>
 </div>
 <br />

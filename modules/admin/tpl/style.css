@@ -15,7 +15,7 @@ li {list-style-type:none;}
 h4{margin:0 0 1em 0;}
 .delete:hover {text-decoration:none;}
 .delete {content: "asd";}
-.you-are-here{position: absolute; margin: 5px 0 0 -15px;}
+.you-are-here{position: absolute; margin: 5px 0 0 -15px; border:none;}
 #content-centered{width: 33.3%; margin:2em auto;}
 #module_text{font-size:32px; line-height:2em; margin-top: 1em; margin-left:1em; color:#c8c8c8}
 .info {margin: 0 1em; color: #444; background:#f2f2f2; border: 1px solid #ccc; border-radius: 3px; padding:0 1em;}
