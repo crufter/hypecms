@@ -99,7 +99,7 @@ func GetFileAndConvert(root, fi string, opt map[string]interface{}, host string,
 func DisplayTemplate(uni *context.Uni, filep string) error {
 	file, err := require.R("", filep+".tpl",
 		func(root, fi string) ([]byte, error) {
-			return scut.GetFile(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
+			return GetFileAndConvert(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
 		})
 	if err == nil {
 		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
@@ -171,7 +171,6 @@ func DisplayFile(uni *context.Uni, filep string) error {
 func queryErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
-		fmt.Println(r)
 		uni.Put("There was an error running the queries: ", r)
 		debug.PrintStack()
 	}
@@ -225,6 +224,9 @@ func D(uni *context.Uni) {
 			runQueries(uni, qmap)
 		}
 	}
+	// While it is not the cheapest solution to convert bson.ObjectIds to strings here, where we have to iterate trough all values,
+	// it is still better than remembering (and forgetting) to convert it at every specific place.
+	scut.IdsToStrings(uni.Dat)
 	langs, _ := jsonp.Get(uni.Dat, "_user.languages")																	// _user always has language member
 	langs_s := toStringSlice(langs)
 	loc, _ := display_model.LoadLocStrings(uni.Dat, langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)		// TODO: think about errors here.

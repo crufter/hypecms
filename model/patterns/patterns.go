@@ -14,14 +14,7 @@ import(
 type m map[string]interface{}
 
 func ToIdWithCare(id interface{}) bson.ObjectId {
-	switch val := id.(type) {
-	case bson.ObjectId:
-	case string:
-		id = bson.ObjectIdHex(basic.StripId(val))
-	default:
-		panic(fmt.Sprintf("Can't create bson.ObjectId out of %T", val))
-	}
-	return id.(bson.ObjectId)
+	return basic.ToIdWithCare(id)
 }
 
 // Finds a doc by field-value equality.

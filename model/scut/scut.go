@@ -208,7 +208,7 @@ func Host(host string, opt map[string]interface{}) string {
 	if has_alias_whitelist {
 		awm := alias_whitelist.(map[string]interface{})
 		if _, allowed := awm[host]; !allowed && len(awm) > 0 {	// To prevent entirely locking yourself out of the site. Still can introduce problems if misused.
-			panic("Unapproved host alias.")
+			panic(fmt.Sprintf("Unapproved host alias %v.", host))
 		}
 	}
 	canon_host, has_canon := opt["canonical_host"]

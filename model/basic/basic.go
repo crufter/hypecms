@@ -82,31 +82,36 @@ func Delete(db *mgo.Database, collname string, id bson.ObjectId) error {
 }
 
 // Version id for insert, live id for querying.
-func SaveVersion(db *mgo.Database, coll string, version_id, live_id, version_parent, root bson.ObjectId) error {
+func SaveVersion(db *mgo.Database, coll string, version_id, live_id, parent, root bson.ObjectId) error {
 	var v interface{}
 	err := db.C(coll).Find(bson.M{"_id": live_id}).One(&v)
 	if err != nil { return err }
 	copy := v.(bson.M)
-	if version_parent != "" {
-		copy["-parent"] = version_parent	// This can be either a version, or a draft.
+	if parent != "" {
+		copy["-parent"] = parent	// This can be either a version, or a draft.
 	}
 	if root != "" {
 		copy["root"] = root					// This can be either a version, or a draft.
 	}
 	copy[Version_datefield] = time.Now().Unix()
 	copy["_id"] = version_id
-	fmt.Println("version is being saved XXXXXX")
 	return db.C(coll + Version_collection_postfix).Insert(copy)
 }
 
-// Query draft. Parent will be itself the draft, but we must extract the root from the draft.
+// Query draft by id. Parent will be itself the draft, but we must extract the root from the draft.
 // If it has none, he will become the root.
-func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (parent, root bson.ObjectId, err error) {
+// Return the last_version of the parent draft too (used at content/model/versions.go)
+func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (parent, root, last_version bson.ObjectId, err error) {
 	parent = draft_id
 	var v interface{}
  	err = db.C(coll + "_draft").Find(bson.M{"_id": draft_id}).One(&v)
 	if err != nil { return }
 	draft := v.(bson.M)
+	// Not all drafts have the draft_of_version field.
+	last_version_i, has_v := draft["draft_of_version"]
+	if has_v {
+		last_version = last_version_i.(bson.ObjectId)
+	}
 	if roo, has_roo := draft["root"]; has_roo {
 		root = roo.(bson.ObjectId)
 	} else {
@@ -115,7 +120,7 @@ func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (pare
 	return
 }
 
-// Query content. Get "pointing_to" field, query that version.
+// Query content by id. Get "pointing_to" field, query that version.
 // Return the version as parent.
 // Return its root as root, or itself as root if it has none.
 func GetParentTroughContent(db *mgo.Database, coll string, content_id bson.ObjectId) (parent, root bson.ObjectId, err error) {
@@ -125,9 +130,7 @@ func GetParentTroughContent(db *mgo.Database, coll string, content_id bson.Objec
 	content_doc := content_doc_i.(bson.M)
 	var v interface{}
 	err = db.C(coll + Version_collection_postfix).Find(bson.M{"_id": content_doc["pointing_to"].(bson.ObjectId)}).One(&v)
-	fmt.Println("lol125")
 	if err != nil { return }
-	fmt.Println("lol1257")
 	parent_version := v.(bson.M)
 	parent = parent_version["_id"].(bson.ObjectId)
 	roo, has_roo := parent_version["root"]
@@ -160,10 +163,14 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		var parent, root bson.ObjectId
 		if has_draft && len(draft_i.(string)) > 0 {
 			draft_id := ToIdWithCare(draft_i.(string))
-			parent, root, err = GetDraftParent(db, coll, draft_id)
+			parent, root, _, err = GetDraftParent(db, coll, draft_id)
 			if err != nil { return err }
 		}
-		dat["root"] = version_id
+		if parent == "" {	// Parent is "" if we are not coming from a draft.
+			dat["root"] = version_id
+		} else {
+			dat["root"] = root
+		}
 		err = db.C(coll).Insert(dat)
 		if err != nil { return err }
 		if version {
@@ -177,7 +184,7 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		draft_i, has_draft := dat["draft_id"]
 		if has_draft && len(draft_i.(string)) > 0 {
 			draft_id := ToIdWithCare(draft_i.(string))
-			parent, root, err = GetDraftParent(db, coll, draft_id)
+			parent, root, _, err = GetDraftParent(db, coll, draft_id)
 		} else {
 			parent, root, err = GetParentTroughContent(db, coll, live_id)
 		}
@@ -271,7 +278,6 @@ func DateAndAuthor(rule map[string]interface{}, dat map[string]interface{}, user
 				dat[i] = time.Now().Unix()
 			}
 		case Last_modified:
-			fmt.Println("lol")
 			if updating {
 				dat[i] = time.Now().Unix()
 			}

@@ -145,12 +145,11 @@ func Index(uni *context.Uni) error {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	skip_amount, paging := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
-	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
-	uni.Dat["paging"] = paging
+	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
+	uni.Dat["paging"] = paging_inf
 	v = basic.Convert(v).([]interface{})
-	content_model.ConnectWithDrafts(uni.Db, v)
-	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	content_model.HaveUpToDateDrafts(uni.Db, v)
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/index"}
 	return nil
@@ -159,7 +158,6 @@ func Index(uni *context.Uni) error {
 func ListTags(uni *context.Uni) error {
 	var v []interface{}
 	uni.Db.C("tags").Find(nil).All(&v)
-	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/tags"}
 	return nil
@@ -181,12 +179,11 @@ func List(uni *context.Uni) error {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	skip_amount, paging := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
-	uni.Db.C("contents").Find(q).Sort("-created").Skip(skip_amount).Limit(10).All(&v)
-	uni.Dat["paging"] = paging
+	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
+	uni.Dat["paging"] = paging_inf
 	v = basic.Convert(v).([]interface{})
-	content_model.ConnectWithDrafts(uni.Db, v)
-	scut.IdsToStrings(v) // TODO: not sure this is needed now Inud handles `ObjectIdHex("blablabla")` ids well.
+	content_model.HaveUpToDateDrafts(uni.Db, v)
 	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
@@ -241,7 +238,6 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 		timeline, err := content_model.ContentTimeline(uni.Db, indb.(map[string]interface{}))
 		if err != nil { return nil, err }
 		uni.Dat["timeline"] = timeline
-		scut.IdsToStrings(latest_draft)
 	} else {
 		uni.Dat["op"] = "insert"
 	}
@@ -269,8 +265,6 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 		if err != nil { return nil, err }
 		uni.Dat["timeline"] = timeline
 		uni.Dat["draft"] = built
-		scut.IdsToStrings(d)
-		scut.IdsToStrings(built)
 		return d, nil
 	}
 	uni.Dat["op"] = "insert"
@@ -279,6 +273,16 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 
 // You don't actually edit anything on a past version...
 func EditVersion(uni *context.Uni, typ, id string) (interface{}, error) {
+	uni.Dat["is_version"] = true
+	version_id := patterns.ToIdWithCare(id)
+	version, err := content_model.FindVersion(uni.Db, version_id)
+	if err != nil { return nil, err }
+	resolver.ResolveOne(uni.Db, version, nil)
+	timeline, err := content_model.DraftTimeline(uni.Db, version_id)
+	if err != nil { return nil, err }
+	uni.Dat["timeline"] = timeline
+	uni.Dat["op"] = "update"
+	uni.Dat["content"] = version
 	return nil, nil
 }
 

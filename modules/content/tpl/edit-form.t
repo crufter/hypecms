@@ -66,3 +66,4 @@
 <input type="submit" name="draft" value="Save as draft"><br />
 <br />
 <input type="submit" {{if .is_draft}}name="create-content-from-draft"{{end}} value="Save as content">
+</form>

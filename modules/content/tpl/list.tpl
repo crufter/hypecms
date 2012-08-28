@@ -8,11 +8,8 @@
 {{end}}
 
 <br />
-<div class="navi">
-	{{range .paging}}
-		<a href="{{.Url}}">{{.Page}}</a> 
-	{{end}}
-</div>
+{{$navi := .paging}}
+{{require admin/navi.t}}
 
 {{require content/footer.t}}
 {{require admin/footer.t}}

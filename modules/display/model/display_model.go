@@ -4,7 +4,6 @@ import(
 	"labix.org/v2/mgo"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/hypecms/model/basic"
-	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/paging"
 	"github.com/opesun/resolver"
 	"io/ioutil"
@@ -45,9 +44,15 @@ func CreateExcerpts(res []interface{}, conf map[string]interface{}) {
 	}
 }
 
+type PagingInfo struct {
+	Result 		[]paging.Pelem
+	Skip, Current_page, All_results, Limit	int
+	Paramkey, Url	string
+}
+
 // png = path and query
 // In the CMS you can access it from uni.P + "?" + uni.Req.URL.RawQuery.
-func DoPaging(db *mgo.Database, collection string, query map[string]interface{}, page_num_key string, get map[string][]string, pnq string, limit int) (int, []paging.Pelem) {
+func DoPaging(db *mgo.Database, collection string, query map[string]interface{}, page_num_key string, get map[string][]string, pnq string, limit int) PagingInfo {
 	var current_page int
 	num_str, has := get[page_num_key]
 	if !has {
@@ -60,9 +65,18 @@ func DoPaging(db *mgo.Database, collection string, query map[string]interface{},
 			current_page = 1
 		}
 	}
-	max_results, _ := db.C(collection).Find(query).Count()		// TODO: think about the error here.
-	nav, _ := paging.P(current_page, max_results/limit + 1, 3, pnq)
-	return (current_page - 1) * limit, nav
+	all_results, _ := db.C(collection).Find(query).Count()		// TODO: think about the error here.
+	nav, _ := paging.P(current_page, all_results/limit + 1, 3, pnq)
+	skip := (current_page - 1) * limit
+	return PagingInfo{
+		Result: 		nav,
+		Skip: 			skip,
+		Current_page: 	current_page,
+		Limit:			limit,
+		All_results:	all_results,
+		Paramkey:		page_num_key,
+		Url:			pnq,			
+	}
 }
 
 // c: 		collection			string
@@ -97,9 +111,9 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		if p, pok := v["p"]; pok {
 			if limit, lok := v["l"]; lok {	// Only makes sense with limit.
-				skip_amount, navigation := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, int(limit.(float64)))
-				qs[name + "_navi"] = navigation
-				q.Skip(skip_amount)
+				paging_inf := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, int(limit.(float64)))
+				qs[name + "_navi"] = paging_inf
+				q.Skip(paging_inf.Skip)
 			}
 		}
 		var res []interface{}
@@ -114,7 +128,6 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		dont_query := map[string]interface{}{"password":0}
 		resolver.ResolveAll(db, res, dont_query)
-		scut.IdsToStrings(res)
 		qs[name] = res
 	}
 	return qs

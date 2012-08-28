@@ -66,7 +66,6 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 	content_rules["id"] 						= 	"must"		// Content id.
 	content_rules["draft_id"] 					= 	"must"		// Draft id, no empty if we save draft from a draft, empty if draft is saved from a content.
 	dat, err := extract.New(content_rules).Extract(inp)
-	fmt.Println("started to save draft")
 	if err != nil { return "", err }
 	live_id_s := dat["id"].(string)
 	draft_id_s := dat["draft_id"].(string)
@@ -76,86 +75,69 @@ func SaveDraft(db *mgo.Database, content_rules map[string]interface{}, inp map[s
 		"type":			dat["type"],
 	}
 	var parent, root bson.ObjectId
-	if len(draft_id_s) > 0 {
+	if len(draft_id_s) > 0 {	// Coming from a draft.
 		draft_id := patterns.ToIdWithCare(draft_id_s)
-		parent, root, err = basic.GetDraftParent(db, "contents", draft_id)
-	} else if len(live_id_s) > 0 {
-		// There should be a traversal of the tree upward to check if the head is not on a different path.
+		var last_version bson.ObjectId
+		parent, root, last_version, err = basic.GetDraftParent(db, "contents", draft_id)
+		if parent == "" || root == "" { return "", fmt.Errorf("Coming from draft but still can not extract parent or root.") }
+		// Has no version of it is a draft/descendant of a draft which connects to no saved content.
+		if last_version != "" {
+			ins["draft_of_version"] = last_version
+		}
+	} else if len(live_id_s) > 0 {	// Coming from a content.
 		live_id := patterns.ToIdWithCare(live_id_s)
+		// This way draft saves coming from any versions will be saved to the version pointed to by the head anyway...
 		parent, root, err = basic.GetParentTroughContent(db, "contents", live_id)
+		// If we have a live content saved, we must have a version to point to too.
+		if parent == "" || root == "" { return "", fmt.Errorf("Coming from content but still can not extract parent or root.") }
+		ins["draft_of_version"] = parent
 	}
 	if err != nil { return "", err }
 	if len(live_id_s) > 0 {
 		live_id := patterns.ToIdWithCare(live_id_s)
 		ins["draft_of"] = live_id		// Just so we can display the content id for saving content immediately from a draft.
 	}
+	draft_id := bson.NewObjectId()
 	if parent != "" {	// If there is a parent there is a root...
 		ins["-parent"] = parent
 		ins["root"] = root
+	} else {
+		ins["root"] = draft_id
 	}
 	// Note: we dont store the last version here, building the draft will be harder.
-	draft_id := bson.NewObjectId()
 	ins["_id"] = draft_id
-	fmt.Println(ins, err)
 	err = db.C(Cname + Draft_collection_postfix).Insert(ins)
-	fmt.Println("errrrrrrrrrrrrrrrrr", err, draft_id)
 	return draft_id, err
 }
 
 // draft["data"] will contain draft["data"] merged with all of the parent's fields.
 func mergeWithParent(dat, parent map[string]interface{}) map[string]interface{} {
+	if dat == nil { return parent }
+	if parent == nil { return dat }
 	for i, v := range dat {
 		parent[i] = v
 	}
 	return parent
 }
 
-// Takes a draft and queries all the version it stems from.
+// Takes a draft and gets.
 func GetParent(db *mgo.Database, coll string, draft map[string]interface{}) (map[string]interface{}, error) {
-	fmt.Println("draft at getp:", draft)
-	par_i, has_par := draft["-parent"]
+	version_parent, has_vp := draft["draft_of_version"]
 	_, has_draft_of := draft["draft_of"]
-	fmt.Println("wow", par_i, has_par, has_draft_of)
-	// If a draft is a draft of an existing content, than it must have a parent (if not else, the version which the existing content points to).
-	if !has_par && has_draft_of {
-		return nil, fmt.Errorf("State of draft is inconsistent, parent is not set.")
+	// If a draft is a draft of an existing content, than it must have a parent version.
+	if !has_vp && has_draft_of {
+		return nil, fmt.Errorf("State of draft is inconsistent, parent version is not set.")
 	}
-	// There is no parent at all, return and go on.
-	if !has_par {	// && !has_draft_of
+	// Simply the draft is not connected to anything saved.
+	if !has_vp {	// && !has_draft_of
 		return nil, nil
 	}
-	if has_par && !has_draft_of {	// Perfectly valid, draft has parent draft, but not connected to anything saved.
-		return nil, nil
-	}
-	var p map[string]interface{}
-	parent_id := par_i.(bson.ObjectId)
-	search_coll := "_draft"
-	counter := 0
-	for {
-		var par []interface{}
-		q := m{"_id": parent_id}
-		err := db.C(Cname + search_coll).Find(q).All(&par)
-		if err != nil { return nil, err }
-		if len(par) == 0 {
-			if search_coll == "_draft" {
-				search_coll = "_version"
-			} else {
-				return nil, fmt.Errorf("Can't find version.")
-			}
-		} else if len(par) == 1 {
-			if search_coll == "_draft" {
-				parent_id = par[0].(bson.M)["-parent"].(bson.ObjectId)
-			} else {
-				p = basic.Convert(par[0].(bson.M)).(map[string]interface{})
-				break
-			}
-		} else {
-			return nil, fmt.Errorf("Wtf.")
-		}
-		counter++
-		if counter > 500 { panic("Wtf.") }
-	}
-	return p, nil
+	var par interface{}
+	parent_id := version_parent.(bson.ObjectId)
+	q := m{"_id": parent_id}
+	err := db.C(Cname + "_version").Find(q).One(&par)
+	if err != nil { return nil, err }
+	return basic.Convert(par).(map[string]interface{}), nil
 }
 
 // Queries a draft and rebuilds it. Queries its parent too, and merges it with the input fields saved in "data".
@@ -182,66 +164,18 @@ func BuildDraft(db *mgo.Database, draft_typ, draft_id_str string) (map[string]in
 
 // Takes a content list and connects an up to date draft to each content if it exists.
 // A draft is up to date if it is newer than the last saved comment, and newer than any other draft.
-func ConnectWithDrafts(db *mgo.Database, content_list []interface{}) error {
-	//ids := []bson.ObjectId{}
-	//cache := map[string]int{}
-	//for i, doc_i := range content_list {
-	//	doc := doc_i.(map[string]interface{})
-	//	id := doc["_id"].(bson.ObjectId)
-	//	cache[id.Hex()] = i
-	//	ids = append(ids, id)
-	//}
-	//q := m{Parent_content_field: m{"$in": ids}, "up_to_date":true}
-	//var drafts []interface{}
-	//err := db.C(Cname + Draft_collection_postfix).Find(q).All(&drafts)
-	//if err != nil { return err }
-	//drafts = basic.Convert(drafts).([]interface{})
-	//for _, v := range drafts {
-	//	draft := v.(map[string]interface{})
-	//	if cont_par, has_cont_par := draft[Parent_content_field]; has_cont_par {
-	//		cont_par_id := cont_par.(bson.ObjectId)
-	//		subj_ind := cache[cont_par_id.Hex()]
-	//		content := content_list[subj_ind].(map[string]interface{})
-	//		content_last_mod, has_last_mod := content[basic.Last_modified]
-	//		if !has_last_mod {
-	//			content["latest_draft"] = v		// This will be shown errorenously if the content will never have a last modified field.
-	//			continue
-	//		}
-	//		if content_last_mod.(int64) < draft[basic.Created].(int64) {
-	//			content["latest_draft"] = v
-	//		}
-	//	}
-	//}
+func HaveUpToDateDrafts(db *mgo.Database, content_list []interface{}) error {
 	return nil
 }
 
 // Takes a content id and gives back the up to date draft of it if it has one.
 // Gives back nil if it does not have one.
 func GetUpToDateDraft(db *mgo.Database, content_id bson.ObjectId, content map[string]interface{}) map[string]interface{} {
-	//var latest_draft interface{}
-	//db.C(Cname + Draft_collection_postfix).Find(m{Parent_content_field: content_id, "up_to_date": true}).One(&latest_draft)
-	//if latest_draft == nil { return nil }
-	//draft := latest_draft.(bson.M)
-	//content_last_mod, has_last_mod := content[basic.Last_modified]
-	//if !has_last_mod { return draft }
-	//if content_last_mod.(int64) < draft[basic.Created].(int64) {
-	//	return draft
-	//}
 	return nil
 }
 
 // Takes a draft, and a parent content and decides if the draft is up to date or not.
 func IsDraftUpToDate(db *mgo.Database, draft, parent map[string]interface{}) (bool, error) {
-	//parent_last_mod, has_last_mod := parent[basic.Last_modified]
-	//if !has_last_mod { return true, nil }
-	//fresher_than_parent := parent_last_mod.(int64) < draft[basic.Created].(int64)
-	//if !fresher_than_parent { return false, nil }
-	//var v interface{}
-	//q := m{Parent_content_field: draft[Parent_content_field], "up_to_date": true} 
-	//err := db.C(Cname + Draft_collection_postfix).Find(q).One(&v)	// Sorting is just for safety purposes.
-	//if err != nil { return false, err }
-	//if v == nil { return false, fmt.Errorf("Can't find any draft at IsDraftUpToDate.") }
-	//if v.(bson.M)["_id"].(bson.ObjectId) != draft["_id"].(bson.ObjectId) { return false, nil }
 	return true, nil
 }
 
@@ -263,13 +197,13 @@ func GetFamily(db *mgo.Database, root bson.ObjectId) ([]interface{}, error) {
 	ret := []interface{}{}
 	var v []interface{}
 	q := m{"root": root}
-	err := db.C(Cname + Draft_collection_postfix).Find(q).All(&v)
+	err := db.C(Cname + Draft_collection_postfix).Find(q).Sort("created").All(&v)
 	if err != nil { return nil, err }
 	if v != nil {
 		ret = append(ret, v...)
 	}
 	var r []interface{}
-	err = db.C(Cname + "_version").Find(q).All(&r)
+	err = db.C(Cname + "_version").Find(q).Sort("version_date").All(&r)
 	if err != nil { return nil, err }
 	if r != nil {
 		ret = append(ret, r...)
@@ -279,6 +213,8 @@ func GetFamily(db *mgo.Database, root bson.ObjectId) ([]interface{}, error) {
 	if err != nil { return nil, err }
 	if c != nil {
 		ret = append(ret, c...)
+	} else if r != nil {		// If we have versions we should have a head too.
+		return nil, fmt.Errorf("Inconsistent state in db: no head, but we have versions.")
 	}
 	return ret, nil
 }
@@ -290,6 +226,13 @@ func ContentTimeline(db *mgo.Database, content_doc map[string]interface{}) ([]in
 		return nil, fmt.Errorf("A content must have a root at any time.")
 	}
 	re, err := GetFamily(db, root.(bson.ObjectId))
-	fmt.Println("::::", re, err)
 	return re, err
+}
+
+// Find version by id.
+func FindVersion(db *mgo.Database, id bson.ObjectId) (map[string]interface{}, error) {
+	var v interface{}
+	err := db.C("contents_version").Find(m{"_id": id}).One(&v)
+	if err != nil { return nil, err }
+	return basic.Convert(v).(map[string]interface{}), err
 }
