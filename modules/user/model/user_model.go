@@ -7,9 +7,18 @@ import(
 	"github.com/opesun/hypecms/model/basic"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"crypto/sha1"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/aes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
+	"errors"
+)
+
+const(
+	block_size = 16		// For encryption and decryption.
 )
 
 func FindUser(db *mgo.Database, id string) (map[string]interface{}, error) {
@@ -30,7 +39,11 @@ func NamePass(db *mgo.Database, name, encoded_pass string) (map[string]interface
 	return nil, fmt.Errorf("Can't find user/password combo.")
 }
 
-func Login(db *mgo.Database, inp map[string][]string) (map[string]interface{}, string, error) {
+func Login(db *mgo.Database, inp map[string][]string, block_key []byte) (map[string]interface{}, string, error) {
+	if len(block_key) < block_size {
+		return nil, "", fmt.Errorf("Login: block_key length must be at least %v.", block_size)
+	}
+	block_key = block_key[0:block_size]
 	rule := map[string]interface{}{
 		"name": "must",
 		"password": "must",
@@ -43,7 +56,9 @@ func Login(db *mgo.Database, inp map[string][]string) (map[string]interface{}, s
 	if err != nil {
 		return nil, "", err
 	}
-	return user, user["_id"].(bson.ObjectId).Hex(), nil
+	id_b, err := encryptStr(block_key, user["_id"].(bson.ObjectId).Hex())
+	if err != nil { return nil, "", err }
+	return user, string(id_b), nil
 }
 
 func EmptyUser() map[string]interface{} {
@@ -67,11 +82,17 @@ func ParseAcceptLanguage(l string) []string {
 	return ret
 }
 
-func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string, http_header map[string][]string) map[string]interface{} {
+func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string, http_header map[string][]string, block_key []byte) (map[string]interface{}, error) {
+	if len(block_key) < 16 {
+		return nil, fmt.Errorf("BuildUser: block_key length must be at least %v.", block_size)
+	}
+	block_key = block_key[0:block_size]
 	var user map[string]interface{}
 	var err error
 	if len(user_id) > 0 {
-		user, err = FindUser(db, user_id)
+		decr_id_b, err := decryptStr(block_key, user_id)
+		if err != nil { return nil, err }
+		user, err = FindUser(db, string(decr_id_b))
 	}
 	if err != nil || user == nil {
 		user = EmptyUser()
@@ -86,7 +107,7 @@ func BuildUser(db *mgo.Database, ev ifaces.Event, user_id string, http_header ma
 		}
 	}
 	ev.Trigger("user.build", user)
-	return user
+	return user, nil
 }
 
 func Encode(pass string) string {
@@ -104,4 +125,80 @@ func Register(db *mgo.Database, ev ifaces.Event, name, pass string) error {
 	}
 	ev.Trigger("user.register", u)
 	return nil
+}
+
+// Function intended to encrypt the user id before storing it as a cookie.
+// encr flag controls
+// block_key is the salt.
+func encDecStr(block_key[]byte, value string, encr bool) (string, error) {
+	if block_key == nil || len(block_key) == 0 { return "", fmt.Errorf("Can't encrypt/decrypt: block key is not proper.") }
+	block, err := aes.NewCipher(block_key)
+	if err != nil { return "", err }
+	var bs []byte
+	if encr {
+		bs, err = encrypt(block, []byte(value))
+	} else {
+		bs, err = decrypt(block, []byte(value))
+	}
+	if err != nil { return "", err }
+	if bs == nil { return "", fmt.Errorf("Somethign went wrong when encoding/decoding.") } // Just in case.
+	return string(bs), nil
+}
+
+func encryptStr(block_key []byte, value string) (string, error) {
+	str, err := encDecStr(block_key, value, true)
+	if err != nil { return "", err }
+	return base64.StdEncoding.EncodeToString([]byte(str)), nil
+}
+
+func decryptStr(block_key []byte, value string) (string, error) {
+	decoded_b, err := base64.StdEncoding.DecodeString(value)
+	if err != nil { return "", err }
+	return encDecStr(block_key, string(decoded_b), false)
+}
+
+// following functions are taken from securecookie package of the Gorilla web toolkit made by Rodrigo Moraes.
+
+// encrypt encrypts a value using the given block in counter mode.
+//
+// A random initialization vector (http://goo.gl/zF67k) with the length of the
+// block size is prepended to the resulting ciphertext.
+func encrypt(block cipher.Block, value []byte) ([]byte, error) {
+	iv := GenerateRandomKey(block.BlockSize())
+	if iv == nil {
+		return nil, errors.New("securecookie: failed to generate random iv")
+	}
+	// Encrypt it.
+	stream := cipher.NewCTR(block, iv)
+	stream.XORKeyStream(value, value)
+	// Return iv + ciphertext.
+	return append(iv, value...), nil
+}
+
+// decrypt decrypts a value using the given block in counter mode.
+//
+// The value to be decrypted must be prepended by a initialization vector
+// (http://goo.gl/zF67k) with the length of the block size.
+func decrypt(block cipher.Block, value []byte) ([]byte, error) {
+	size := block.BlockSize()
+	if len(value) > size {
+		// Extract iv.
+		iv := value[:size]
+		// Extract ciphertext.
+		value = value[size:]
+		// Decrypt it.
+		stream := cipher.NewCTR(block, iv)
+		stream.XORKeyStream(value, value)
+		return value, nil
+	}
+	return nil, errors.New("securecookie: the value could not be decrypted")
+}
+
+// GenerateRandomKey creates a random key with the given strength.
+func GenerateRandomKey(strength int) []byte {
+	k := make([]byte, strength)
+	if _, err := rand.Read(k); err != nil {
+		return nil
+	}
+	return k
 }

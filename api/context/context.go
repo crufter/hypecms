@@ -15,6 +15,7 @@ type Uni struct {
 	Db		*mgo.Database
 	W		http.ResponseWriter
 	Req		*http.Request
+	secret	string						// Used for things like encryption/decryption. Basically a permanent random data.
 	P		string						// Path string
 	Paths	[]string 					// Path slice, contains the url (after the domain) splitted by "/"
 	opt		string						// Original string representation of the option, if one needs a version which is guaranteedly untinkered.
@@ -26,12 +27,26 @@ type Uni struct {
 	GetHook	func(string, string) func(*Uni) error 
 }
 
+// Set only once.
 func (u *Uni) SetOriginalOpt(s string) {
-	u.opt = s
+	if u.opt == "" {
+		u.opt = s
+	}
 }
 
 func (u *Uni) OriginalOpt() string {
 	return u.opt
+}
+
+func (u *Uni) Secret() string {
+	return u.secret
+}
+
+// Set only once.
+func (u *Uni) SetSecret(s string) {
+	if u.secret == "" {
+		u.secret = s
+	}
 }
 
 // With the help of this type it's possible for the model to not have direct access to everything (*context.Uni), but still trigger events,

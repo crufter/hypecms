@@ -15,6 +15,7 @@ import (
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -36,29 +37,66 @@ const (
 
 // See handleFlags methods about these vars and their uses.
 var(
+	ABS_PATH 		string
+	CONF_FN			string
 	DB_USER 		string
 	DB_PASS 		string
 	DB_ADDR 		string
-	ABS_PATH 		string
 	DEBUG			bool
 	DB_NAME			string
 	ADDR			string
 	PORT_NUM		string
 	OPT_CACHE		bool
 	SERVE_FILES		bool
+	SECRET			string
 )
 
-func handleFlags() {
+func loadConfFromFile() {
+	cf, err := ioutil.ReadFile(filepath.Join(ABS_PATH, CONF_FN))
+	if err != nil {
+		fmt.Println("Could not read the config file.")
+		return
+	}
+	var conf_i interface{}
+	err = json.Unmarshal(cf, &conf_i)
+	if err != nil || conf_i == nil {
+		fmt.Println("Could not decode config json file.")
+		return
+	}
+	conf, ok := conf_i.(map[string]interface{})
+	if !ok {
+		fmt.Println("Config is not a map.")
+		return
+	}
+	// Doh...
+	if db_user, ok := conf["db_user"].(string); ok { DB_USER = db_user }
+	if db_pass, ok := conf["db_pass"].(string); ok { DB_PASS = db_pass }
+	if db_addr, ok := conf["db_addr"].(string); ok { DB_ADDR = db_addr }
+	if debug, ok := conf["debug"].(bool); ok { DEBUG = debug }
+	if db_name, ok := conf["db_name"].(string); ok { DB_NAME = db_name }
+	if addr, ok := conf["addr"].(string); ok { ADDR = addr }
+	if port_num, ok := conf["port_num"].(string); ok { PORT_NUM = port_num }
+	if opt_cache, ok := conf["opt_cache"].(bool); ok { OPT_CACHE = opt_cache }
+	if serve_files, ok := conf["serve_files"].(bool); ok { SERVE_FILES = serve_files }
+	if secret, ok := conf["secret"].(string); ok { SECRET = secret }
+}
+
+func handleConfigVars() {
+	flag.StringVar(&ABS_PATH, "abs_path", "c:/gowork/src/github.com/opesun/hypecms", "absolute path")
+	flag.StringVar(&CONF_FN, "conf_fn", "config.json",	"config filename")
+	// Everything else we can try to load from file.
+	loadConfFromFile()
 	flag.StringVar(&DB_USER, "db_user", "", "database username")
 	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
 	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
-	flag.StringVar(&ABS_PATH, "abs_path", "c:/gowork/src/github.com/opesun/hypecms", "absolute path")
 	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
 	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
 	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
 	flag.StringVar(&ADDR, "addr", "", "address to start http server")
 	flag.BoolVar(&OPT_CACHE, "opt_cache", false, "cache option document")
 	flag.BoolVar(&SERVE_FILES, "serve_files", true, "serve files from Go or not")
+	flag.StringVar(&SECRET, "secret", "pLsCh4nG3Th1$.AlSoThisShouldbeatLeast16bytes", "secret characters used for encryption and the like")
+	flag.Parse()
 }		
 
 // Quickly print the data to http response.
@@ -231,7 +269,11 @@ func buildUser(uni *context.Uni) error {
 }
 
 func runSite(uni *context.Uni) {
-	buildUser(uni)
+	err := buildUser(uni)
+	if err != nil {
+		display.DErr(uni, err)
+		return
+	}
 	switch uni.Paths[1] {
 	// Back hooks are put behind "/b/" to avoid eating up the namespace.
 	case "b":
@@ -282,6 +324,7 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	uni.Req.Host = scut.Host(req.Host, opt)
 	uni.Opt = opt
 	uni.SetOriginalOpt(opt_str)
+	uni.SetSecret(SECRET)
 	first_p := uni.Paths[1]
 	last_p := uni.Paths[len(uni.Paths)-1]
 	if SERVE_FILES && strings.Index(last_p, ".") != -1 {
@@ -316,8 +359,7 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 }
 
 func main() {
-	handleFlags()
-	flag.Parse()
+	handleConfigVars()
 	fmt.Println("Server has started.")
 	defer func() {
 		if r := recover(); r != nil {

@@ -21,7 +21,10 @@ func BuildUser(uni *context.Uni) error {
 	var user_id string
 	c, err := uni.Req.Cookie("user")
 	if err == nil { user_id = c.Value }
-	uni.Dat["_user"] = user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
+	block_key := []byte(uni.Secret())
+	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header, block_key)
+	if err != nil { return err }
+	uni.Dat["_user"] = user
 	return nil
 }
 
@@ -40,7 +43,8 @@ func Register(uni *context.Uni) error {
 func Login(uni *context.Uni) error {
 	// There could be a check here to not log in somebody who is already logged in.
 	inp := map[string][]string(uni.Req.Form)
-	if _, id, err := user_model.Login(uni.Db, inp); err == nil {
+	block_key := []byte(uni.Secret())
+	if _, id, err := user_model.Login(uni.Db, inp, block_key); err == nil {
 		c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
 		http.SetCookie(uni.W, c)
 	} else {
