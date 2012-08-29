@@ -102,7 +102,7 @@ func DeleteFile(opt map[string]interface{}, inp map[string][]string, root, host 
 
 // Forks a public template into a private one: creates a deep recursive copy of the whole directory tree, so the user
 // can edit his own template files as he wishes.
-func ForkPublic(db *mgo.Database, opt map[string]interface{}, host, root string) error {
+func ForkPublic(db *mgo.Database, opt map[string]interface{}, root, host string) error {
 	if CanModifyTemplate(opt) {
 		return fmt.Errorf("Template is already private.")
 	}
@@ -132,7 +132,7 @@ func Exists(path string) (bool, error) {
 }
 
 // Publish a private template, so others can use it too.
-func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, host, root string) error {
+func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	rule := map[string]interface{}{
 		"public_name": 	"must",
 	}
