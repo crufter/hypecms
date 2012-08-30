@@ -317,11 +317,11 @@ func ExtractIds(dat map[string][]string, keys []string) ([]string, error) {
 		}
 		id := id_s[0]
 		if len(id) == 24 {
-			ret = append(ret, v)
+			ret = append(ret, id)
 		} else if len(id) == 39 {
 			ret = append(ret, id[13:37])
 		} else {
-			return nil, fmt.Errorf(v, " is not a proper id.")
+			return nil, fmt.Errorf(id, " is not a proper id.")
 		}
 	}
 	return ret, nil
