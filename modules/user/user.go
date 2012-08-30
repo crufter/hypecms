@@ -17,15 +17,26 @@ var Hooks = map[string]func(*context.Uni) error {
 	"Test":      Test,
 }
 
-func BuildUser(uni *context.Uni) error {
+func BuildUser(uni *context.Uni) (err error) {
+	defer func() {	// Recover from wrong ObjectId like panics. Unset the cookie.
+		r := recover(); if r == nil { return }
+		err = nil	// Just to be sure.
+		c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
+		http.SetCookie(uni.W, c)
+		uni.Dat["_user"] = user_model.EmptyUser()
+	}()
 	var user_id string
 	c, err := uni.Req.Cookie("user")
 	if err == nil { user_id = c.Value }
 	block_key := []byte(uni.Secret())
 	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header, block_key)
-	if err != nil { return err }
+	if err != nil {		// If there were some random database query errors or something we go on with an empty user.
+		uni.Dat["_user"] = user_model.EmptyUser()
+		err = nil
+		return
+	}
 	uni.Dat["_user"] = user
-	return nil
+	return
 }
 
 func Register(uni *context.Uni) error {

@@ -37,11 +37,11 @@ func DeleteFile(uni *context.Uni) error {
 }
 
 func ForkPublic(uni *context.Uni) error {
-	return te_model.ForkPublic(uni.Db, uni.Opt, uni.Req.Host, uni.Root)
+	return te_model.ForkPublic(uni.Db, uni.Opt, uni.Root, uni.Req.Host)
 }
 
 func PublishPrivate(uni *context.Uni) error {
-	return te_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Req.Host, uni.Root)
+	return te_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
 }
 
 func DeletePrivate(uni *context.Uni) error {
