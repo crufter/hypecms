@@ -1,3 +1,4 @@
+// Collection independent helper functions.
 package basic
 
 import(
@@ -21,6 +22,7 @@ const(
 	Prev_version					= "previous_version"	// Goes into the "living" doc.	
 )
 
+// Converts a given interface value to an ObjectId with utmost care, taking all possible malformedness into account.
 func ToIdWithCare(id interface{}) bson.ObjectId {
 	switch val := id.(type) {
 	case bson.ObjectId:
@@ -32,7 +34,7 @@ func ToIdWithCare(id interface{}) bson.ObjectId {
 	return id.(bson.ObjectId)
 }
 
-// by Id.
+// Find by Id.
 func Find(db *mgo.Database, coll, id string) map[string]interface{} {
 	var v interface{}
 	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
@@ -47,6 +49,7 @@ func Inud(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, o
 	return InudOpt(db, ev, dat, coll, op, id, false)
 }
 
+// Same as Inud, but takes into account versioning and drafts.
 func InudVersion(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll, op, id string) error {
 	return InudOpt(db, ev, dat, coll, op, id, true)
 }
@@ -77,6 +80,7 @@ func Move(db *mgo.Database, from_collname, to_collname string, id bson.ObjectId)
 	return db.C(from_collname).Remove(q)
 }
 
+// Deletes a document from a given collection by moving it to collname + "_deleted".
 func Delete(db *mgo.Database, collname string, id bson.ObjectId) error {
 	return Move(db, collname, collname + Delete_collection_postfix, id)
 }
@@ -194,6 +198,7 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		if root != "" {
 			dat["root"] = root
 		}
+		fmt.Println(dat)
 		upd := bson.M{"$set": dat}
 		err = db.C(coll).Update(q, upd)
 		if err != nil { return err }
@@ -213,6 +218,8 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 	return nil
 }
 
+// Converts all bson.M s to map[string]interface{} s. Usually called on db query results.
+// Will become obsolete when the mgo driver will return map[string]interface{} maps instead of bson.M ones.
 func Convert(x interface{}) interface{} {
 	if y, ok := x.(bson.M); ok {
 		for key, val := range y {
@@ -232,6 +239,8 @@ func Convert(x interface{}) interface{} {
 	return x
 }
 
+// Creates a copy of the most up to date document in collname (sorted by sortfield), and returns it's ObjectId for further updates.
+// Used in situations where we want to handle a series of documents as immutable values, like the the documents in the "options" collection.
 func CreateCopy(db *mgo.Database, collname, sortfield string) bson.ObjectId {
 	var v interface{}
 	db.C(collname).Find(nil).Sort(sortfield).Limit(1).One(&v)
@@ -299,6 +308,9 @@ func Slug(rule map[string]interface{}, dat map[string]interface{}) {
 	}
 }
 
+// From user interface the ObjectId can come in a form (OjbectIdHex("era3232322332dsds33")) which is inappropriate as an ObjectId input.
+// This strips the unnecessary parts.
+// Once the UI will be universally cleared from those unnecessary string parts it will become obsolete. (See IdsToStrings)
 func StripId(str_id string) string {
 	l := len(str_id)
 	if l != 24 {
@@ -308,6 +320,7 @@ func StripId(str_id string) string {
 	return str_id
 }
 
+// Helps to extract a bunch of ids from the UI input.
 func ExtractIds(dat map[string][]string, keys []string) ([]string, error) {
 	ret := []string {}
 	for _, v := range keys {

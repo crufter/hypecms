@@ -252,7 +252,7 @@ func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	id := upd_dat["id"].(string)
 	typ := upd_dat["type"].(string)
 	basic.DateAndAuthor(rule, upd_dat, user_id, true)
-	upd_dat["type"] = typ[0]
+	upd_dat["type"] = typ
 	_, has_tags := upd_dat[Tag_fieldname_displayed]
 	if has_tags {
 		addTags(db, upd_dat, id, "update", typ)
