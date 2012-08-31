@@ -22,7 +22,7 @@
 
 <script src="/shared/arborjs/lib/arbor.js"></script>
 <script src="/shared/arborjs/lib/arbor-tween.js"></script>
-<script src="/template/content/main.js"></script>
+<script src="/tpl/content/main.js"></script>
 
 <div>
 	<canvas id="viewport" width="700" height="500" style="border: 1px solid #ccc;"></canvas>
