@@ -130,7 +130,7 @@ func runFrontHooks(uni *context.Uni) {
 }
 
 // This is real basic yet, it would be cool to include all elements of result.
-func appendParams(str string, err error, action_name string) string {
+func appendParams(str string, err error, action_name string, cont map[string]interface{}) string {
 	p := strings.Split(str, "?")
 	var inp string
 	if len(p) > 1 {
@@ -140,6 +140,9 @@ func appendParams(str string, err error, action_name string) string {
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
+		for key, val := range cont {	// This way we can include additional data in the get params, not only action name and errors.
+			v.Set(key, fmt.Sprint(val))
+		}
 		v.Del("error")
 		v.Del("ok")	// See *1
 		v.Del("action")
@@ -172,14 +175,14 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 	} else if post_red, okr := uni.Req.Form["redirect"]; okr && len(post_red) == 1 {
 		redir = post_red[1]
 	}
+	var cont map[string]interface{}
+	cont_i, has := uni.Dat["_cont"]
+	if has {
+		cont = cont_i.(map[string]interface{})
+	} else {
+		cont = map[string]interface{}{}
+	}
 	if is_json {
-		var cont map[string]interface{}
-		cont_i, has := uni.Dat["_cont"]
-		if has {
-			cont = cont_i.(map[string]interface{})
-		} else {
-			cont = map[string]interface{}{}
-		}
 		cont["redirect"] = redir
 		var v []byte
 		if _, fmt := uni.Req.Form["fmt"]; fmt {
@@ -189,7 +192,7 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 		}
 		uni.Put(string(v))
 	} else {
-		redir = appendParams(redir, err, action_name)
+		redir = appendParams(redir, err, action_name, cont)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
 }

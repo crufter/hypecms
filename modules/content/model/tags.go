@@ -11,40 +11,44 @@ import (
 )
 
 const(
-	Tag_fieldname 				= "_tags"					// goes to database
-	Tag_fieldname_displayed 	= "tags"		// comes from user interface, it is in the rules
+	Tag_fieldname 				= "_tags"			// goes to database
+	Tag_fieldname_displayed 	= "tags"			// comes from user interface, it is in the rules
 	Tag_cname 					= "tags"
 	Count_fieldname 			= "count"
 )
 
 type m map[string]interface{}
 
-func createM(slugs []string) map[string]struct{} {
-	ret := map[string]struct{}{}
-	for _, v := range slugs {
-		ret[v] = struct{}{}
+// creates a map: {slug: tagname}
+func createM(slugs, tagnames []string) map[string]string {
+	ret := map[string]string{}
+	for i, v := range slugs {
+		ret[v] = tagnames[i]
 	}
 	return ret
 }
 
-func mToSSlice(ma map[string]struct{}) []string {
+// Returns all tagnames from the {slug: tagname} map.
+func mToSSlice(ma map[string]string) []string {
 	ret := []string{}
-	for i, _ := range ma {
-		ret = append(ret, i)
+	for _, v := range ma {
+		ret = append(ret, v)
 	}
 	return ret
 }
 
-func separateTags(db *mgo.Database, tag_sl []string) ([]bson.ObjectId, []string) {
+// Creates slugs from the tagnames, queries all tags which exists in the database with those slugs.
+// Returns the ids of the existing tags, and returns all tagnames which is not in the database.
+func separateTags(db *mgo.Database, tagnames []string) ([]bson.ObjectId, []string) {
 	var i []interface{}
-	slug_sl := []string{}
-	for _, val := range tag_sl {
+	slugs := []string{}
+	for _, val := range tagnames {
 		slug := slugify.S(val)
-		slug_sl = append(slug_sl, slug)
+		slugs = append(slugs, slug)
 	}
-	db.C(Tag_cname).Find(m{"slug":m{ "$in":slug_sl}}).Limit(0).All(&i)
+	db.C(Tag_cname).Find(m{"slug":m{ "$in":slugs}}).Limit(0).All(&i)
 	ret_ids := []bson.ObjectId{}
-	contains := createM(slug_sl)
+	contains := createM(slugs, tagnames)
 	i = basic.Convert(i).([]interface{})
 	for _, v := range i {
 		val := v.(map[string]interface{})
@@ -62,9 +66,9 @@ func dec(db *mgo.Database, ids []bson.ObjectId, typ string) error {
 	return patterns.IncAll(db, Tag_cname, ids, []string{Count_fieldname, typ + "_" + Count_fieldname}, -1)
 }
 
-func insertTags(db *mgo.Database, tag_sl []string) []bson.ObjectId {
+func insertTags(db *mgo.Database, tagnames []string) []bson.ObjectId {
 	ret := []bson.ObjectId{}
-	for _, v := range tag_sl {
+	for _, v := range tagnames {
 		if len(v) == 0 { continue }
 		id := bson.NewObjectId()
 		slug := slugify.S(v)
@@ -116,11 +120,11 @@ func mergeIds(a []bson.ObjectId, b []bson.ObjectId) []bson.ObjectId {
 }
 
 func toIdSlice(i []interface{}) []bson.ObjectId {
-		ret := []bson.ObjectId{}
-		for _, v := range i {
-			ret = append(ret, v.(bson.ObjectId))
-		}
-		return ret
+	ret := []bson.ObjectId{}
+	for _, v := range i {
+		ret = append(ret, v.(bson.ObjectId))
+	}
+	return ret
 }
 
 func addToSet(db *mgo.Database, content_id bson.ObjectId, tag_ids []bson.ObjectId) {

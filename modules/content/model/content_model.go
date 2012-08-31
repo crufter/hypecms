@@ -40,8 +40,8 @@ func AllowsContent(db *mgo.Database, inp map[string][]string, content_options ma
 		"type": "must",
 		"id": "must",
 	}
-	dat, ex_err := extract.New(rule).Extract(inp)
-	if ex_err != nil { return ex_err }
+	dat, err := extract.New(rule).Extract(inp)
+	if err != nil { return err }
 	var inserting bool
 	if len(dat["id"].(string)) == 0 {
 		inserting = true
@@ -51,8 +51,15 @@ func AllowsContent(db *mgo.Database, inp map[string][]string, content_options ma
 		return fmt.Errorf("You have no rights to manage contents.")
 	}
 	if user_level < 200 && !inserting {
-		auth, find_err := findContentAuthor(db, basic.StripId(dat["_id"].(string)))
-		if find_err != nil { return find_err }
+		content := find(db, dat["id"].(string))
+		if content == nil { return fmt.Errorf("Can't find content.") }
+		content_type := content["type"].(string)
+		type_from_input := dat["type"].(string)
+		if content_type != type_from_input {
+			return fmt.Errorf("No rights: content type is %v instead of %v.", content_type, type_from_input)
+		}
+		auth, err := contentAuthor(content)
+		if err != nil { return err }
 		if auth.Hex() != user_id.Hex() {
 			return fmt.Errorf("You are not the rightous owner of the content.")
 		}
@@ -62,17 +69,32 @@ func AllowsContent(db *mgo.Database, inp map[string][]string, content_options ma
 
 // returns nil if not found
 func find(db *mgo.Database, content_id string) map[string]interface{} {
-	if len(content_id) != 24 { return nil }
+	content_bsonid := basic.ToIdWithCare(content_id)
 	q := bson.M{
-		"_id": bson.ObjectIdHex(content_id),
+		"_id": content_bsonid,
 	}
 	var v interface{}
 	err := db.C("contents").Find(q).One(&v)
 	if err != nil { return nil }
-	if v == nil { return nil }
 	return basic.Convert(v).(map[string]interface{})
 }
 
+func typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
+	var v interface{}
+	q := m{"_id": content_id, "type": typ}
+	err := db.C("contents").Find(q).One(&v)
+	return err == nil		// One problem is we can't differentiate between not found and IO error here...
+}
+
+func contentAuthor(content map[string]interface{}) (bson.ObjectId, error) {
+	auth, has := content["created_by"]
+	if !has {
+		return "", fmt.Errorf("Content has no author.")
+	}
+	return auth.(bson.ObjectId), nil
+}
+
+// Not used.
 func findContentAuthor(db *mgo.Database, content_id string) (bson.ObjectId, error) {
 	cont := find(db, content_id)
 	if cont == nil {

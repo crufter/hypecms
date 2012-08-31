@@ -55,7 +55,8 @@ func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 		return "", typ, fmt.Errorf("Can't %v content, you have no id.", op)
 	}
 	type_opt, _ := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
-	allowed_err := content_model.AllowsContent(uni.Db, map[string][]string(uni.Req.Form), type_opt, uid.(bson.ObjectId), scut.ULev(uni.Dat["_user"]), op)
+	user_level := scut.ULev(uni.Dat["_user"])
+	allowed_err := content_model.AllowsContent(uni.Db, uni.Req.Form, type_opt, uid.(bson.ObjectId), user_level, op)
 	if allowed_err != nil { return "", typ, allowed_err }
 	return uid.(bson.ObjectId), typ, nil
 }
@@ -174,7 +175,9 @@ func InsertComment(uni *context.Uni) error {
 	if !has_uid {
 		return fmt.Errorf("Can't insert comment, you have no id.")
 	}
-	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId))
+	mf, has := jsonp.GetB(uni.Opt, "Modules.content.types." + typ + ".moderate_comment")
+	moderate_first := has && mf
+	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId), moderate_first)
 }
 
 func UpdateComment(uni *context.Uni) error {
@@ -195,8 +198,7 @@ func UpdateComment(uni *context.Uni) error {
 }
 
 func DeleteComment(uni *context.Uni) error {
-	inp := map[string][]string(uni.Req.Form)
-	_, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
+	_, allow_err := AllowsComment(uni, uni.Req.Form, scut.ULev(uni.Dat["_user"]))
 	if allow_err != nil {
 		return allow_err
 	}
@@ -204,17 +206,26 @@ func DeleteComment(uni *context.Uni) error {
 	if !has_uid {
 		return fmt.Errorf("Can't delete comment, you have no id.")
 	}
-	return content_model.DeleteComment(uni.Db, uni.Ev, inp, uid.(bson.ObjectId))
+	return content_model.DeleteComment(uni.Db, uni.Ev, uni.Req.Form, uid.(bson.ObjectId))
+}
+
+func MoveToFinal(uni *context.Uni) error {
+	return nil
 }
 
 func PullTags(uni *context.Uni) error {
-	content_id := uni.Req.Form["content_id"][0]
+	_, _, err := prepareOp(uni, "update")
+	if err != nil { return err }
+	content_id := uni.Req.Form["id"][0]
 	tag_id := uni.Req.Form["tag_id"][0]
 	return content_model.PullTags(uni.Db, content_id, []string{tag_id})
 	
 }
 
 func deleteTag(uni *context.Uni) error {
+	if scut.ULev(uni.Dat["_user"]) < 300 {
+		return fmt.Errorf("Only an admin can delete a tag.")
+	}
 	tag_id := uni.Req.Form["tag_id"][0]
 	return content_model.DeleteTag(uni.Db, tag_id)
 }
@@ -253,14 +264,12 @@ func Back(uni *context.Uni) error {
 	switch action {
 	case "insert":
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
-			fmt.Println("///////////////////////////////////draft")
 			r = SaveDraft(uni)
 		} else {
 			r = Insert(uni)
 		}
 	case "update":
 		if _, is_draft := uni.Req.Form["draft"]; is_draft {
-			fmt.Println("///////////////////////////////////draft")
 			r = SaveDraft(uni)
 		} else {
 			r = Update(uni)
@@ -279,6 +288,8 @@ func Back(uni *context.Uni) error {
 		r = PullTags(uni)
 	case "delete_tag":
 		r = deleteTag(uni)
+	case "move_to_final":
+		r = MoveToFinal(uni)
 	case "save_type_config":
 		r = SaveTypeConfig(uni)
 	case "save_personal_type_config":
