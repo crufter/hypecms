@@ -89,7 +89,7 @@ func handleConfigVars() {
 	flag.StringVar(&DB_USER, "db_user", "", "database username")
 	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
 	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
-	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
+	flag.BoolVar(&DEBUG, "debug", false, "debug mode")
 	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
 	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
 	flag.StringVar(&ADDR, "addr", "", "address to start http server")

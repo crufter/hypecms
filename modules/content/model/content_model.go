@@ -19,11 +19,13 @@ const(
 
 // Precedence: type && op, type, op, all
 func requiredLevel(content_options map[string]interface{}, typ, op string) int {
-	type_op_lev, has := jsonp.Get(content_options, "types." + typ + "." + op + "_level")
+	access := fmt.Sprintf("types.%v.%v_level", typ, op)
+	type_op_lev, has := jsonp.Get(content_options, access)
 	if has {
 		return int(type_op_lev.(float64))
 	}
-	type_lev, has := jsonp.Get(content_options, "types." + typ + ".level")
+	access = fmt.Sprintf("types.%v.level", typ)
+	type_lev, has := jsonp.Get(content_options, access)
 	if has {
 		return int(type_lev.(float64))
 	}
@@ -47,7 +49,7 @@ func AllowsContent(db *mgo.Database, inp map[string][]string, content_options ma
 		inserting = true
 	}
 	req_lev := requiredLevel(content_options, dat["type"].(string), op)
-	if req_lev > user_level {
+	if user_level < req_lev {
 		return fmt.Errorf("You have no rights to manage contents.")
 	}
 	if user_level < 200 && !inserting {

@@ -148,41 +148,53 @@ func Delete(uni *context.Uni) error {
 }
 
 // Defaults to 100.
-func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int) (string, error) {
-	typ, has_typ := inp["type"]
+func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int, op string) (string, error) {
+	typ_s, has_typ := inp["type"]
 	if !has_typ {
-		return "", fmt.Errorf("Can't find type when commenting.")
+		return "", fmt.Errorf("Can't find content type when commenting.")
 	}
-	cont_opt, has := jsonp.GetM(uni.Opt, "Modules.content.types." + typ[0])
+	typ := typ_s[0]
+	cont_opt, has := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
 	if !has {
-		return "", fmt.Errorf("Can't find options for content type " + typ[0])
+		return "", fmt.Errorf("Can't find options for content type %v.", typ)
 	}
-	err := content_model.AllowsComment(uni.Db, inp, cont_opt, uni.Dat["_user"].(map[string]interface{})["_id"].(bson.ObjectId), user_level)
-	return typ[0], err
+	var user_id bson.ObjectId
+	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
+	if has {
+		user_id = user_id_i.(bson.ObjectId)
+	}
+	err := content_model.AllowsComment(uni.Db, inp, cont_opt, user_id, user_level, op)
+	return typ, err
 }
 
 func InsertComment(uni *context.Uni) error {
 	inp := uni.Req.Form
-	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
+	user_level := scut.ULev(uni.Dat["_user"])
+	typ, allow_err := AllowsComment(uni, inp, user_level, "insert")
 	if allow_err != nil {
 		return allow_err
+	}
+	var user_id bson.ObjectId
+	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
+	if has_uid {
+		user_id = uid.(bson.ObjectId)
 	}
 	comment_rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
 	}
-	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
-	if !has_uid {
-		return fmt.Errorf("Can't insert comment, you have no id.")
+	mf, has := jsonp.GetI(uni.Opt, "Modules.content.types." + typ + ".moderate_comment")
+	moderate_first := has && mf < user_level
+	if moderate_first {
+		uni.Dat["_cont"] = map[string]interface{}{"awaits-moderation": true}
 	}
-	mf, has := jsonp.GetB(uni.Opt, "Modules.content.types." + typ + ".moderate_comment")
-	moderate_first := has && mf
-	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId), moderate_first)
+	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, user_id, moderate_first)
 }
 
 func UpdateComment(uni *context.Uni) error {
 	inp := uni.Req.Form
-	typ, allow_err := AllowsComment(uni, inp, scut.ULev(uni.Dat["_user"]))
+	user_level := scut.ULev(uni.Dat["_user"])
+	typ, allow_err := AllowsComment(uni, inp, user_level, "update")
 	if allow_err != nil {
 		return allow_err
 	}
@@ -198,7 +210,8 @@ func UpdateComment(uni *context.Uni) error {
 }
 
 func DeleteComment(uni *context.Uni) error {
-	_, allow_err := AllowsComment(uni, uni.Req.Form, scut.ULev(uni.Dat["_user"]))
+	user_level := scut.ULev(uni.Dat["_user"])
+	_, allow_err := AllowsComment(uni, uni.Req.Form, user_level, "delete")
 	if allow_err != nil {
 		return allow_err
 	}

@@ -49,11 +49,12 @@ func TagView(uni *context.Uni, urimap map[string]string) error {
 	}
 	list, err := content_model.ListContentsByTag(uni.Db, fieldname, search_value, children_query)
 	if err != nil {
-		uni.Dat["error"] = err.Error()
-	} else {
-		display_model.CreateExcerpts(list, m{"content":float64(300)})
-		uni.Dat["content_list"] = list
+		return err
 	}
+	dont_query := map[string]interface{}{"password":0}
+	resolver.ResolveAll(uni.Db, list, dont_query)
+	display_model.CreateExcerpts(list, m{"content":float64(300)})
+	uni.Dat["content_list"] = list
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag"}
 	return nil
@@ -90,11 +91,14 @@ func ContentView(uni *context.Uni, content_map map[string]string) error {
 		slug_keys = append(slug_keys, i)
 	}
 	content, found := content_model.FindContent(uni.Db, slug_keys, content_map["slug"])
-	if found {
-		uni.Dat["_hijacked"] = true
-		uni.Dat["_points"] = []string{"content"}
-		uni.Dat["content"] = content
+	if !found {
+		return fmt.Errorf("Can't find content.")
 	}
+	dont_query := map[string]interface{}{"password":0}
+	resolver.ResolveOne(uni.Db, content, dont_query)
+	uni.Dat["_hijacked"] = true
+	uni.Dat["_points"] = []string{"content"}
+	uni.Dat["content"] = content
 	return nil
 }
 

@@ -4,7 +4,6 @@ package patterns
 
 
 import(
-	"github.com/opesun/resolver"
 	"github.com/opesun/hypecms/model/basic"
 	"labix.org/v2/mgo/bson"
 	"labix.org/v2/mgo"
@@ -48,8 +47,6 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 	if err != nil { return nil, err }
 	if children == nil { return nil, fmt.Errorf("Can't find children.") }
 	children = basic.Convert(children).([]interface{})
-	dont_query := map[string]interface{}{"password":0}
-	resolver.ResolveAll(db, children, dont_query)
 	return children, nil
 }
 
