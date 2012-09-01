@@ -5,6 +5,7 @@ package display_model
 import(
 	"strings"
 	"github.com/opesun/jsonp"
+	"time"
 )
 
 func get(dat map[string]interface{}, s ...string) interface{} {
@@ -22,8 +23,9 @@ func get(dat map[string]interface{}, s ...string) interface{} {
 }
 
 // date is inte
-func date(timestamp int, format string) string {
-	return ""
+func date(timestamp int64, format string) string {
+	t := time.Unix(timestamp, 0)
+	return t.Format(format)
 }
 
 // We must recreate this map each time because map access is not threadsafe.
