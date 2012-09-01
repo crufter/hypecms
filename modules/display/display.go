@@ -50,20 +50,6 @@ func toStringSlice(a interface{}) []string {
 	return nil
 }
 
-func get(dat map[string]interface{}, s ...string) interface{} {
-	if len(s) > 0 {
-		if len(s[0]) > 0 {
-			if string(s[0][0]) == "$" {
-				s[0] = s[0][1:]
-			}
-		}
-	}
-	access := strings.Join(s, ".")
-	val, has := jsonp.Get(dat, access)
-	if !has { return access }
-	return val
-}
-
 func validFormat(format string) bool {
 	switch format {
 	case "md":
@@ -108,11 +94,7 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 		langs_s := toStringSlice(langs)
 		loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)		// TODO: think about errors here.
 		uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
-		funcMap := template.FuncMap{
-			"get": func(s ...string) interface{} {
-				return get(uni.Dat, s...)
-			},
-		}
+		funcMap := template.FuncMap(display_model.Builtins(uni.Dat))
 		t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
 		uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 		t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
@@ -137,11 +119,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 				if !has { langs = []string{"en"} }
 				loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)			// TODO: think about errors here.
 				uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
-				funcMap := template.FuncMap{
-					"get": func(s ...string) interface{} {
-						return get(uni.Dat, s...)
-					},
-				}
+				funcMap := template.FuncMap(display_model.Builtins(uni.Dat))
 				t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
 				uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
 				t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.

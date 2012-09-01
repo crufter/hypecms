@@ -209,8 +209,12 @@ func PullTagFromAll(db *mgo.Database, tag_id string) error {
 }
 
 // Finds tag by query m{field: value}.
-func ListContentsByTag(db *mgo.Database, field string, value interface{}, children_query map[string]interface{}) ([]interface{}, error) {
-	return patterns.FindParentAndChildren(db, Tag_cname, m{field: value}, Cname, Tag_fieldname, children_query)
+//func ListContentsByTag(db *mgo.Database, field string, value interface{}, children_query map[string]interface{}) ([]interface{}, error) {
+//	return patterns.FindChildrenByParent(db, Tag_cname, m{field: value}, Cname, Tag_fieldname, children_query)
+//}
+
+func FindTag(db *mgo.Database, field string, value interface{}) (map[string]interface{}, error){
+	return patterns.FindEq(db, "tags", field, value)
 }
 
 func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {

@@ -47,14 +47,26 @@ func TagView(uni *context.Uni, urimap map[string]string) error {
 	} else {
 		search_value = urimap["first"]
 	}
-	list, err := content_model.ListContentsByTag(uni.Db, fieldname, search_value, children_query)
+	tag, err := content_model.FindTag(uni.Db, fieldname, search_value)
 	if err != nil {
 		return err
 	}
-	dont_query := map[string]interface{}{"password":0}
-	resolver.ResolveAll(uni.Db, list, dont_query)
-	display_model.CreateExcerpts(list, m{"content":float64(300)})
-	uni.Dat["content_list"] = list
+	pnq := uni.P + "?" + uni.Req.URL.RawQuery
+	query := map[string]interface{}{
+		"ex": map[string]interface{}{
+			"content": 300,
+		},
+		"so": "-created",
+		"c": "contents",
+		"q": map[string]interface{}{
+			"_tags": tag["_id"],
+		},
+		"p": "page",
+		"l": 20,
+	}
+	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
+	uni.Dat["content_list"] = cl["content_list"]
+	uni.Dat["content_list_navi"] = cl["content_list_navi"]
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag"}
 	return nil

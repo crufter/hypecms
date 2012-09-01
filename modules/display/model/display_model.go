@@ -12,6 +12,7 @@ import(
 	"strconv"
 	"strings"
 	"regexp"
+	"fmt"
 )
 
 // Cuts a long string at max_char_count, taking a word boundary into account.
@@ -79,12 +80,30 @@ func DoPaging(db *mgo.Database, collection string, query map[string]interface{},
 	}
 }
 
+// Convenience function.
+func RunQuery(db *mgo.Database, query_name string, query map[string]interface{}, get map[string][]string, path_n_query string) map[string]interface{} {
+	queries := map[string]interface{}{
+		query_name : query,
+	}
+	return RunQueries(db, queries, get, path_n_query)
+}
+
+func toInt(num interface{}) int {
+	switch val := num.(type) {
+		case float64:
+			return int(val)
+		case int:
+			return val
+	}
+	panic(fmt.Sprintf("Unkown type %T.", num))
+}
+
 // c: 		collection			string
 // q: 		query				map[string]interface{}
 // p:		page number key		string							This is used to extract the page nubver from get parameters. Also activates paging.	
 //																Only works with limit.
-// sk: 		skip				float64 (int in fact)			Hardcoded value, barely useful (see p instead)
-// l:		limit				float64 (int in fact)
+// sk: 		skip				float64/int						Hardcoded value, barely useful (see p instead)
+// l:		limit				float64/int
 // so:		sort				string							Example: "-created"
 //
 // TODO: check for validity of type assertions.
@@ -97,10 +116,10 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		if !coll_ok || !quer_ok { continue }
 		q := db.C(v["c"].(string)).Find(v["q"])
 		if skip, skok := v["sk"]; skok {
-			q.Skip(int(skip.(float64)))
+			q.Skip(toInt(skip))
 		}
 		if limit, lok := v["l"]; lok {
-			q.Limit(int(limit.(float64)))
+			q.Limit(toInt(limit))
 		}
 		if sort, sook := v["so"]; sook {
 			if sort_string, is_str := sort.(string); is_str {
@@ -111,7 +130,7 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		}
 		if p, pok := v["p"]; pok {
 			if limit, lok := v["l"]; lok {	// Only makes sense with limit.
-				paging_inf := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, int(limit.(float64)))
+				paging_inf := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, toInt(limit))
 				qs[name + "_navi"] = paging_inf
 				q.Skip(paging_inf.Skip)
 			}

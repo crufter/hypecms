@@ -53,7 +53,7 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 // Finds a document in [parent_coll] collection based on [field] [value] equality, then queries
 // [children_coll] for documents which has the _id of that document in their parent_fk_field.
 // Returns children list only, no parent.
-func FindParentAndChildren(db *mgo.Database, parent_coll string, parent_q map[string]interface{}, children_coll, parent_fk_field string, children_q map[string]interface{}) ([]interface{}, error)  {
+func FindChildrenByParent(db *mgo.Database, parent_coll string, parent_q map[string]interface{}, children_coll, parent_fk_field string, children_q map[string]interface{}) ([]interface{}, error)  {
 	parent, err := FindQ(db, parent_coll, parent_q)
 	if err != nil { return nil, err }
 	return FindChildren(db, children_coll, parent_fk_field, parent["_id"].(bson.ObjectId), children_q)
