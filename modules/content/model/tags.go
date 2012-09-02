@@ -217,6 +217,12 @@ func FindTag(db *mgo.Database, field string, value interface{}) (map[string]inte
 	return patterns.FindEq(db, "tags", field, value)
 }
 
-func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
-	return patterns.FieldStartsWith(db, Tag_cname, "slug", tag_slug)
+//func TagSearch(db *mgo.Database, tag_slug string) ([]interface{}, error) {
+//	return patterns.FieldStartsWith(db, Tag_cname, "slug", tag_slug)
+//}
+
+func TagSearchQuery(fieldname, val string) map[string]interface{} {
+	return map[string]interface{}{
+		fieldname: bson.RegEx{ "^" + val, "u"},
+	}
 }

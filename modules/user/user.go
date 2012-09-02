@@ -17,19 +17,26 @@ var Hooks = map[string]func(*context.Uni) error {
 	"Test":      Test,
 }
 
+// Recover from wrong ObjectId like panics. Unset the cookie.
+func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) {
+	r := recover(); if r == nil { return }
+	*err = nil	// Just to be sure.
+	c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
+	http.SetCookie(w, c)
+	dat["_user"] = user_model.EmptyUser()
+}
+
 func BuildUser(uni *context.Uni) (err error) {
-	defer func() {	// Recover from wrong ObjectId like panics. Unset the cookie.
-		r := recover(); if r == nil { return }
-		err = nil	// Just to be sure.
-		c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
-		http.SetCookie(uni.W, c)
-		uni.Dat["_user"] = user_model.EmptyUser()
-	}()
-	var user_id string
+	defer unsetCookie(uni.W, uni.Dat, &err)
+	var user_id_str string
 	c, err := uni.Req.Cookie("user")
-	if err == nil { user_id = c.Value }
+	if err == nil {
+		user_id_str = c.Value
+	}
 	block_key := []byte(uni.Secret())
-	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header, block_key)
+	user_id, err := user_model.DecryptId(user_id_str, block_key)
+	if err != nil { return err }
+	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
 	if err != nil {		// If there were some random database query errors or something we go on with an empty user.
 		uni.Dat["_user"] = user_model.EmptyUser()
 		err = nil
@@ -40,24 +47,18 @@ func BuildUser(uni *context.Uni) (err error) {
 }
 
 func Register(uni *context.Uni) error {
-	post := uni.Req.Form
-	name, name_ok := post["name"]
-	pass, pass_ok := post["password"]
-	if name_ok && pass_ok && len(name) > 0 && len(pass) > 0 {
-		return user_model.Register(uni.Db, uni.Ev, name[0], pass[0])
-	} else {
-		return fmt.Errorf("No name or pass given.")
-	}
-	return nil
+	inp := uni.Req.Form
+	rules, _ := jsonp.GetM(uni.Opt, "Modules.user.rules")		// RegisterUser will be fine with nil.
+	_, err := user_model.RegisterUser(uni.Db, uni.Ev, rules, inp)
+	return err
 }
 
 func Login(uni *context.Uni) error {
-	// There could be a check here to not log in somebody who is already logged in.
+	// Maybe there could be a check here to not log in somebody who is already logged in.
 	inp := map[string][]string(uni.Req.Form)
-	block_key := []byte(uni.Secret())
-	if _, id, err := user_model.Login(uni.Db, inp, block_key); err == nil {
-		c := &http.Cookie{Name: "user", Value: id, MaxAge: 3600000, Path: "/"}
-		http.SetCookie(uni.W, c)
+	if _, id, err := user_model.FindLogin(uni.Db, inp); err == nil {
+		block_key := []byte(uni.Secret())
+		user_model.Login(uni.W, id, block_key)
 	} else {
 		return err
 	}

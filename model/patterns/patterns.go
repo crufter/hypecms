@@ -36,6 +36,7 @@ func FindQ(db *mgo.Database, coll string, query map[string]interface{}) (map[str
 	return doc, nil
 }
 
+// See *1 below.
 func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, parent_id bson.ObjectId, additional_query map[string]interface{}) ([]interface{}, error) {
 	q := map[string]interface{}{}
 	if additional_query != nil {
@@ -50,6 +51,8 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 	return children, nil
 }
 
+// [1] This is highly experimental, not used ATM, dont look here, its ugly.
+//
 // Finds a document in [parent_coll] collection based on [field] [value] equality, then queries
 // [children_coll] for documents which has the _id of that document in their parent_fk_field.
 // Returns children list only, no parent.

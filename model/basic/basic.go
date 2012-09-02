@@ -35,9 +35,11 @@ func ToIdWithCare(id interface{}) bson.ObjectId {
 }
 
 // Find by Id.
-func Find(db *mgo.Database, coll, id string) map[string]interface{} {
+func Find(db *mgo.Database, coll string, id interface{}) map[string]interface{} {
+	bson_id := ToIdWithCare(id)
 	var v interface{}
-	db.C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&v)
+	q := bson.M{"_id": bson_id}
+	db.C(coll).Find(q).One(&v)
 	if v != nil {
 		return Convert(v).(map[string]interface{})
 	}

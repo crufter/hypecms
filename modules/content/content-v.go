@@ -18,7 +18,7 @@ import(
 
 type m map[string]interface{}
 
-func UserEdit(uni *context.Uni, urimap map[string]string) error {
+func userEdit(uni *context.Uni, urimap map[string]string) error {
 	ulev, hasu := jsonp.GetI(uni.Dat, "_user.level")
 	if !hasu {
 		return fmt.Errorf("No user level found, or it is not an integer.")
@@ -36,7 +36,7 @@ func UserEdit(uni *context.Uni, urimap map[string]string) error {
 	return nil
 }
 
-func TagView(uni *context.Uni, urimap map[string]string) error {
+func tagView(uni *context.Uni, urimap map[string]string) error {
 	fieldname := "slug"		// This should not be hardcoded.
 	specific := len(urimap) == 2
 	var search_value string
@@ -72,19 +72,25 @@ func TagView(uni *context.Uni, urimap map[string]string) error {
 	return nil
 }
 
-func TagSearch(uni *context.Uni, urimap map[string]string) error {
-	list, err := content_model.TagSearch(uni.Db, urimap["slug"])
-	if err != nil {
-		uni.Dat["error"] = err.Error()
-	} else {
-		uni.Dat["tag_list"] = list
+func tagSearch(uni *context.Uni, urimap map[string]string) error {
+	q := content_model.TagSearchQuery("slug", urimap["slug"])
+	pnq := uni.P + "?" + uni.Req.URL.RawQuery
+	query := map[string]interface{}{
+		"so": "-created",
+		"c": "tags",
+		"q": q,
+		"p": "page",
+		"l": 20,
 	}
+	cl := display_model.RunQuery(uni.Db, "tag_list", query, uni.Req.Form, pnq)
+	uni.Dat["tag_list"] = cl["tag_list"]
+	uni.Dat["tag_list_navi"] = cl["tag_list_navi"]
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag-search"}
 	return nil
 }
 
-func ContentView(uni *context.Uni, content_map map[string]string) error {
+func contentView(uni *context.Uni, content_map map[string]string) error {
 	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !ok {
 		return nil
@@ -114,23 +120,50 @@ func ContentView(uni *context.Uni, content_map map[string]string) error {
 	return nil
 }
 
+func contentSearch(uni *context.Uni, content_map map[string]string) error {
+	q := m{}
+	search_sl, has := uni.Req.Form["search"]
+	if has && len(search_sl[0]) > 0 {
+		q["$and"] = content_model.GenerateQuery(search_sl[0])
+		uni.Dat["search"] = search_sl[0]
+	}
+	pnq := uni.P + "?" + uni.Req.URL.RawQuery
+	query := map[string]interface{}{
+		"so": "-created",
+		"c": "tags",
+		"q": q,
+		"p": "page",
+		"l": 20,
+	}
+	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
+	uni.Dat["content_list"] = cl["content_list"]
+	uni.Dat["content_list_navi"] = cl["content_list_navi"]
+	uni.Dat["_hijacked"] = true
+	uni.Dat["_points"] = []string{"content-search"}
+	return nil
+}
+
 func Front(uni *context.Uni) error {
 	edit_map, edit_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
 	if edit_err == nil {
-		return UserEdit(uni, edit_map)
+		return userEdit(uni, edit_map)
 	}
 	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
 	if tag_err == nil {
-		return TagView(uni, tag_map)
+		return tagView(uni, tag_map)
 	}
 	tag_search_map, tag_search_err := routep.Comp("/tag-search/{slug}", uni.P)
 	if tag_search_err == nil {
-		return TagSearch(uni, tag_search_map)
+		return tagSearch(uni, tag_search_map)
+	}
+	content_search_map, content_search_err := routep.Comp("/content-search", uni.P)
+	if content_search_err == nil {
+		return contentSearch(uni, content_search_map)
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {
-		return ContentView(uni, content_map)
+		return contentView(uni, content_map)
 	}
 	return nil
 }
@@ -156,7 +189,7 @@ func Index(uni *context.Uni) error {
 		visible_types = append(visible_types, i)
 	}
 	q := m{"type": m{"$in": visible_types}}
-	search_sl, has := uni.Req.Form["search"];
+	search_sl, has := uni.Req.Form["search"]
 	if has && len(search_sl[0]) > 0 {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
@@ -171,6 +204,7 @@ func Index(uni *context.Uni) error {
 	return nil
 }
 
+// This functionality is almost the same as the tagSearch on the outside :S
 func ListTags(uni *context.Uni) error {
 	var v []interface{}
 	uni.Db.C("tags").Find(nil).All(&v)
@@ -179,6 +213,7 @@ func ListTags(uni *context.Uni) error {
 	return nil
 }
 
+// Almost the same as contentSearc as outside :S
 func List(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/content/list/{type}", uni.Req.URL.Path)
 	if err != nil {

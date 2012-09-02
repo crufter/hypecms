@@ -178,18 +178,18 @@ func GetModTPath(filename string) []string {
 
 // Checks if the user is an admin or not.
 func NotAdmin(user interface{}) bool {
-	return ULev(user) < 300
+	return Ulev(user) < 300
 }
 
 // Gives back the user level.
-func ULev(useri interface{}) int {
+func Ulev(useri interface{}) int {
 	if useri == nil {
-		return 0
+		return -1	// useri should never be nil BTW
 	}
 	user := useri.(map[string]interface{})
 	ulev, has := user["level"]
 	if !has {
-		return 0
+		return -1
 	}
 	return int(ulev.(int))
 }

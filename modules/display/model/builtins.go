@@ -22,7 +22,6 @@ func get(dat map[string]interface{}, s ...string) interface{} {
 	return val
 }
 
-// date is inte
 func date(timestamp int64, format string) string {
 	t := time.Unix(timestamp, 0)
 	return t.Format(format)

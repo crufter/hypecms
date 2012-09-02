@@ -31,7 +31,7 @@ func SiteHasAdmin(db *mgo.Database) bool {
 // mode: 1	first admin of site, named "admin"
 // mode: 2	admin with a name
 // mode: 3	a generic user
-// Database must have a unique index on names to work!
+// Database must have a unique index on slugs to avoid user slug duplications.
 func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 	subr := map[string]interface{}{
 		"must": 1,
@@ -52,9 +52,9 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 	pass := dat["password"].(string)
 	pass_again := dat["password_again"].(string)
 	if  pass != pass_again {
-		return fmt.Errorf("Password and password again differs.")
+		return fmt.Errorf("Password and password confirmation differs.")
 	}
-	a := map[string]interface{}{"password": user_model.Encode(pass)}
+	a := map[string]interface{}{"password": user_model.EncodePass(pass)}
 	switch mode {					// Redundant in places for better readability.
 		case first_admin:
 			a["name"] = "admin"

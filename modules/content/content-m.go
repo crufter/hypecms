@@ -55,7 +55,7 @@ func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 		return "", typ, fmt.Errorf("Can't %v content, you have no id.", op)
 	}
 	type_opt, _ := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
-	user_level := scut.ULev(uni.Dat["_user"])
+	user_level := scut.Ulev(uni.Dat["_user"])
 	allowed_err := content_model.AllowsContent(uni.Db, uni.Req.Form, type_opt, uid.(bson.ObjectId), user_level, op)
 	if allowed_err != nil { return "", typ, allowed_err }
 	return uid.(bson.ObjectId), typ, nil
@@ -69,7 +69,7 @@ func SaveDraft(uni *context.Uni) error {
 	typ := typ_s[0]
 	content_type_opt, has_opt := jsonp.GetM(uni.Opt, "Modules.content.types." + typ)
 	if !has_opt { return fmt.Errorf("Can't find options of content type %v.", typ) }
-	allows := content_model.AllowsDraft(content_type_opt, scut.ULev(uni.Dat["_user"]), typ)
+	allows := content_model.AllowsDraft(content_type_opt, scut.Ulev(uni.Dat["_user"]), typ)
 	if allows != nil { return allows }
 	rules, has_rules := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".rules")
 	if !has_rules { return fmt.Errorf("Can't find rules of content type %v.", typ) }
@@ -169,7 +169,7 @@ func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int, op
 
 func InsertComment(uni *context.Uni) error {
 	inp := uni.Req.Form
-	user_level := scut.ULev(uni.Dat["_user"])
+	user_level := scut.Ulev(uni.Dat["_user"])
 	typ, allow_err := AllowsComment(uni, inp, user_level, "insert")
 	if allow_err != nil {
 		return allow_err
@@ -193,7 +193,7 @@ func InsertComment(uni *context.Uni) error {
 
 func UpdateComment(uni *context.Uni) error {
 	inp := uni.Req.Form
-	user_level := scut.ULev(uni.Dat["_user"])
+	user_level := scut.Ulev(uni.Dat["_user"])
 	typ, allow_err := AllowsComment(uni, inp, user_level, "update")
 	if allow_err != nil {
 		return allow_err
@@ -210,7 +210,7 @@ func UpdateComment(uni *context.Uni) error {
 }
 
 func DeleteComment(uni *context.Uni) error {
-	user_level := scut.ULev(uni.Dat["_user"])
+	user_level := scut.Ulev(uni.Dat["_user"])
 	_, allow_err := AllowsComment(uni, uni.Req.Form, user_level, "delete")
 	if allow_err != nil {
 		return allow_err
@@ -236,7 +236,7 @@ func PullTags(uni *context.Uni) error {
 }
 
 func deleteTag(uni *context.Uni) error {
-	if scut.ULev(uni.Dat["_user"]) < 300 {
+	if scut.Ulev(uni.Dat["_user"]) < 300 {
 		return fmt.Errorf("Only an admin can delete a tag.")
 	}
 	tag_id := uni.Req.Form["tag_id"][0]
