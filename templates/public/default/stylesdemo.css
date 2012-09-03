@@ -1,0 +1,176 @@
+/* 
+	Theme Name: Blogger Templates
+	Theme URL: http://www.btemplates.com
+	Description: Theme exclusive for BTemplates (http://www.btemplates.com)
+	Author: Francisco Oliveros
+	Author URI: http://www.btemplates.com
+	Version: 3.0
+*/
+
+/* Recet */
+
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption{border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent;margin:0;padding:0;}
+ol,ul{list-style:none;}
+blockquote,q{color:#666;quotes:none;font-style:italic;margin:5px 20px 15px;padding:0 10px 0 60px;}
+acronym{border-bottom:1px dotted;}
+blockquote:before,blockquote:after,q:before,q:after{content:none;}
+:focus{outline:0;}
+
+/* Layout */
+
+.clear{clear:both;display:block;overflow:hidden;width:0;height:0;}
+.clearfix:after{clear:both;content:'.';display:block;visibility:hidden;height:0;}
+.clearfix{display:block;}
+* html .clearfix{height:1%;}
+.fl {float:left;}
+.fr {float:right;}
+
+/* General */
+body {margin:0;height:100%;overflow:hidden;color:#fff;font-size:12px;font-family:arial, verdana;}
+html{height:100%}body{margin:0;height:100%;overflow:hidden}
+a{text-decoration:none;color:#626262;}
+a:focus{outline:1px dotted invert;}
+a img{border:none;}
+iframe.templatedemo {width:100%;height:100%} 
+td.c11 {top:0;width:100%}
+#toolbar {
+	height:30px;
+	background:#ededed url(images/demotemplate.png) repeat-x 0 0;
+	color:#626262;
+	border-bottom:1px solid #626262;
+}
+#toolbar .fl, #toolbar .fr {
+	margin:5px 15px 0;
+}
+#toolbar .fl li {
+	float:left;
+	margin:0 15px 0 0;
+	line-height:21px;
+}
+#toolbar .fr li {
+	float:right;
+	margin:0 0 0 15px;
+	line-height:21px;
+}
+#toolbar a:hover {
+	color:#FF6600;
+}
+.btemplates a, a.downloadlink, a.dllink, .share a, .share a:hover,.close a, a.dlink:hover {
+	display:block;
+	text-indent:-10000px;
+	height:20px;
+	overflow:hidden;
+	background-image:url(images/demotemplate.png);
+	background-repeat:no-repeat;
+}
+.btemplates a {
+	width:115px;
+	background-position:0 -40px;
+}
+a.downloadlink, a.dllink {
+	float:none !important;
+	width:110px;
+	background-position:0 -70px;
+	margin:0 !important;
+}
+a.downloadlink:hover, a.dllink:hover {
+	background-position:0 -100px;
+}
+.share {
+	position:relative;
+}
+.share a{
+	width:110px;
+	background-position:0 -130px;
+}
+.share a:hover {
+	background-position:0 -160px;
+}
+.share ul {
+	position:absolute;
+	top:20px;
+	background:#ededed;
+	border:1px solid #b0b0b0;
+	padding:5px 10px 15px;
+	border-radius:3px;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+	display:none;
+	width:135px !important;
+}
+#toolbar .fl li li{
+	border-bottom:1px solid #CDCDCD;
+	display:block;
+	float:none;
+	height:25px;
+	line-height:25px;
+	margin:0;
+	background-image:url(images/demotemplate.png);
+	background-repeat:no-repeat;
+}
+#toolbar .fl li li a{
+	background:no-repeat 0 0;
+	line-height:25px;
+	position:relative;
+	text-indent:18px;
+	width:auto;
+	color:#FF6600;
+}
+#toolbar .fl li li a:hover {
+	color:#BF4C00;
+}
+.feed {
+	background-position:0 -187px;
+}
+.twitter {
+	background-position:0 -217px;
+}
+.facebook {
+	background-position:0 -247px;
+}
+.delicious {
+	background-position:0 -277px;
+}
+.google {
+	background-position:0 -307px;
+}
+.stumble {
+	background-position:0 -337px;
+}
+.friendfeed {
+	background-position:0 -367px;
+}
+.technorati {
+	background-position:0 -397px;
+}
+
+#se {
+    border: 1px solid #999;
+    border-radius:3px;
+    -moz-border-radius:3px;
+    -webkit-border-radius:3px;
+    height:18px;
+    padding:2px 5px;
+    width:125px;
+}
+
+#sb {
+    background-color: #999;
+    color:#fff;
+    border:0;
+    border-radius:3px;
+    -moz-border-radius:3px;
+    -webkit-border-radius:3px;
+    height:17px;
+    padding:2px 5px;
+    text-align: center;
+}
+
+/* Others */
+.post-ratings {opacity:1;display:inline !important;}
+.post-ratings p {display:inline !important;}
+.post-ratings-loading{display:none;height:16px;text-align:left;}
+.post-ratings-image{border:0;}
+.post-ratings IMG,.post-ratings-loading IMG,.post-ratings-image IMG{border:0;margin:0;padding:0;}
+.post-ratings-comment-author{font-weight:normal;font-style:italic;}
+.post-ratings span,.post-ratings-loading, #toolbar strong {display:none !important; visibility:hidden}
