@@ -9,7 +9,7 @@
 			<dt class="comment-author blog-author">
 				<div class="avatar-image-container avatar-stock">
 					<span dir="ltr">
-						<img src="template/b16-rounded.gif" width="16" height="16" alt="" title="{{._users_created_by.name}}">
+						<img src="" width="16" height="16" alt="" title="{{._users_created_by.name}}">
 						</a>
 					</span>
 				</div>
@@ -23,7 +23,8 @@
 			</dd>
 			<dd class="comment-footer">
 				<span class="comment-timestamp">
-					{{.created}}
+					{{$created := .created}}
+					{{date $created "2006.01.02 15:04:05"}}
 					<span class="item-control blog-admin pid-191734713">
 						<a class="comment-delete" href="" title="Suprimir comentario">
 						<img src="/template/icon_delete13.gif">
@@ -40,9 +41,9 @@
 	<p class="comment-footer"></p>
 	<div class="comment-form">
 		<a name="take_comment"></a>
-		<h4 id="comment-post-message">Take a comment.</h4>
+		<h4 id="comment-post-message">Comment</h4>
 		<p></p>
-		<p>Note: solo los miembros de este blog pueden publicar comentarios.</p>
+		<p>Note: feel free to leave a comment.</p>
 		
 	</div>
 	<p></p>

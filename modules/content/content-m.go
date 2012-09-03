@@ -30,12 +30,20 @@ func Test(uni *context.Uni) error {
 	return nil
 }
 
+func onlyAdmin(uni *context.Uni) {
+	if scut.Ulev(uni.Dat["_user"]) < 300 {
+		panic("Only an admin can do this operation.")
+	}
+}
+
 func Install(uni *context.Uni) error {
+	onlyAdmin(uni)
 	id := uni.Dat["_option_id"].(bson.ObjectId)
 	return content_model.Install(uni.Db, id)
 }
 
 func Uninstall(uni *context.Uni) error {
+	onlyAdmin(uni)
 	id := uni.Dat["_option_id"].(bson.ObjectId)
 	return content_model.Uninstall(uni.Db, id)
 }
@@ -246,11 +254,13 @@ func deleteTag(uni *context.Uni) error {
 
 func SaveTypeConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
+	return nil	// Temp.
 	return content_model.SaveTypeConfig(uni.Db, map[string][]string(uni.Req.Form))
 }
 
 // TODO: Ugly name.
 func SavePersonalTypeConfig(uni *context.Uni) error {
+	return nil // Temp.
 	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
 	if !has { return fmt.Errorf("Can't find user id.") }
 	user_id := user_id_i.(bson.ObjectId)
@@ -269,10 +279,6 @@ func Back(uni *context.Uni) error {
 	_, ok := jsonp.Get(uni.Opt, "Modules.content")
 	if !ok {
 		return fmt.Errorf("No content options.")
-	}
-	level := uni.Dat["_user"].(map[string]interface{})["level"].(int)
-	if minLev(uni.Opt, action) > level {
-		return fmt.Errorf("You have no rights to do content action " + action)
 	}
 	var r error
 	switch action {

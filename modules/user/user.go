@@ -39,7 +39,6 @@ func BuildUser(uni *context.Uni) (err error) {
 	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
 	if err != nil { panic(err) }
 	uni.Dat["_user"] = user
-	fmt.Println(user)
 	return
 }
 

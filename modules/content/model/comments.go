@@ -74,6 +74,9 @@ func insertFinal(db *mgo.Database, comment map[string]interface{}, comment_id, c
 	comment["comment_id"] = comment_id
 	q := bson.M{ "_id": content_id}
 	upd := bson.M{
+		"$inc": bson.M{
+			"comment_count": 1,
+		},
 		"$push": bson.M{
 			"comments": comment,
 		},
@@ -103,6 +106,9 @@ func MoveToFinal(db *mgo.Database, comment_id bson.ObjectId) error {
 	content_id := comment["_contents_parent"].(bson.ObjectId)
 	q := m{"_id": content_id}
 	upd := m{
+		"$inc": m{
+			"comment_count": 1,
+		},
 		"$push": m{
 			"comments": comment,
 		},
@@ -180,6 +186,9 @@ func DeleteComment(db *mgo.Database, ev ifaces.Event, inp map[string][]string, u
 		"comments.comment_id": bson.ObjectIdHex(ids[1]),
 	}
 	upd := bson.M{
+		"$inc":	bson.M{
+			"comment_count": -1,
+		},
 		"$pull": bson.M{
 			"comments": bson.M{
 				"comment_id": bson.ObjectIdHex(ids[1]),

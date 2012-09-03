@@ -1,4 +1,5 @@
 			<div id="footer-wrapper">
+				<!--
 				<div id="footer-content">
 					<div class="grid_8 section" id="footer1">
 						<div class="widget Label" id="Label1">
@@ -76,13 +77,14 @@
 						</div>
 					</div>
 				</div>
+				-->
 				<!-- Este es un incentivo al trabajo en disenar y adaptar esta plantilla, llega a ti de forma muy facil y sin costo, tampoco cuesta nada dejes los link, gracias y que te sea util! This is an incentive to work in design and adapt this template, comes to you in a very easy and without cost, not cost anything let the link, thank you and this work is useful. Dies ist ein Anreiz zur Arbeit in Design und Anpassung dieser Vorlage, kommt zu Ihnen in einem sehr einfach und ohne Kosten, nichts kosten lassen Sie den Link, ich danke Ihnen, und diese Arbeit sinnvoll ist. -->
 		
 				<div id="links">
-				<p class="bottom-left">Copyright &Acirc;&copy; 2011 <a href=
-				"saved_resource.htm" style="text-decoration: none;">Keep It Simple</a></p>
+				<p class="bottom-left">Copyright &copy; 2011 <a href=
+				"http://keepitsimple-btemplates.blogspot.hu/" style="text-decoration: none;">Keep It Simple</a></p>
 		
-				<p class="bottom-right">Design by <a href="http://www.styleshout.com/" title=
+				<p class="bottom-right">Design based on a template of <a href="http://www.styleshout.com/" title=
 				"Designer">Styleshout</a> | <a href="http://btemplates.com/" title=
 				"Templates Blogger">Blogger Templates</a> by <a href=
 				"http://blogandweb.com/">Blog and Web</a></p>

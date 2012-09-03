@@ -10,7 +10,7 @@
 								{{.error}}
 							{{else}}
 								<h3 class="post-title entry-title">Tags:</h3>
-								<form>
+								<form id="tag-search">
 									<input type="text" name="search">
 									<input type="submit">
 								</form>
@@ -21,8 +21,8 @@
 										</ul>
 									{{end}}
 								</div>
-								<h1>Pageing!!!<h1>
-								{{$navi := .content_list_navi}}
+								<div class="clear"></div>
+								{{$navi := .tag_list_navi}}
 								<h3>{{require admin/navi.t}}</h3>
 							{{end}}
 						</div>

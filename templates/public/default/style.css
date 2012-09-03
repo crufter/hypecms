@@ -941,3 +941,8 @@ margin: 0px;
 body#layout #footer-wrapper p.links, body#layout #menu, body#layout #search {
 display:none;
 }
+
+/* Added by HypeCMS authors. */
+#tag-search{
+	margin: 2em 0 1em 0;
+}

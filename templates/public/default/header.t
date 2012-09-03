@@ -18,7 +18,7 @@
 						<div class="widget Header" id="Header1">
 							<div id="header-inner">
 								<div class="titlewrapper">
-									<a href="https://github.com/opesun/hypecms" target="_blank" ><h1 class="title">HypeCMS</h1></a>
+									<a href="/"><h1 class="title">HypeCMS</h1></a>
 								</div>
 								<div class="descriptionwrapper">
 									<p class="description">
@@ -54,11 +54,12 @@
 						</div>
 					</div>
 					<div id="header-image"></div>
-					<form action="" id="quick-search" method="get" name="quick-search">
+					<form action="/content-search" id="quick-search" method="get" name="quick-search">
 						<p>
 						<label for="qsearch">Search:</label>
-						<input class="tbox" id="qsearch" name="q" title="Start typing and hit ENTER" type="text" value="Search..." />
-						<input alt="Search" class="btn" name="q" src="/template/search.gif" title="Search" type="image" /></p>
+						<input class="tbox" id="qsearch" name="search" title="Start typing and hit ENTER" type="text" value="Search..." />
+						<!-- <input alt="Search" class="btn" name="search" src="/template/search.gif" title="Search" type="image" /></p> -->
+						<input alt="Search" type="submit" id="search-submit" value="" style="background-image: url(/template/search.gif); border: solid 0px #000000; margin-top: 4px; width: 25px; height: 24px;" />
 					</form>
 				</div>
 			</div>
