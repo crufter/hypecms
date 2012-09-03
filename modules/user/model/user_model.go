@@ -23,6 +23,7 @@ const(
 	block_size = 16		// For encryption and decryption.
 )
 
+// Finds a user by id.
 func FindUser(db *mgo.Database, id interface{}) (map[string]interface{}, error) {
 	v:= basic.Find(db, "users", id)
 	if v != nil {
@@ -32,6 +33,7 @@ func FindUser(db *mgo.Database, id interface{}) (map[string]interface{}, error) 
 	return nil, fmt.Errorf("Can't find user with id %v.", id)
 }
 
+// Finds he user by name password equality.
 func namePass(db *mgo.Database, name, encoded_pass string) (map[string]interface{}, error) {
 	var v interface{}
 	err := db.C("users").Find(bson.M{"name": name, "password": encoded_pass}).One(&v)
@@ -63,13 +65,9 @@ func FindLogin(db *mgo.Database, inp map[string][]string) (map[string]interface{
 // Sets a cookie to w named "user" with a value of the encoded user_id.
 // Admins, guests, registered users, everyone logs in with this.
 func Login(w http.ResponseWriter, user_id bson.ObjectId, block_key []byte) error {
-	block_key = block_key[0:block_size]
-	if len(block_key) < block_size {
-		return fmt.Errorf("Login: block_key length must be at least %v.", block_size)
-	}
 	id_b, err := encryptStr(block_key, user_id.Hex())
-	encoded_id := string(id_b)
 	if err != nil { return err }
+	encoded_id := string(id_b)
 	c := &http.Cookie{
 		Name: "user",
 		Value: encoded_id,
@@ -80,18 +78,21 @@ func Login(w http.ResponseWriter, user_id bson.ObjectId, block_key []byte) error
 	return nil
 }
 
+// When no user cookie is found, or there was a problem during building the user,
+// we proceed with an empty user.
 func EmptyUser() map[string]interface{} {
 	user := make(map[string]interface{})
 	user["level"] = -1
 	return user
 }
 
+// Creates a list of 2 char language abbreviations (for example: []string{"en", "de", "hu"}) out of the value of http header "Accept-Language".
 func ParseAcceptLanguage(l string) []string {
 	ret := []string{}
 	sl := strings.Split(l, ",")
 	c := map[string]struct{}{}
 	for _, v := range sl {
-		lang := string(strings.Split(v, ";")[0][0:2])
+		lang := string(strings.Split(v, ";")[0][:2])
 		_, has := c[lang]
 		if !has {
 			c[lang] = struct{}{}
@@ -101,19 +102,23 @@ func ParseAcceptLanguage(l string) []string {
 	return ret
 }
 
-// cookieval is encrypted
-// Converts a string (a cookie) into an ObjectId.
-func DecryptId(cookieval string, block_key []byte) (bson.ObjectId, error) {
-	if len(block_key) < 16 {
-		return "", fmt.Errorf("block_key length must be at least %v.", block_size)
-	}
-	if len(cookieval) < 0 {
-		return "", fmt.Errorf("Nothing to decrypt.")
-	}
-	block_key = block_key[0:block_size]
-	decr_id_b, err := decryptStr(block_key, cookieval)
+// Decrypts a string with block_key.
+// Also decodes val from base64.
+// This is put here as a separate function (has no public Encrypt pair) to be able to separate the decryption of the
+// cookie into a user_id (see DecryptId)
+func Decrypt(val string, block_key []byte) (string, error) {
+	block_key = block_key[:block_size]
+	decr_id_b, err := decryptStr(block_key, val)
 	if err != nil { return "", err }
-	return bson.ObjectIdHex(string(decr_id_b)), nil
+	return string(decr_id_b), nil
+}
+
+// cookieval is encrypted
+// Converts an encoded string (a cookie) into an ObjectId.
+func DecryptId(cookieval string, block_key []byte) (bson.ObjectId, error) {
+	str, err := Decrypt(cookieval, block_key)
+	if err != nil { return "", err }
+	return bson.ObjectIdHex(str), nil
 }
 
 // Builds a user from his Id and information in http_header.
@@ -142,6 +147,7 @@ func EncodePass(pass string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// Checks the username is still available (not taken already).
 func NameAvailable(db *mgo.Database, name string) (bool, error) {
 	var res []interface{}
 	q := bson.M{"slug": slugify.S(name)}
@@ -153,6 +159,7 @@ func NameAvailable(db *mgo.Database, name string) (bool, error) {
 	return true, nil
 }
 
+// Just the default validation rules for names.
 func nameRule() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "strings",
@@ -161,8 +168,9 @@ func nameRule() map[string]interface{} {
 	}
 }
 
+// Helper function.
 // Set not existing fields.
-// Checks if the they keys in b exists in a, and if not, sets a[b^i] = c^i
+// Checks if the members of b exists in a as keys, and if not, sets a[b^i] = c^i
 func setNE(a map[string]interface{}, b []string, c []interface{}) {
 	if len(b) != len(c) { panic("b and c len must match.") }
 	for i, v := range b {
@@ -172,6 +180,8 @@ func setNE(a map[string]interface{}, b []string, c []interface{}) {
 	}
 }
 
+// Sets the default validation rules for user registration.
+// Sets "name", "password", and "password_again" fields.
 func userDefaults(rules map[string]interface{}) {
 	if rules == nil {
 		rules = map[string]interface{}{}
@@ -212,6 +222,8 @@ func RegisterUser(db *mgo.Database, ev ifaces.Event, rules map[string]interface{
 	return user_id, nil
 }
 
+// Sets the default validation rules for guest registration.
+// Sets the "name" field only.
 func guestDefaults(rules map[string]interface{}) {
 	if rules == nil {
 		rules = map[string]interface{}{}
@@ -238,9 +250,15 @@ func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]int
 
 // Function intended to encrypt the user id before storing it as a cookie.
 // encr flag controls
-// block_key is the salt.
-func encDecStr(block_key[]byte, value string, encr bool) (string, error) {
-	if block_key == nil || len(block_key) == 0 { return "", fmt.Errorf("Can't encrypt/decrypt: block key is not proper.") }
+// block_key must be secret.
+func encDecStr(block_key []byte, value string, encr bool) (string, error) {
+	if block_key == nil || len(block_key) == 0 || len(block_key) < block_size {
+		return "", fmt.Errorf("Can't encrypt/decrypt: block key is not proper.")
+	}
+	if len(value) == 0 {
+		return "", fmt.Errorf("Nothing to encrypt/decrypt.")
+	}
+	block_key = block_key[:block_size]
 	block, err := aes.NewCipher(block_key)
 	if err != nil { return "", err }
 	var bs []byte
@@ -254,12 +272,14 @@ func encDecStr(block_key[]byte, value string, encr bool) (string, error) {
 	return string(bs), nil
 }
 
+// Encrypts a value and encodes it with base64.
 func encryptStr(block_key []byte, value string) (string, error) {
 	str, err := encDecStr(block_key, value, true)
 	if err != nil { return "", err }
 	return base64.StdEncoding.EncodeToString([]byte(str)), nil
 }
 
+// Decodes a value with base64 and then decrypts it.
 func decryptStr(block_key []byte, value string) (string, error) {
 	decoded_b, err := base64.StdEncoding.DecodeString(value)
 	if err != nil { return "", err }

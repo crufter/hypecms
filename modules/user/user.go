@@ -23,9 +23,11 @@ func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) 
 	*err = nil	// Just to be sure.
 	c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
 	http.SetCookie(w, c)
+	fmt.Println(r)
 	dat["_user"] = user_model.EmptyUser()
 }
 
+// If there were some random database query errors or something we go on with an empty user.
 func BuildUser(uni *context.Uni) (err error) {
 	defer unsetCookie(uni.W, uni.Dat, &err)
 	var user_id_str string
@@ -35,15 +37,46 @@ func BuildUser(uni *context.Uni) (err error) {
 	}
 	block_key := []byte(uni.Secret())
 	user_id, err := user_model.DecryptId(user_id_str, block_key)
-	if err != nil { return err }
+	if err != nil { panic(err) }
 	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
-	if err != nil {		// If there were some random database query errors or something we go on with an empty user.
-		uni.Dat["_user"] = user_model.EmptyUser()
-		err = nil
-		return
-	}
+	if err != nil { panic(err) }
 	uni.Dat["_user"] = user
 	return
+}
+
+// Helper function to hotregister a guest user, log him in and build his user data into uni.Dat["_user"].
+func RegLoginBuild(uni *context.Uni) error {
+	db := uni.Db
+	ev := uni.Ev
+	guest_rules, _ := jsonp.GetM(uni.Opt, "Modules.user.guest_rules")	// RegksterGuest will do fine with nil.
+	inp := uni.Req.Form
+	http_header := uni.Req.Header
+	dat := uni.Dat
+	w := uni.W
+	block_key := []byte(uni.Secret())
+	guest_id, err := user_model.RegisterGuest(db, ev, guest_rules, inp)
+	if err != nil { return err }
+	_, _, err = user_model.FindLogin(db, inp)
+	if err != nil { return err }
+	err = user_model.Login(w, guest_id, block_key)
+	if err != nil { return err }
+	user, err := user_model.BuildUser(db, ev, guest_id, http_header)
+	if err != nil {	return err }
+	dat["_user"] = user
+	return nil
+}
+
+func PuzzleSolved(uni *context.Uni) bool {
+	inp := uni.Req.Form
+	block_key := []byte(uni.Secret())
+	return user_model.PuzzleSolved(inp, block_key)
+}
+
+func PuzzleSolvedE(uni *context.Uni) error {
+	if !PuzzleSolved(uni) {
+		return fmt.Errorf("Puzzle remained unsolved.")
+	}
+	return nil
 }
 
 func Register(uni *context.Uni) error {
@@ -55,10 +88,10 @@ func Register(uni *context.Uni) error {
 
 func Login(uni *context.Uni) error {
 	// Maybe there could be a check here to not log in somebody who is already logged in.
-	inp := map[string][]string(uni.Req.Form)
+	inp := uni.Req.Form
 	if _, id, err := user_model.FindLogin(uni.Db, inp); err == nil {
 		block_key := []byte(uni.Secret())
-		user_model.Login(uni.W, id, block_key)
+		return user_model.Login(uni.W, id, block_key)
 	} else {
 		return err
 	}

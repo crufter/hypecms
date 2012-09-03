@@ -5,6 +5,7 @@ import (
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/hypecms/modules/content/model"
+	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	//"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -171,14 +172,18 @@ func InsertComment(uni *context.Uni) error {
 	inp := uni.Req.Form
 	user_level := scut.Ulev(uni.Dat["_user"])
 	typ, allow_err := AllowsComment(uni, inp, user_level, "insert")
-	if allow_err != nil {
-		return allow_err
+	if allow_err != nil { return allow_err }
+	if user_level == -1 {
+		err := user.PuzzleSolvedE(uni)
+		if err != nil { return err }
+		err = user.RegLoginBuild(uni)
+		if err != nil { return err }
 	}
-	var user_id bson.ObjectId
 	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
-	if has_uid {
-		user_id = uid.(bson.ObjectId)
+	if !has_uid {
+		return fmt.Errorf("You must have user id to comment.")
 	}
+	user_id := uid.(bson.ObjectId)
 	comment_rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
@@ -195,9 +200,7 @@ func UpdateComment(uni *context.Uni) error {
 	inp := uni.Req.Form
 	user_level := scut.Ulev(uni.Dat["_user"])
 	typ, allow_err := AllowsComment(uni, inp, user_level, "update")
-	if allow_err != nil {
-		return allow_err
-	}
+	if allow_err != nil { return allow_err }
 	comment_rule, hasrule := jsonp.GetM(uni.Opt, "Modules.content.types." + typ + ".comment_rules")
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
@@ -212,9 +215,7 @@ func UpdateComment(uni *context.Uni) error {
 func DeleteComment(uni *context.Uni) error {
 	user_level := scut.Ulev(uni.Dat["_user"])
 	_, allow_err := AllowsComment(uni, uni.Req.Form, user_level, "delete")
-	if allow_err != nil {
-		return allow_err
-	}
+	if allow_err != nil { return allow_err }
 	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
 	if !has_uid {
 		return fmt.Errorf("Can't delete comment, you have no id.")
