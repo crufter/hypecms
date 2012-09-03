@@ -72,8 +72,13 @@ func tagView(uni *context.Uni, urimap map[string]string) error {
 	return nil
 }
 
-func tagSearch(uni *context.Uni, urimap map[string]string) error {
-	q := content_model.TagSearchQuery("slug", urimap["slug"])
+func tagSearch(uni *context.Uni) error {
+	var name_search string
+	search, has := uni.Req.Form["search"]
+	if has {
+		name_search = search[0]
+	}
+	q := content_model.TagSearchQuery("name", name_search)
 	pnq := uni.P + "?" + uni.Req.URL.RawQuery
 	query := map[string]interface{}{
 		"so": "-created",
@@ -120,7 +125,7 @@ func contentView(uni *context.Uni, content_map map[string]string) error {
 	return nil
 }
 
-func contentSearch(uni *context.Uni, content_map map[string]string) error {
+func contentSearch(uni *context.Uni) error {
 	q := m{}
 	search_sl, has := uni.Req.Form["search"]
 	if has && len(search_sl[0]) > 0 {
@@ -153,13 +158,13 @@ func Front(uni *context.Uni) error {
 	if tag_err == nil {
 		return tagView(uni, tag_map)
 	}
-	tag_search_map, tag_search_err := routep.Comp("/tag-search/{slug}", uni.P)
+	_, tag_search_err := routep.Comp("/tag-search", uni.P)
 	if tag_search_err == nil {
-		return tagSearch(uni, tag_search_map)
+		return tagSearch(uni)
 	}
-	content_search_map, content_search_err := routep.Comp("/content-search", uni.P)
+	_, content_search_err := routep.Comp("/content-search", uni.P)
 	if content_search_err == nil {
-		return contentSearch(uni, content_search_map)
+		return contentSearch(uni)
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {

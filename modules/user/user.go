@@ -23,7 +23,6 @@ func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) 
 	*err = nil	// Just to be sure.
 	c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
 	http.SetCookie(w, c)
-	fmt.Println(r)
 	dat["_user"] = user_model.EmptyUser()
 }
 
@@ -32,15 +31,15 @@ func BuildUser(uni *context.Uni) (err error) {
 	defer unsetCookie(uni.W, uni.Dat, &err)
 	var user_id_str string
 	c, err := uni.Req.Cookie("user")
-	if err == nil {
-		user_id_str = c.Value
-	}
+	if err != nil { panic(err) }
+	user_id_str = c.Value
 	block_key := []byte(uni.Secret())
 	user_id, err := user_model.DecryptId(user_id_str, block_key)
 	if err != nil { panic(err) }
 	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
 	if err != nil { panic(err) }
 	uni.Dat["_user"] = user
+	fmt.Println(user)
 	return
 }
 
