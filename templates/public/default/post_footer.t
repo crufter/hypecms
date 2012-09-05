@@ -2,7 +2,7 @@
 	<div class="post-footer-line post-footer-line-1">
 		{{if .comments}}
 		<!--<span class="date-header">time stamp...</span>-->
-		<span class="post-comment-link"><a class="comment-link" href="/{{._id}}#comments">Comments</a></span>
+		<span class="post-comment-link"><a class="comment-link" href="/{{._id}}#comments">{{$comment_count}} comments</a></span>
 		{{else}}
 		<span class="post-comment-link"><a class="comment-link" href="/{{._id}}#take_comment">Leave a comment</a></span>
 		{{end}}

@@ -133,6 +133,7 @@ func TemplateName(opt map[string]interface{}) string {
 }
 
 // Decides if a given relative filepath (filep) is a possible module filepath.
+// This may be deprecated in the future since it seems so restrictive.
 func PossibleModPath(filep string) bool {
 	sl := strings.Split(filep, "/")
 	return len(sl) >= 2
@@ -179,6 +180,22 @@ func GetModTPath(filename string) []string {
 // Checks if the user is an admin or not.
 func NotAdmin(user interface{}) bool {
 	return Ulev(user) < 300
+}
+
+func IsAdmin(user interface{}) bool {
+	return Ulev(user) >= 300
+}
+
+func IsModerator(user interface{}) bool {
+	return Ulev(user) >= 200
+}
+
+func IsRegistered(user interface{}) bool {
+	return Ulev(user) >= 100
+}
+
+func IsGuest(user interface{}) bool {
+	return Ulev(user) == 0
 }
 
 // Gives back the user level.

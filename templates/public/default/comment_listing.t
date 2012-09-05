@@ -1,5 +1,5 @@
 <div class="comments" id="comments">
-	<h4>Comments:</h4>
+	<h4>{{.content.comment_count}} comments:</h4>
 	<a name="comments"></a>
 	<div id="Blog1_comments-block-wrapper">
 	{{$con := .content}}

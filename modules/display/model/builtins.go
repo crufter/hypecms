@@ -4,6 +4,8 @@ package display_model
 
 import(
 	"strings"
+	"reflect"
+	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/jsonp"
 	"time"
 )
@@ -27,6 +29,26 @@ func date(timestamp int64, format string) string {
 	return t.Format(format)
 }
 
+func isGuest(user interface{}) bool {
+	return scut.IsGuest(user)
+}
+
+func isRegistered(user interface{}) bool {
+	return scut.IsRegistered(user)
+}
+
+func isModerator(user interface{}) bool {
+	return scut.IsModerator(user)
+}
+
+func isAdmin(user interface{}) bool {
+	return scut.IsAdmin(user)
+}
+
+func eq(a, b interface{}) bool {
+	return reflect.DeepEqual(a, b)
+}
+
 // We must recreate this map each time because map access is not threadsafe.
 func Builtins(dat map[string]interface{}) map[string]interface{} {
 	ret := map[string]interface{}{
@@ -34,6 +56,19 @@ func Builtins(dat map[string]interface{}) map[string]interface{} {
 			return get(dat, s...)
 		},
 		"date": date,
+		"is_guest": func() bool {
+			return isGuest(dat["_user"])
+		},
+		"is_registered": func() bool {
+			return isRegistered(dat["_user"])
+		},
+		"is_moderator": func() bool {
+			return isModerator(dat["_user"])
+		},
+		"is_admin": func() bool {
+			return isAdmin(dat["_user"])
+		},
+		"eq": eq,
 	}
 	return ret
 }

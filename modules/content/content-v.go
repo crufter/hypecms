@@ -89,6 +89,7 @@ func tagSearch(uni *context.Uni) error {
 	}
 	cl := display_model.RunQuery(uni.Db, "tag_list", query, uni.Req.Form, pnq)
 	uni.Dat["tag_list"] = cl["tag_list"]
+	uni.Dat["search_term"] = name_search
 	uni.Dat["tag_list_navi"] = cl["tag_list_navi"]
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag-search"}
@@ -128,8 +129,9 @@ func contentView(uni *context.Uni, content_map map[string]string) error {
 func contentSearch(uni *context.Uni) error {
 	q := map[string]interface{}{}
 	search_sl, has := uni.Req.Form["search"]
+	var search_term string
 	if has && len(search_sl[0]) > 0 {
-		search_term := search_sl[0]
+		search_term = search_sl[0]
 		q["$and"] = content_model.GenerateQuery(search_term)
 		uni.Dat["search"] = search_sl[0]
 	}
@@ -144,6 +146,7 @@ func contentSearch(uni *context.Uni) error {
 	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
 	fmt.Println(cl)
 	uni.Dat["content_list"] = cl["content_list"]
+	uni.Dat["search_term"] = search_term
 	uni.Dat["content_list_navi"] = cl["content_list_navi"]
 	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"content-search"}

@@ -13,6 +13,7 @@ import (
 	"github.com/opesun/hypecms/modules/display/model"
 	"github.com/opesun/hypecms/model/scut"
 	"html/template"
+	"net/http"
 	"strings"
 	"runtime/debug"
 	"encoding/json"
@@ -61,10 +62,15 @@ func validFormat(format string) bool {
 // Does format conversions.
 // Currently only: markdown -> html
 func GetFileAndConvert(root, fi string, opt map[string]interface{}, host string, file_reader func(string) ([]byte, error)) ([]byte, error) {
-	file, err := scut.GetFile(root, fi, opt, host, nil)
+	file, err := scut.GetFile(root, fi, opt, host, file_reader)
 	if err != nil { return file, err }
 	spl := strings.Split(fi, ".")
 	extension := spl[len(spl)-1]
+	get := func(root, fi string) ([]byte, error) {
+		return GetFileAndConvert(root, fi, opt, host, file_reader)
+	}
+	file, err = display_model.Load(opt["Loads"], root, file, get)
+	if err != nil { return nil, err }
 	// In tpl files the first line contains the extension information, like "--md". (An entry point can't change it's extension.)
 	if extension == "tpl" {
 		strfile := string(file)
@@ -78,58 +84,71 @@ func GetFileAndConvert(root, fi string, opt map[string]interface{}, host string,
 	case "md":
 		file = blackfriday.MarkdownCommon(file)
 	}
+	//file = append([]byte(fmt.Sprintf("<!-- %v/%v. -->", root, fi)), file...)
+	//file = append(file, []byte(fmt.Sprintf("<!-- /%v/%v -->", root, fi))...)
 	return file, nil
 }
 
 // Tries to dislay a template file.
 func DisplayTemplate(uni *context.Uni, filep string) error {
-	file, err := require.R("", filep+".tpl",
+	_, src := uni.Req.Form["src"]
+	file, err := require.R("", filep + ".tpl",
 		func(root, fi string) ([]byte, error) {
 			return GetFileAndConvert(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
 		})
-	if err == nil {
-		uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
-		langs, has := jsonp.Get(uni.Dat, "_user.languages")																		// _user always has language member
-		if !has { langs = []string{"en"} }
-		langs_s := toStringSlice(langs)
-		loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)		// TODO: think about errors here.
-		uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
-		funcMap := template.FuncMap(display_model.Builtins(uni.Dat))
-		t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
-		uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
-		t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
+	if err != nil {
+		return fmt.Errorf("Cant find template file %v.", filep)
+	}
+	if src {
+		uni.Put(string(file))
 		return nil
 	}
-	return fmt.Errorf("Cant find template file %v.", filep)
+	uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
+	prepareAndExec(uni.Root, string(file), uni.Req.Host, uni.Dat, uni.Opt, uni.W)
+	return nil
+}
+
+// Loads localization, template functions and executes the template.
+func prepareAndExec(root, file, host string, dat, opt map[string]interface{}, w http.ResponseWriter) {
+	langs, has := jsonp.Get(dat, "_user.languages")														// _user should always has languages field
+	if !has {
+		langs = []string{"en"}
+	}
+	langs_s := toStringSlice(langs)
+	if !has {
+		langs = []string{"en"}
+	}
+	loc, _ := display_model.LoadLocTempl(file, langs_s, root, scut.GetTPath(opt, host), nil)			// TODO: think about errors here.
+	dat["loc"] = merge(dat["loc"], loc)
+	funcMap := template.FuncMap(display_model.Builtins(dat))
+	t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	t.Execute(w, dat)	// TODO: watch for errors in execution.
 }
 
 // Tries to display a module file.
 func DisplayFallback(uni *context.Uni, filep string) error {
+	_, src := uni.Req.Form["src"]
 	if strings.Index(filep, "/") != -1 {
-		if scut.PossibleModPath(filep) {
-			file, err := require.R("", filep + ".tpl",			// Tricky, care.
-				func(root, fi string) ([]byte, error) {
-					return GetFileAndConvert(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
-				})
-			if err == nil {
-				uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
-				langs, has := jsonp.Get(uni.Dat, "_user.languages")																				// _user always has language member
-				if !has { langs = []string{"en"} }
-				langs_s := toStringSlice(langs)
-				if !has { langs = []string{"en"} }
-				loc, _ := display_model.LoadLocTempl(string(file), langs_s, uni.Root, scut.GetTPath(uni.Opt, uni.Req.Host), nil)			// TODO: think about errors here.
-				uni.Dat["loc"] = merge(uni.Dat["loc"], loc)
-				funcMap := template.FuncMap(display_model.Builtins(uni.Dat))
-				t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
-				uni.W.Header().Set("Content-Type", "text/html; charset=utf-8")
-				t.Execute(uni.W, uni.Dat)	// TODO: watch for errors in execution.
-				return nil
-			}
-			return fmt.Errorf("Cant find fallback file %v.", filep)
-		}
+		return fmt.Errorf("Nothing to fall back to.")	// No slash in fallback path means no modulename to fall back to.
+	}
+	if scut.PossibleModPath(filep) {
 		return fmt.Errorf("Fallback path is too long.")
 	}
-	return fmt.Errorf("Nothing to fall back to.")	// No slash in fallback path means no modulename to fall back to.	
+	file, err := require.R("", filep + ".tpl",			// Tricky, care.
+		func(root, fi string) ([]byte, error) {
+			return GetFileAndConvert(uni.Root, fi, uni.Opt, uni.Req.Host, nil)
+		})
+	if err != nil {
+		fmt.Errorf("Cant find fallback file %v.", filep)
+	}
+	if src {
+		uni.Put(string(file))
+		return nil
+	}
+	uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
+	prepareAndExec(uni.Root, string(file), uni.Req.Host, uni.Dat, uni.Opt, uni.W)
+	return nil 
 }
 
 // Tries to display the relative filepath filep as either a template file or a module file.

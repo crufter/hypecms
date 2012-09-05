@@ -20,7 +20,8 @@
 							<div class="post-body entry-content">
 								<p>{{.excerpt}}</p>
 								<div style="clear: both;"></div>
-							</div>		
+							</div>
+						{{$comment_count := .comment_count}}
 						{{require post_footer.t}}
 						</div>
 						{{end}}
