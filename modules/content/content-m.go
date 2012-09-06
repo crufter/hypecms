@@ -182,7 +182,7 @@ func InsertComment(uni *context.Uni) error {
 	typ, allow_err := AllowsComment(uni, inp, user_level, "insert")
 	if allow_err != nil { return allow_err }
 	if user_level == -1 {
-		err := user.PuzzleSolvedE(uni)
+		err := user.PuzzleSolved(uni, "content.types.blog.comment_insert")
 		if err != nil { return err }
 		err = user.RegLoginBuild(uni)
 		if err != nil { return err }

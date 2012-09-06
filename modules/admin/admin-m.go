@@ -7,7 +7,6 @@ package admin
 
 import (
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/api/mod"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/jsonp"
@@ -100,7 +99,7 @@ func InstallB(uni *context.Uni, mode string) error {
 	if ierr != nil {
 		return ierr
 	}	
-	h := mod.GetHook(modn, strings.Title(mode))
+	h := uni.GetHook(modn, strings.Title(mode))
 	uni.Dat["_option_id"] = obj_id
 	if h != nil {
 		inst_err := h(uni)

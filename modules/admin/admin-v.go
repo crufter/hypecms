@@ -7,7 +7,6 @@ import(
 	"io/ioutil"
 	"path/filepath"
 	"encoding/json"
-	"github.com/opesun/hypecms/api/mod"
 	"github.com/opesun/hypecms/modules/admin/model"
 	"sort"
 	"fmt"
@@ -112,7 +111,7 @@ func AD(uni *context.Uni) error {
 	default:
 		_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
 		if installed {
-			f := mod.GetHook(modname, "AD")
+			f := uni.GetHook(modname, "AD")
 			if f != nil {
 				err = f(uni)
 			} else {

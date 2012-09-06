@@ -65,8 +65,8 @@ type Ev struct {
 // }
 
 func (e *Ev) Param(params ...interface{}) {
-	for l, _ := range params {
-		e.Params = append(e.Params, params[l])
+	for i, _ := range params {
+		e.Params = append(e.Params, params[i])
 	}
 }
 

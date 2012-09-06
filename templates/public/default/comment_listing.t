@@ -40,10 +40,10 @@
 	</div>
 	<p class="comment-footer"></p>
 	<div class="comment-form">
-		<a name="take_comment"></a>
+		<a name="leave_comment"></a>
 		<h4 id="comment-post-message">Comment</h4>
 		<p></p>
-		<p>Note: feel free to leave a comment.</p>
+		<p>Feel free to leave a comment.</p>
 		
 	</div>
 	<p></p>

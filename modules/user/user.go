@@ -64,17 +64,63 @@ func RegLoginBuild(uni *context.Uni) error {
 	return nil
 }
 
-func PuzzleSolved(uni *context.Uni) bool {
-	inp := uni.Req.Form
-	block_key := []byte(uni.Secret())
-	return user_model.PuzzleSolved(inp, block_key)
+func Honeypot(uni *context.Uni, options map[string]interface{}) error {
+	return nil
 }
 
-func PuzzleSolvedE(uni *context.Uni) error {
-	if !PuzzleSolved(uni) {
-		return fmt.Errorf("Puzzle remained unsolved.")
+func Hashcash(uni *context.Uni, options map[string]interface{}) error {
+	return nil
+}
+
+// It must be called like this:
+// user.PuzzleSolved(uni, "content.types.blog.comment_insert")
+// Then, Sprintf("Modules.%v_puzzles", puzzle_path) will be queried and executed.
+//
+// This will definitely need some refinement, but we try to keep it simple for now, even if it will not fit all use cases.
+func PuzzleSolved(uni *context.Uni, path string) error {
+	locate := fmt.Sprintf("Modules.%v_puzzles", path)
+	puzzle_group_i, ok := jsonp.GetS(uni.Opt, locate)
+	if !ok {
+		return fmt.Errorf("Can't find puzzle names. Returning, because your system is unsecure.")	// We return an error here just to be sure.
+	}
+	can_fail := 0	// How manny puzzle one can fail before returning an error.
+	puzzle_group, can_fail := user_model.PuzzleGroup(puzzle_group_i)
+	failed := 0
+	failed_puzzles := []string{}
+	for _, v := range puzzle_group {
+		if failed > can_fail {
+			return fmt.Errorf("Failed more than %v puzzles. Failed: %v.", can_fail, failed_puzzles)
+		}
+		puzzle_locate := fmt.Sprintf("Modules.user.puzzles.%v", v)
+		puzzle_opt, ok := jsonp.GetM(uni.Opt, puzzle_locate)
+		if !ok {
+			return fmt.Errorf("Cant find puzzle named %v.", v)
+		}
+		var err error
+		switch v {
+		case "hascash":
+			err = Hashcash(uni, puzzle_opt)
+		case "honeypot":
+			err = Honeypot(uni, puzzle_opt)
+		}
+		if err != nil {
+			failed_puzzles = append(failed_puzzles, v)
+			failed++
+		}
 	}
 	return nil
+}
+
+func ShowHashcash(uni* context.Uni) (string, error) {
+	return "", nil
+}
+
+func ShowHoneypot(uni *context.Uni) (string, error) {
+	return "", nil
+}
+
+func ShowPuzzle(uni *context.Uni, puzzle_path string) (string, error) {
+	return "", nil
 }
 
 func Register(uni *context.Uni) error {
