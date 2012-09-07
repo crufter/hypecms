@@ -399,6 +399,9 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"$set": m{
 			"Modules.content": content_options,
 			"Display-points.index.queries.blog": m{
+				"ex": map[string]interface{}{
+				"content": 300,
+				},
 				"c":  Cname,
 				"l":  10,
 				"q":  m{"type": "blog"},
