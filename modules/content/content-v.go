@@ -31,7 +31,6 @@ func userEdit(uni *context.Uni, urimap map[string]string) error {
 	}
 	ed_err := Edit(uni, urimap)
 	if ed_err != nil { return ed_err }
-	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
 	return nil
 }
@@ -67,7 +66,6 @@ func tagView(uni *context.Uni, urimap map[string]string) error {
 	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
 	uni.Dat["content_list"] = cl["content_list"]
 	uni.Dat["content_list_navi"] = cl["content_list_navi"]
-	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag"}
 	return nil
 }
@@ -91,7 +89,6 @@ func tagSearch(uni *context.Uni) error {
 	uni.Dat["tag_list"] = cl["tag_list"]
 	uni.Dat["search_term"] = name_search
 	uni.Dat["tag_list_navi"] = cl["tag_list_navi"]
-	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"tag-search"}
 	return nil
 }
@@ -120,7 +117,6 @@ func contentView(uni *context.Uni, content_map map[string]string) error {
 	}
 	dont_query := map[string]interface{}{"password":0}
 	resolver.ResolveOne(uni.Db, content, dont_query)
-	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"content"}
 	uni.Dat["content"] = content
 	return nil
@@ -148,31 +144,35 @@ func contentSearch(uni *context.Uni) error {
 	uni.Dat["content_list"] = cl["content_list"]
 	uni.Dat["search_term"] = search_term
 	uni.Dat["content_list_navi"] = cl["content_list_navi"]
-	uni.Dat["_hijacked"] = true
 	uni.Dat["_points"] = []string{"content-search"}
 	return nil
 }
 
-func Front(uni *context.Uni) error {
+func Front(uni *context.Uni, hijacked *bool) error {
 	edit_map, edit_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
 	if edit_err == nil {
+		*hijacked = true
 		return userEdit(uni, edit_map)
 	}
 	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
 	if tag_err == nil {
+		*hijacked = true
 		return tagView(uni, tag_map)
 	}
 	_, tag_search_err := routep.Comp("/tag-search", uni.P)
 	if tag_search_err == nil {
+		*hijacked = true
 		return tagSearch(uni)
 	}
 	_, content_search_err := routep.Comp("/content-search", uni.P)
 	if content_search_err == nil {
+		*hijacked = true
 		return contentSearch(uni)
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {
+		*hijacked = true
 		return contentView(uni, content_map)
 	}
 	return nil

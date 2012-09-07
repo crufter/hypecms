@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-var Hooks = map[string]func(*context.Uni) error {
+var Hooks = map[string]interface{}{
 	"BuildUser": BuildUser,
 	"Back":      Back,
 	"Test":      Test,
@@ -162,8 +162,7 @@ func Test(uni *context.Uni) error {
 	return nil
 }
 
-func Back(uni *context.Uni) error {
-	action := uni.Dat["_action"].(string)
+func Back(uni *context.Uni, action string) error {
 	var err error
 	switch action {
 	case "login":

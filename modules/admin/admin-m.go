@@ -11,6 +11,7 @@ import (
 	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
+	"labix.org/v2/mgo/bson"
 	"strings"
 	"runtime/debug"
 	"fmt"
@@ -82,6 +83,7 @@ func SaveConfig(uni *context.Uni) error {
 	return nil
 }
 
+// Install and Uninstall hooks all have the same signature: func(*context.Uni, bson.ObjectId) error
 // InstallB handles both installing and uninstalling.
 func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
@@ -93,27 +95,24 @@ func InstallB(uni *context.Uni, mode string) error {
 	}
 	modn, has := ma["modulename"]
 	if !has {
-		return fmt.Errorf("No modulename at " + mode)
+		return fmt.Errorf("No modulename at %v.", mode)
 	}
 	obj_id, ierr := admin_model.InstallB(uni.Db, uni.Ev, uni.Opt, modn, mode)
 	if ierr != nil {
 		return ierr
-	}	
-	h := uni.GetHook(modn, strings.Title(mode))
-	uni.Dat["_option_id"] = obj_id
-	if h != nil {
-		inst_err := h(uni)
-		if inst_err != nil {
-			return inst_err
-		}
-	} else {
-		return fmt.Errorf("Module " + modn + " does not export the Hook " + mode + ".")
 	}
-	return nil
+	h := uni.GetHook(modn, strings.Title(mode))
+	if h == nil {
+		return fmt.Errorf("Module %v does not export the Hook %v.", modn, mode)
+	}
+	hook, ok := h.(func(*context.Uni, bson.ObjectId) error)
+	if !ok {
+		return fmt.Errorf("%v hook of module %v has bad signature.", mode, modn)
+	}
+	return hook(uni, obj_id)
 }
 
-func AB(uni *context.Uni) error {
-	action := uni.Dat["_action"].(string)
+func AB(uni *context.Uni, action string) error {
 	var r error
 	switch action {
 	case "regfirstadmin":

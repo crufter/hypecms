@@ -14,7 +14,7 @@ import (
 	"sort"
 )
 
-var Hooks = map[string]func(*context.Uni) error {
+var Hooks = map[string]interface{} {
 	"Back":      Back,
 	"Install":   Install,
 	"Uninstall": Uninstall,
@@ -36,11 +36,10 @@ func Delete(uni *context.Uni) error {
 	return display_editor_model.Delete(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
 }
 
-func Back(uni *context.Uni) error {
+func Back(uni *context.Uni, action string) error {
 	if scut.NotAdmin(uni.Dat["_user"]) {
 		return fmt.Errorf("You have no rights to do that.")
 	}
-	action := uni.Dat["_action"].(string)
 	var err error
 	switch action {
 	case "new":
@@ -136,12 +135,10 @@ func AD(uni *context.Uni) error {
 	return err
 }
 
-func Install(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Install(uni *context.Uni, id bson.ObjectId) error {
 	return display_editor_model.Install(uni.Db, id)
 }
 
-func Uninstall(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	return display_editor_model.Uninstall(uni.Db, id)
 }

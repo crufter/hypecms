@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
+	"github.com/opesun/hypecms/api/modcheck"
 	"github.com/opesun/hypecms/model/main"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/admin"
@@ -89,7 +90,7 @@ func handleConfigVars() {
 	flag.StringVar(&DB_USER, "db_user", "", "database username")
 	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
 	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
-	flag.BoolVar(&DEBUG, "debug", false, "debug mode")
+	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
 	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
 	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
 	flag.StringVar(&ADDR, "addr", "", "address to start http server")
@@ -104,6 +105,7 @@ var Put func(...interface{})
 
 type m map[string]interface{}
 
+// All front hooks must have the signature of func(*context.Uni, *bool) error
 // All views are going to use this hook.
 func runFrontHooks(uni *context.Uni) {
 	var err error
@@ -111,13 +113,19 @@ func runFrontHooks(uni *context.Uni) {
 	if ok && len(top_hooks) > 0 {
 		for _, v := range top_hooks {
 			modname := v.(string)
+			hijacked := false
 			if h := mod.GetHook(modname, "Front"); h != nil {
-				err = h(uni)
+				hook, ok := h.(func(*context.Uni, *bool) error)
+				if !ok {
+					err = fmt.Errorf("Front hook of %v has bad signature.", modname)
+					break
+				}
+				err = hook(uni, &hijacked)
 			} else {
 				err = fmt.Errorf(unexported_front, modname)
 				break
 			}
-			if _, ok := uni.Dat["_hijacked"]; ok {
+			if hijacked {
 				break
 			}
 		}
@@ -197,30 +205,35 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 	}
 }
 
+// All back hooks must have the signature of func(*context.Uni, string) error
+func runBacks(uni *context.Uni) (string, error) {
+	l := len(uni.Paths)
+	if l < 3 {
+		return "", fmt.Errorf(no_module_at_back)
+	}
+	modname := uni.Paths[2] 			// TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
+	if l < 4 {
+		return "", fmt.Errorf(no_action, modname)
+	}
+	action_name := uni.Paths[3]
+	if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+		return action_name, fmt.Errorf(cant_run_back, modname)
+	}
+	h := mod.GetHook(modname, "Back")
+	if h == nil {
+		return action_name, fmt.Errorf(unexported_back, modname)
+	}
+	hook, ok := h.(func(*context.Uni, string) error)
+	if !ok {
+		return action_name, fmt.Errorf("Back hooks of %v has bad signature.", modname)
+	}
+	err := hook(uni, action_name)
+	return action_name, err
+}
+
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
-	var err error
-	var action_name string
-	if len(uni.Paths) > 2 {
-		modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
-		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
-			err = fmt.Errorf(cant_run_back, modname)
-		} else {
-			if h := mod.GetHook(modname, "Back"); h != nil {
-				if len(uni.Paths) > 3 {
-					action_name = uni.Paths[3]
-					uni.Dat["_action"] = action_name
-					err = h(uni)
-				} else {
-					err = fmt.Errorf(no_action, modname)
-				}
-			} else {
-				err = fmt.Errorf(unexported_back, modname)
-			}
-		}
-	} else {
-		err = fmt.Errorf(no_module_at_back)
-	}
+	action_name, err := runBacks(uni)
 	handleBacks(uni, err, action_name)
 }
 
@@ -232,7 +245,7 @@ func runAdminHooks(uni *context.Uni) {
 		if l > 3 {
 			action_name = uni.Paths[3]
 			uni.Dat["_action"] = action_name
-			err = admin.AB(uni)
+			err = admin.AB(uni, action_name)
 		} else {
 			err = fmt.Errorf(adminback_no_module)
 		}
@@ -247,26 +260,35 @@ func runAdminHooks(uni *context.Uni) {
 	}
 }
 
+func runD(uni *context.Uni) error {
+	if len(uni.Paths) < 3 {
+		return fmt.Errorf("No module specified to test.")
+	}
+	modname := uni.Paths[2]
+	if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+		return fmt.Errorf(cant_test, modname)
+	}
+	h := mod.GetHook(modname, "Test")
+	if h == nil {
+		return fmt.Errorf("Module %v does not export Test hook.", modname)
+	}
+	hook, ok := h.(func(*context.Uni)error)
+	if !ok {
+		return fmt.Errorf("Test hook of %v has bad signature.", modname)
+	}
+	return hook(uni)
+}
+
 // Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
 func runDebug(uni *context.Uni) {
-	var err error
-	if len(uni.Paths) > 2 {
-		modname := uni.Paths[2]
-		if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
-			err = fmt.Errorf(cant_test, modname)
-		} else {
-			err = mod.GetHook(modname, "Test")(uni)
-		}
-	} else {
-		err = fmt.Errorf("No module specified to test.")
-	}
-	handleBacks(uni, err, "")
+	err := runD(uni)
+	handleBacks(uni, err, "debug")
 }
 
 func buildUser(uni *context.Uni) error {
 	h := mod.GetHook("user", "BuildUser")
 	if h != nil {
-		return h(uni)
+		return h.(func(*context.Uni)error)(uni)
 	}
 	return fmt.Errorf(no_user_module_build_hook)
 }
@@ -363,6 +385,9 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 
 func main() {
 	handleConfigVars()
+	if DEBUG {
+		modcheck.Check()
+	}
 	fmt.Println("Server has started.")
 	defer func() {
 		if r := recover(); r != nil {

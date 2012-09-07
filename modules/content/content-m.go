@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-var Hooks = map[string]func(*context.Uni) error {
+var Hooks = map[string]interface{} {
 	"AD":        AD,
 	"Front":     Front,
 	"Back":      Back,
@@ -30,21 +30,11 @@ func Test(uni *context.Uni) error {
 	return nil
 }
 
-func onlyAdmin(uni *context.Uni) {
-	if scut.Ulev(uni.Dat["_user"]) < 300 {
-		panic("Only an admin can do this operation.")
-	}
-}
-
-func Install(uni *context.Uni) error {
-	onlyAdmin(uni)
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Install(uni *context.Uni, id bson.ObjectId) error {
 	return content_model.Install(uni.Db, id)
 }
 
-func Uninstall(uni *context.Uni) error {
-	onlyAdmin(uni)
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	return content_model.Uninstall(uni.Db, id)
 }
 
@@ -274,8 +264,7 @@ func minLev(opt map[string]interface{}, op string) int {
 	return 300	// This is sparta.
 }
 
-func Back(uni *context.Uni) error {
-	action := uni.Dat["_action"].(string)
+func Back(uni *context.Uni, action string) error {
 	_, ok := jsonp.Get(uni.Opt, "Modules.content")
 	if !ok {
 		return fmt.Errorf("No content options.")

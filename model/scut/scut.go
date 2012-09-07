@@ -232,3 +232,9 @@ func Host(host string, opt map[string]interface{}) string {
 	if !has_canon { return host }
 	return canon_host.(string)
 }
+
+func OnlyAdmin(dat map[string]interface{}) {
+	if Ulev(dat["_user"]) < 300 {
+		panic("Only an admin can do this operation.")
+	}
+}

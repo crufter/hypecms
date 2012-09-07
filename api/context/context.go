@@ -24,7 +24,7 @@ type Uni struct {
 	Put		func(...interface{})   		// Just a convenience function to allow fast output to http response.
 	Root	string                 		// Absolute path of the application.
 	Ev		*Ev
-	GetHook	func(string, string) func(*Uni) error 
+	GetHook	func(string, string) interface{}
 }
 
 // Set only once.
@@ -84,7 +84,7 @@ func (e *Ev) TriggerAll(eventnames ...string) {
 			for _, modname := range subscribed {
 				hook := e.uni.GetHook(modname.(string), hooknameize(acc_path))
 				if hook != nil {
-					hook(e.uni)
+					//hook(e.uni)
 				}
 			}
 		}

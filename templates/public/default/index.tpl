@@ -41,7 +41,7 @@
 				<h3>{{require admin/navi.t}}</h3>
 				{{else}}
 				<h3 class="post-title entry-title">
-					No blog post query.
+					No blog posts yet.
 				</h3>
 				{{end}}
 				</div>

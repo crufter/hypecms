@@ -16,7 +16,7 @@ import (
 )
 
 // mod.GetHook accesses certain functions dynamically trough this.
-var Hooks = map[string]func(*context.Uni) error {
+var Hooks = map[string]interface{} {
 	"Back":      Back,
 	"Install":   Install,
 	"Uninstall": Uninstall,
@@ -57,12 +57,11 @@ func SwitchToTemplate(uni *context.Uni) error {
 }
 
 // main.runBackHooks invokes this trough mod.GetHook.
-func Back(uni *context.Uni) error {
+func Back(uni *context.Uni, action string) error {
 	if scut.NotAdmin(uni.Dat["_user"]) {
 		return fmt.Errorf("You have no rights to do that.")
 	}
 	var r error
-	action := uni.Dat["_action"].(string)
 	switch action {
 	case "new_file":
 		r = NewFile(uni)
@@ -244,14 +243,12 @@ func AD(uni *context.Uni) error {
 }
 
 // admin.Install invokes this trough mod.GetHook.
-func Install(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Install(uni *context.Uni, id bson.ObjectId) error {
 	return te_model.Install(uni.Db, id)
 }
 
 // Admin Install invokes this trough mod.GetHook.
-func Uninstall(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	return te_model.Uninstall(uni.Db, id)
 }
 

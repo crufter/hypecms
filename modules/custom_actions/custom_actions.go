@@ -10,7 +10,7 @@ import (
 
 type m map[string]interface{}
 
-var Hooks = map[string]func(*context.Uni) error {
+var Hooks = map[string]interface{}{
 	"Back":      Back,
 	"Install":   Install,
 	"Uninstall": Uninstall,
@@ -18,8 +18,7 @@ var Hooks = map[string]func(*context.Uni) error {
 	"AD":        AD,
 }
 
-func Back(uni *context.Uni) error {
-	action_name := uni.Dat["_action"].(string)
+func Back(uni *context.Uni, action_name string) error {
 	action, has := jsonp.GetM(uni.Opt, "Modules.custom_actions.actions." + action_name)
 	if !has { return fmt.Errorf("Can't find action %v in custom actions module.", action_name) }
 	db := uni.Db
@@ -49,8 +48,7 @@ func AD(uni *context.Uni) error {
 	return nil
 }
 
-func Install(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Install(uni *context.Uni, id bson.ObjectId) error {
 	custom_action_options := m{
 	}
 	q := m{"_id": id}
@@ -62,8 +60,7 @@ func Install(uni *context.Uni) error {
 	return uni.Db.C("options").Update(q, upd)
 }
 
-func Uninstall(uni *context.Uni) error {
-	id := uni.Dat["_option_id"].(bson.ObjectId)
+func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
 		"$unset": m{

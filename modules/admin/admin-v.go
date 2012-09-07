@@ -110,16 +110,18 @@ func AD(uni *context.Uni) error {
 		err = Uninstall(uni)
 	default:
 		_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
-		if installed {
-			f := uni.GetHook(modname, "AD")
-			if f != nil {
-				err = f(uni)
-			} else {
-				err = fmt.Errorf("Module ", modname, " does not export hook AD.")
-			}
-		} else {
-			err = fmt.Errorf("There is no module named ", modname, " installed.")
+		if !installed {
+			fmt.Errorf("There is no module named ", modname, " installed.")
 		}
+		h := uni.GetHook(modname, "AD")
+		if h == nil {
+			return fmt.Errorf("Module ", modname, " does not export hook AD.")
+		}
+		hook, ok := h.(func(*context.Uni)error)
+		if !ok {
+			return fmt.Errorf("Hook AD of module %v has bad signature.", modname)
+		}
+		err = hook(uni)
 	}
 	return err
 }
