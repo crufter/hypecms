@@ -134,6 +134,9 @@ func contentSearch(uni *context.Uni) error {
 		uni.Dat["search"] = search_sl[0]
 	}
 	query := map[string]interface{}{
+		"ex": map[string]interface{}{
+		"content": 300,
+		},
 		"so": "-created",
 		"c":  "contents",
 		"q":  q,
