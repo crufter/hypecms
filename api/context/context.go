@@ -65,7 +65,7 @@ type Ev struct {
 // Not used in the model, because most hooks require *Uni, but we do not have that in the model.
 // Use Iterate instead of it in the model layers.
 func All(e *Ev, path string) []struct{Func interface{}; Modname string} {
-	modnames, ok := jsonp.GetS(e.uni, "Hooks." + path)
+	modnames, ok := jsonp.GetS(e.uni.Opt, "Hooks." + path)
 	if !ok { return nil }
 	hooks := []struct{Func interface{}; Modname string}{}
 	for _, v := range modnames {
