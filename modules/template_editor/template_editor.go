@@ -6,17 +6,17 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
 	//"github.com/opesun/jsonp"
-	"github.com/opesun/routep"
-	"labix.org/v2/mgo/bson"
-	"io/ioutil"
 	"fmt"
+	te_model "github.com/opesun/hypecms/modules/template_editor/model"
+	"github.com/opesun/routep"
+	"io/ioutil"
+	"labix.org/v2/mgo/bson"
 	"path/filepath"
 	"strings"
-	te_model "github.com/opesun/hypecms/modules/template_editor/model"
 )
 
 // mod.GetHook accesses certain functions dynamically trough this.
-var Hooks = map[string]interface{} {
+var Hooks = map[string]interface{}{
 	"Back":      Back,
 	"Install":   Install,
 	"Uninstall": Uninstall,
@@ -136,7 +136,7 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 			return ret
 		}
 		if len(file_b) == 0 {
-			ret["file"] = "[Empty file.]"		// A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
+			ret["file"] = "[Empty file.]" // A temporary hack, because the codemirror editor is not displayed when editing an empty file. It is definitely a client-side javascript problem.
 		} else {
 			ret["included"] = te_model.ReqLinks(opt, string(file_b), root, host)
 			ret["file"] = string(file_b)
@@ -223,21 +223,23 @@ func SearchMod(uni *context.Uni) error {
 // admin.AD invokes this trough mod.GetHook.
 func AD(uni *context.Uni) error {
 	ma, err := routep.Comp("/admin/template_editor/{view}/{typ}/{name}", uni.P)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	var r error
 	switch ma["view"] {
-		case "":
-			r = Index(uni)
-		case "view":
-			r = View(uni, ma["typ"], ma["name"])
-		case "search-public":
-			r = SearchPublic(uni)
-		case "search-private":
-			r = SearchPrivate(uni)
-		case "search-mod":
-			r = SearchMod(uni)
-		default:
-			return fmt.Errorf("Unkown view at template_editor admin.")
+	case "":
+		r = Index(uni)
+	case "view":
+		r = View(uni, ma["typ"], ma["name"])
+	case "search-public":
+		r = SearchPublic(uni)
+	case "search-private":
+		r = SearchPrivate(uni)
+	case "search-mod":
+		r = SearchMod(uni)
+	default:
+		return fmt.Errorf("Unkown view at template_editor admin.")
 	}
 	return r
 }

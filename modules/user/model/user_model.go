@@ -1,31 +1,31 @@
 package user_model
 
-import(
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
-	"github.com/opesun/extract"
-	"github.com/opesun/slugify"
-	"github.com/opesun/hypecms/model/basic"
-	ifaces "github.com/opesun/hypecms/interfaces"
-	"crypto/sha1"
-	"net/http"
+import (
+	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/aes"
+	"crypto/sha1"
 	"encoding/base64"
-	"fmt"
-	"io"
-	"strings"
 	"errors"
+	"fmt"
+	"github.com/opesun/extract"
+	ifaces "github.com/opesun/hypecms/interfaces"
+	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/slugify"
+	"io"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"net/http"
+	"strings"
 )
 
-const(
-	block_size = 16		// For encryption and decryption.
+const (
+	block_size = 16 // For encryption and decryption.
 )
 
 // Finds a user by id.
 func FindUser(db *mgo.Database, id interface{}) (map[string]interface{}, error) {
-	v:= basic.Find(db, "users", id)
+	v := basic.Find(db, "users", id)
 	if v != nil {
 		delete(v, "password")
 		return v, nil
@@ -46,7 +46,7 @@ func namePass(db *mgo.Database, name, encoded_pass string) (map[string]interface
 // Everyone uses this to log in, admins, users, guest users and their mom.
 func FindLogin(db *mgo.Database, inp map[string][]string) (map[string]interface{}, bson.ObjectId, error) {
 	rule := map[string]interface{}{
-		"name": 	"must",
+		"name":     "must",
 		"password": "must",
 	}
 	d, err := extract.New(rule).Extract(inp)
@@ -66,13 +66,15 @@ func FindLogin(db *mgo.Database, inp map[string][]string) (map[string]interface{
 // Admins, guests, registered users, everyone logs in with this.
 func Login(w http.ResponseWriter, user_id bson.ObjectId, block_key []byte) error {
 	id_b, err := encryptStr(block_key, user_id.Hex())
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	encoded_id := string(id_b)
 	c := &http.Cookie{
-		Name: "user",
-		Value: encoded_id,
+		Name:   "user",
+		Value:  encoded_id,
 		MaxAge: 3600000,
-		Path: "/",
+		Path:   "/",
 	}
 	http.SetCookie(w, c)
 	return nil
@@ -109,7 +111,9 @@ func ParseAcceptLanguage(l string) []string {
 func Decrypt(val string, block_key []byte) (string, error) {
 	block_key = block_key[:block_size]
 	decr_id_b, err := decryptStr(block_key, val)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return string(decr_id_b), nil
 }
 
@@ -117,7 +121,9 @@ func Decrypt(val string, block_key []byte) (string, error) {
 // Converts an encoded string (a cookie) into an ObjectId.
 func DecryptId(cookieval string, block_key []byte) (bson.ObjectId, error) {
 	str, err := Decrypt(cookieval, block_key)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return bson.ObjectIdHex(str), nil
 }
 
@@ -152,7 +158,9 @@ func NameAvailable(db *mgo.Database, name string) (bool, error) {
 	var res []interface{}
 	q := bson.M{"slug": slugify.S(name)}
 	err := db.C("users").Find(q).All(&res)
-	if err != nil { return false, err }
+	if err != nil {
+		return false, err
+	}
 	if len(res) > 0 {
 		return false, nil
 	}
@@ -163,8 +171,8 @@ func NameAvailable(db *mgo.Database, name string) (bool, error) {
 func nameRule() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "strings",
-		"min":	4,
-		"must":	true,
+		"min":  4,
+		"must": true,
 	}
 }
 
@@ -172,7 +180,9 @@ func nameRule() map[string]interface{} {
 // Set not existing fields.
 // Checks if the members of b exists in a as keys, and if not, sets a[b^i] = c^i
 func setNE(a map[string]interface{}, b []string, c []interface{}) {
-	if len(b) != len(c) { panic("b and c len must match.") }
+	if len(b) != len(c) {
+		panic("b and c len must match.")
+	}
 	for i, v := range b {
 		if _, has := a[v]; !has {
 			a[v] = c[i]
@@ -189,8 +199,8 @@ func userDefaults(rules map[string]interface{}) {
 	name_rule := nameRule()
 	pass_rule := map[string]interface{}{
 		"type": "string",
-		"min":	8,
-		"must":	true,
+		"min":  8,
+		"must": true,
 	}
 	b := []string{"name", "password", "password_again"}
 	c := []interface{}{name_rule, pass_rule, pass_rule}
@@ -203,7 +213,9 @@ func userDefaults(rules map[string]interface{}) {
 func RegisterUser(db *mgo.Database, ev ifaces.Event, rules map[string]interface{}, inp map[string][]string) (bson.ObjectId, error) {
 	userDefaults(rules)
 	user, err := extract.New(rules).Extract(inp)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	if user["password"].(string) != user["password_again"].(string) {
 		return "", fmt.Errorf("Password and password confirmation differs.")
 	}
@@ -237,7 +249,9 @@ func guestDefaults(rules map[string]interface{}) {
 func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]interface{}, inp map[string][]string) (bson.ObjectId, error) {
 	guestDefaults(guest_rules)
 	user, err := extract.New(guest_rules).Extract(inp)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	user["level"] = 0
 	user_id := bson.NewObjectId()
 	user["_id"] = user_id
@@ -260,29 +274,39 @@ func encDecStr(block_key []byte, value string, encr bool) (string, error) {
 	}
 	block_key = block_key[:block_size]
 	block, err := aes.NewCipher(block_key)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	var bs []byte
 	if encr {
 		bs, err = encrypt(block, []byte(value))
 	} else {
 		bs, err = decrypt(block, []byte(value))
 	}
-	if err != nil { return "", err }
-	if bs == nil { return "", fmt.Errorf("Somethign went wrong when encoding/decoding.") } // Just in case.
+	if err != nil {
+		return "", err
+	}
+	if bs == nil {
+		return "", fmt.Errorf("Somethign went wrong when encoding/decoding.")
+	} // Just in case.
 	return string(bs), nil
 }
 
 // Encrypts a value and encodes it with base64.
 func encryptStr(block_key []byte, value string) (string, error) {
 	str, err := encDecStr(block_key, value, true)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return base64.StdEncoding.EncodeToString([]byte(str)), nil
 }
 
 // Decodes a value with base64 and then decrypts it.
 func decryptStr(block_key []byte, value string) (string, error) {
 	decoded_b, err := base64.StdEncoding.DecodeString(value)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return encDecStr(block_key, string(decoded_b), false)
 }
 

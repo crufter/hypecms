@@ -4,11 +4,11 @@ package mod
 
 import (
 	"github.com/opesun/hypecms/modules/content"
-	"github.com/opesun/hypecms/modules/user"
-	"github.com/opesun/hypecms/modules/skeleton"
-	"github.com/opesun/hypecms/modules/display_editor"
-	"github.com/opesun/hypecms/modules/template_editor"
 	"github.com/opesun/hypecms/modules/custom_actions"
+	"github.com/opesun/hypecms/modules/display_editor"
+	"github.com/opesun/hypecms/modules/skeleton"
+	"github.com/opesun/hypecms/modules/template_editor"
+	"github.com/opesun/hypecms/modules/user"
 )
 
 var Modules = []string{
@@ -42,7 +42,7 @@ func getHook(modname string, method string, map_only bool) interface{} {
 		r = get(template_editor.Hooks, method, map_only)
 	case "custom_actions":
 		r = get(custom_actions.Hooks, method, map_only)
-	default:								// Such a crucial bug.
+	default: // Such a crucial bug.
 		panic("mod.Gethook cant find module " + modname)
 	}
 	return r

@@ -1,15 +1,15 @@
 package display_model
 
-import(
+import (
+	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
-	"io/ioutil"
-	"encoding/json"
-	"path/filepath"
 )
 
 // Decides if a string should be localized.
-const Min_loc_len = 8		// $loc.a.b
+const Min_loc_len = 8 // $loc.a.b
 func IsLocString(s string) bool {
 	return len(s) > Min_loc_len && string(s[0:4]) == "$loc." && strings.Index(s, ".") != -1
 }
@@ -42,7 +42,9 @@ func collect(i interface{}) []string {
 // s absolute filepath
 func locReader(s string) (map[string]interface{}, error) {
 	file, err := ioutil.ReadFile(s)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	var v interface{}
 	err = json.Unmarshal(file, &v)
 	return v.(map[string]interface{}), err
@@ -72,17 +74,17 @@ func CollectFromMap(dat map[string]interface{}) map[string]struct{} {
 }
 
 // Takes a list of localization filenames and tries to load every one of them, first from the template, then from the modules.
-func ReadFiles(root, tplpath string, user_langs []string, locfiles map[string]struct{}, loc_reader func (s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
+func ReadFiles(root, tplpath string, user_langs []string, locfiles map[string]struct{}, loc_reader func(s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
 	ret := map[string]interface{}{}
 	for i, _ := range locfiles {
 		for _, lang := range user_langs {
-			path := filepath.Join(root, tplpath, "loc", i + "." + lang)
+			path := filepath.Join(root, tplpath, "loc", i+"."+lang)
 			ma, err := loc_reader(path)
 			if err == nil {
 				ret[i] = ma
 				break
 			}
-			path = filepath.Join(root, "modules", i, "tpl/loc", lang + ".json")
+			path = filepath.Join(root, "modules", i, "tpl/loc", lang+".json")
 			ma, err = loc_reader(path)
 			if err == nil {
 				ret[i] = ma
@@ -94,7 +96,7 @@ func ReadFiles(root, tplpath string, user_langs []string, locfiles map[string]st
 }
 
 // tplpath is public/default or private/127.0.0.1/default
-func LoadLocStrings(dat map[string]interface{}, user_langs []string, root, tplpath string, loc_reader func (s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
+func LoadLocStrings(dat map[string]interface{}, user_langs []string, root, tplpath string, loc_reader func(s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
 	if loc_reader == nil {
 		loc_reader = locReader
 	}
@@ -103,7 +105,7 @@ func LoadLocStrings(dat map[string]interface{}, user_langs []string, root, tplpa
 }
 
 // tplpath is public/default or private/127.0.0.1/default
-func LoadLocTempl(file_content string, user_langs []string, root, tplpath string, loc_reader func (s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
+func LoadLocTempl(file_content string, user_langs []string, root, tplpath string, loc_reader func(s string) (map[string]interface{}, error)) (map[string]interface{}, error) {
 	if loc_reader == nil {
 		loc_reader = locReader
 	}

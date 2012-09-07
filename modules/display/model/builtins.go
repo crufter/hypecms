@@ -2,11 +2,11 @@ package display_model
 
 // All functions which can be called from templates resides here.
 
-import(
-	"strings"
-	"reflect"
+import (
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/jsonp"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -20,7 +20,9 @@ func get(dat map[string]interface{}, s ...string) interface{} {
 	}
 	access := strings.Join(s, ".")
 	val, has := jsonp.Get(dat, access)
-	if !has { return access }
+	if !has {
+		return access
+	}
 	return val
 }
 

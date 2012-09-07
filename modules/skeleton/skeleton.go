@@ -2,18 +2,18 @@
 package skeleton
 
 import (
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
-	"fmt"
 )
 
 // Create a type only to spare ourselves from typing map[string]interface{} every time.
 type m map[string]interface{}
 
 // mod.GetHook accesses certain functions dynamically trough this.
-var Hooks = map[string]interface{} {
+var Hooks = map[string]interface{}{
 	"Front":     Front,
 	"Back":      Back,
 	"Install":   Install,
@@ -25,8 +25,8 @@ var Hooks = map[string]interface{} {
 // main.runFrontHooks invokes this trough mod.GetHook.
 func Front(uni *context.Uni, hijacked *bool) error {
 	if _, err := routep.Comp("/skeleton", uni.P); err == nil {
-		*hijacked = true		// This is important, this stops the main front loop from executing any further modules.
-		uni.Put("Hello, this is the skeleton module here.")		// This is just a basic output to allow you to see your freshly written module.
+		*hijacked = true                                    // This is important, this stops the main front loop from executing any further modules.
+		uni.Put("Hello, this is the skeleton module here.") // This is just a basic output to allow you to see your freshly written module.
 	}
 	// You can insert code here which will decide wich view to call.
 	return nil

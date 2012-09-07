@@ -1,18 +1,18 @@
 package main_model
 
-import(
-	"labix.org/v2/mgo"
-	"sync"
+import (
 	"encoding/json"
 	"fmt"
+	"labix.org/v2/mgo"
+	"sync"
 )
 
 type m map[string]interface{}
 
-const(
-	cached_opt_inv				= "The cached options string is not a valid JSON." 									// TODO: Maybe we should try to recover from here.
-	cant_unmarshal				= "Can't unmarshal freshly encoded option document."
-	cant_encode_config			= "Can't encode config. - No way this should happen anyway."
+const (
+	cached_opt_inv     = "The cached options string is not a valid JSON." // TODO: Maybe we should try to recover from here.
+	cant_unmarshal     = "Can't unmarshal freshly encoded option document."
+	cant_encode_config = "Can't encode config. - No way this should happen anyway."
 )
 
 func set(c map[string]string, key, val string) {
@@ -36,7 +36,7 @@ func has(c map[string]string, str string) (string, bool) {
 var cache = make(map[string]string)
 
 func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, string, error) {
-	host = "anything"	// See *1
+	host = "anything" // See *1
 	ret := map[string]interface{}{}
 	var ret_str string
 	if val, ok := has(cache, host); cache_it && ok {

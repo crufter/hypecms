@@ -1,19 +1,19 @@
 package content_model
 
-import(
+import (
+	"fmt"
+	"github.com/opesun/extract"
+	ifaces "github.com/opesun/hypecms/interfaces"
+	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/jsonp"
+	"github.com/opesun/resolver"
+	"github.com/opesun/slugify"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	ifaces "github.com/opesun/hypecms/interfaces"
-	"github.com/opesun/resolver"
-	"github.com/opesun/extract"
-	"github.com/opesun/jsonp"
-	"github.com/opesun/slugify"
-	"github.com/opesun/hypecms/model/basic"
-	"fmt"
 	"strings"
 )
 
-const(
+const (
 	Cname = "contents"
 )
 
@@ -40,10 +40,12 @@ func requiredLevel(content_options map[string]interface{}, typ, op string) int {
 func AllowsContent(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int, op string) error {
 	rule := map[string]interface{}{
 		"type": "must",
-		"id": "must",
+		"id":   "must",
 	}
 	dat, err := extract.New(rule).Extract(inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	var inserting bool
 	if len(dat["id"].(string)) == 0 {
 		inserting = true
@@ -54,14 +56,18 @@ func AllowsContent(db *mgo.Database, inp map[string][]string, content_options ma
 	}
 	if user_level < 200 && !inserting {
 		content := find(db, dat["id"].(string))
-		if content == nil { return fmt.Errorf("Can't find content.") }
+		if content == nil {
+			return fmt.Errorf("Can't find content.")
+		}
 		content_type := content["type"].(string)
 		type_from_input := dat["type"].(string)
 		if content_type != type_from_input {
 			return fmt.Errorf("No rights: content type is %v instead of %v.", content_type, type_from_input)
 		}
 		auth, err := contentAuthor(content)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		if auth.Hex() != user_id.Hex() {
 			return fmt.Errorf("You are not the rightous owner of the content.")
 		}
@@ -77,7 +83,9 @@ func find(db *mgo.Database, content_id string) map[string]interface{} {
 	}
 	var v interface{}
 	err := db.C("contents").Find(q).One(&v)
-	if err != nil { return nil }
+	if err != nil {
+		return nil
+	}
 	return basic.Convert(v).(map[string]interface{})
 }
 
@@ -85,7 +93,7 @@ func typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
 	var v interface{}
 	q := m{"_id": content_id, "type": typ}
 	err := db.C("contents").Find(q).One(&v)
-	return err == nil		// One problem is we can't differentiate between not found and IO error here...
+	return err == nil // One problem is we can't differentiate between not found and IO error here...
 }
 
 func contentAuthor(content map[string]interface{}) (bson.ObjectId, error) {
@@ -133,7 +141,7 @@ func walkDeep(i interface{}) []string {
 	return []string{}
 }
 
-func filterDupes(s []string) []string{
+func filterDupes(s []string) []string {
 	ret := []string{}
 	c := map[string]struct{}{}
 	for _, v := range s {
@@ -145,7 +153,7 @@ func filterDupes(s []string) []string{
 	return ret
 }
 
-func filterTooShort(s []string, min_len int) []string{
+func filterTooShort(s []string, min_len int) []string {
 	ret := []string{}
 	for _, v := range s {
 		if len(v) >= min_len {
@@ -168,9 +176,9 @@ func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
 	db.C("contents").Find(m{"_id": id}).One(&res)
 	dat := basic.Convert(res).(map[string]interface{})
 	fields := map[string]interface{}{
-		"name":		1,
-		"slug":		1,
-		"title":	1,
+		"name":  1,
+		"slug":  1,
+		"title": 1,
 	}
 	resolver.ResolveOne(db, dat, fields)
 	dat = basic.Convert(dat).(map[string]interface{})
@@ -215,10 +223,14 @@ func GenerateQuery(s string) []interface{} {
 }
 
 func mergeMaps(a, b map[string]interface{}) {
-	if a == nil || b == nil { return }
+	if a == nil || b == nil {
+		return
+	}
 	for i, v := range b {
 		_, has := a[i]
-		if has { panic("Overwriting existing value.") }
+		if has {
+			panic("Overwriting existing value.")
+		}
 		a[i] = v
 	}
 }
@@ -233,8 +245,8 @@ func InsertWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 
 func insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) (bson.ObjectId, error) {
 	// Could check for id here, alert if we found one.
-	rule["type"] 	= 	"must"
-	rule["draft_id"] =	"must"	// Can be draft, or version.
+	rule["type"] = "must"
+	rule["draft_id"] = "must" // Can be draft, or version.
 	ins_dat, extr_err := extract.New(rule).Extract(dat)
 	if extr_err != nil {
 		return "", extr_err
@@ -248,7 +260,9 @@ func insert(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	basic.Slug(rule, ins_dat)
 	mergeMaps(ins_dat, fixvals)
 	err := basic.InudVersion(db, ev, ins_dat, "contents", "insert", "")
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	ret_id := ins_dat["_id"].(bson.ObjectId)
 	_, has_fulltext := rule["fulltext"]
 	if has_fulltext {
@@ -266,9 +280,9 @@ func UpdateWithFix(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 }
 
 func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat map[string][]string, user_id bson.ObjectId, fixvals map[string]interface{}) error {
-	rule["id"] 				= 	"must"
-	rule["type"] 			= 	"must"
-	rule["draft_id"] 		=	"must"
+	rule["id"] = "must"
+	rule["type"] = "must"
+	rule["draft_id"] = "must"
 	upd_dat, extr_err := extract.New(rule).Extract(dat)
 	if extr_err != nil {
 		return extr_err
@@ -284,7 +298,9 @@ func update(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, dat 
 	basic.Slug(rule, upd_dat)
 	mergeMaps(upd_dat, fixvals)
 	err := basic.InudVersion(db, ev, upd_dat, Cname, "update", id)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	_, has_fulltext := rule["fulltext"]
 	id_bson := bson.ObjectIdHex(basic.StripId(id))
 	if has_fulltext {
@@ -308,7 +324,7 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 	if len(keys) == 0 {
 		return nil, false
 	} else if len(keys) == 1 {
-		if keys[0] == "_id" && len(val) == 24 {			// TODO: check for validity of id.
+		if keys[0] == "_id" && len(val) == 24 { // TODO: check for validity of id.
 			query[keys[0]] = bson.ObjectIdHex(val)
 		} else {
 			query[keys[0]] = val
@@ -316,7 +332,7 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 	} else {
 		or := []map[string]interface{}{}
 		for _, v := range keys {
-			if v == "_id" && len(v) == 24 {				// TODO: check fir validity of id.
+			if v == "_id" && len(v) == 24 { // TODO: check fir validity of id.
 				or = append(or, map[string]interface{}{v: bson.ObjectIdHex(val)})
 			} else {
 				or = append(or, map[string]interface{}{v: val})
@@ -334,11 +350,13 @@ func FindContent(db *mgo.Database, keys []string, val string) (map[string]interf
 
 func SaveTypeConfig(db *mgo.Database, inp map[string][]string) error {
 	rule := map[string]interface{}{
-		"type": 		"must",
-		"safe_delete":	"must",
+		"type":        "must",
+		"safe_delete": "must",
 	}
-	_, err := extract.New(rule).Extract(inp)	// _ = dat
-	if err != nil { return err }
+	_, err := extract.New(rule).Extract(inp) // _ = dat
+	if err != nil {
+		return err
+	}
 	// TODO: finish.
 	return nil
 }
@@ -349,23 +367,23 @@ func SavePersonalTypeConfig(db *mgo.Database, inp map[string][]string, user_id b
 
 func Install(db *mgo.Database, id bson.ObjectId) error {
 	content_options := m{
-		"types": m {
+		"types": m{
 			"blog": m{
 				"comment_rules": m{
-					basic.Created: 		false,
-					basic.Created_by:	false,
-					"comment_content":	1,
+					basic.Created:     false,
+					basic.Created_by:  false,
+					"comment_content": 1,
 				},
-				"rules" : m{
-					"title": 			1,
-					"slug":				1,
-					"content": 			1,
+				"rules": m{
+					"title":                 1,
+					"slug":                  1,
+					"content":               1,
 					Tag_fieldname_displayed: 1,
-					"fulltext": 		false,
-					basic.Created: 		false,
-					basic.Created_by:	false,
-					basic.Last_modified:	false,
-					basic.Last_modified_by:	false,
+					"fulltext":              false,
+					basic.Created:           false,
+					basic.Created_by:        false,
+					basic.Last_modified:     false,
+					basic.Last_modified_by:  false,
 				},
 				"non_versioned_fields": m{
 					"comments": 1,
@@ -381,11 +399,11 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 		"$set": m{
 			"Modules.content": content_options,
 			"Display-points.index.queries.blog": m{
-				"c":	Cname,
-				"l":	10,
-				"q":	m{ "type": "blog"},
-				"so":	"-created",
-				"p":	"page",
+				"c":  Cname,
+				"l":  10,
+				"q":  m{"type": "blog"},
+				"so": "-created",
+				"p":  "page",
 			},
 		},
 	}
@@ -399,7 +417,7 @@ func Uninstall(db *mgo.Database, id bson.ObjectId) error {
 			"Hooks.Front": "content",
 		},
 		"$unset": m{
-			"Modules.content": 1,
+			"Modules.content":                   1,
 			"Display-points.index.queries.blog": 1,
 		},
 	}

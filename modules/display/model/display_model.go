@@ -1,23 +1,27 @@
 package display_model
 
-import(
-	"labix.org/v2/mgo"
-	"github.com/opesun/jsonp"
+import (
+	"fmt"
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/jsonp"
 	"github.com/opesun/paging"
 	"github.com/opesun/resolver"
+	"labix.org/v2/mgo"
 	"strconv"
 	"strings"
-	"fmt"
 )
 
 // Cuts a long string at max_char_count, taking a word boundary into account.
 func Excerpt(s string, max_char_count int) string {
-	if len(s) < max_char_count { return s }
+	if len(s) < max_char_count {
+		return s
+	}
 	ind := strings.LastIndex(s[:max_char_count], " ")
-	if ind == -1 { return s }
+	if ind == -1 {
+		return s
+	}
 	return s[0:ind]
-	
+
 }
 
 // Extracts the key value pair of a map which has a length of 1.
@@ -36,15 +40,17 @@ func CreateExcerpts(res []interface{}, conf map[string]interface{}) {
 	for _, v := range res {
 		doc := v.(map[string]interface{})
 		field_val, ok := doc[fieldname].(string)
-		if !ok { continue }
+		if !ok {
+			continue
+		}
 		doc["excerpt"] = Excerpt(field_val, max_char)
 	}
 }
 
 type PagingInfo struct {
-	Result 		[]paging.Pelem
-	Skip, Current_page, All_results, Limit	int
-	Paramkey, Url	string
+	Result                                 []paging.Pelem
+	Skip, Current_page, All_results, Limit int
+	Paramkey, Url                          string
 }
 
 // png = path and query
@@ -62,34 +68,34 @@ func DoPaging(db *mgo.Database, collection string, query map[string]interface{},
 			current_page = 1
 		}
 	}
-	all_results, _ := db.C(collection).Find(query).Count()		// TODO: think about the error here.
-	nav, _ := paging.P(current_page, all_results/limit + 1, 3, pnq)
+	all_results, _ := db.C(collection).Find(query).Count() // TODO: think about the error here.
+	nav, _ := paging.P(current_page, all_results/limit+1, 3, pnq)
 	skip := (current_page - 1) * limit
 	return PagingInfo{
-		Result: 		nav,
-		Skip: 			skip,
-		Current_page: 	current_page,
-		Limit:			limit,
-		All_results:	all_results,
-		Paramkey:		page_num_key,
-		Url:			pnq,			
+		Result:       nav,
+		Skip:         skip,
+		Current_page: current_page,
+		Limit:        limit,
+		All_results:  all_results,
+		Paramkey:     page_num_key,
+		Url:          pnq,
 	}
 }
 
 // Convenience function.
 func RunQuery(db *mgo.Database, query_name string, query map[string]interface{}, get map[string][]string, path_n_query string) map[string]interface{} {
 	queries := map[string]interface{}{
-		query_name : query,
+		query_name: query,
 	}
 	return RunQueries(db, queries, get, path_n_query)
 }
 
 func toInt(num interface{}) int {
 	switch val := num.(type) {
-		case float64:
-			return int(val)
-		case int:
-			return val
+	case float64:
+		return int(val)
+	case int:
+		return val
 	}
 	panic(fmt.Sprintf("Unkown type %T.", num))
 }
@@ -109,7 +115,9 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 		v := z.(map[string]interface{})
 		_, coll_ok := v["c"]
 		_, quer_ok := v["q"]
-		if !coll_ok || !quer_ok { continue }
+		if !coll_ok || !quer_ok {
+			continue
+		}
 		q := db.C(v["c"].(string)).Find(v["q"])
 		if skip, skok := v["sk"]; skok {
 			q.Skip(toInt(skip))
@@ -125,23 +133,26 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 			}
 		}
 		if p, pok := v["p"]; pok {
-			if limit, lok := v["l"]; lok {	// Only makes sense with limit.
+			if limit, lok := v["l"]; lok { // Only makes sense with limit.
 				paging_inf := DoPaging(db, v["c"].(string), v["q"].(map[string]interface{}), p.(string), get, path_n_query, toInt(limit))
-				qs[name + "_navi"] = paging_inf
+				qs[name+"_navi"] = paging_inf
 				q.Skip(paging_inf.Skip)
 			}
 		}
 		var res []interface{}
 		err := q.All(&res)
-		if err != nil { qs[name] = err.Error(); continue }
+		if err != nil {
+			qs[name] = err.Error()
+			continue
+		}
 		res = basic.Convert(res).([]interface{})
 		if ex, ex_ok := v["ex"]; ex_ok {
 			ex_m, ex_is_m := ex.(map[string]interface{})
-			if ex_is_m && len(ex_m) == 1 { 
+			if ex_is_m && len(ex_m) == 1 {
 				CreateExcerpts(res, ex_m)
 			}
 		}
-		dont_query := map[string]interface{}{"password":0}
+		dont_query := map[string]interface{}{"password": 0}
 		resolver.ResolveAll(db, res, dont_query)
 		qs[name] = res
 	}

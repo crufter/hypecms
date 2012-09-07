@@ -1,13 +1,13 @@
 package display_model
 
-import(
+import (
 	"fmt"
-	"regexp"
-	"github.com/opesun/require"
 	"github.com/opesun/jsonp"
+	"github.com/opesun/require"
+	"regexp"
 )
 
-const(
+const (
 	beg = "{{load "
 	end = "}}"
 )
@@ -20,7 +20,7 @@ func Load(opt_i interface{}, root string, file []byte, get func(string, string) 
 	cut_end := len(end)
 	for _, v := range s {
 		replacement := []byte{}
-		load_name := v[cut_beg:len(v)-cut_end]
+		load_name := v[cut_beg : len(v)-cut_end]
 		loads, has := jsonp.Get(opt_i, load_name)
 		if has {
 			req_paths := jsonp.ToStringSlice(loads.([]interface{}))
@@ -30,7 +30,9 @@ func Load(opt_i interface{}, root string, file []byte, get func(string, string) 
 		}
 		if len(replacement) > 0 {
 			str, err := require.RMem(root, replacement, get)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			replacement = []byte(str)
 		}
 		file = r.ReplaceAll(file, replacement)

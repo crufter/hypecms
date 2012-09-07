@@ -6,15 +6,15 @@
 package admin
 
 import (
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/hypecms/modules/admin/model"
+	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
-	"strings"
 	"runtime/debug"
-	"fmt"
+	"strings"
 )
 
 type m map[string]interface{}
@@ -89,7 +89,7 @@ func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights to install or uninstall a module.")
 	}
-	ma, err := routep.Comp("/admin/b/" + mode + "/{modulename}", uni.P)
+	ma, err := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
 	if err != nil {
 		return fmt.Errorf("Bad url at " + mode)
 	}

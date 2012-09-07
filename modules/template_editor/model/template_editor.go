@@ -1,23 +1,23 @@
 package template_editor_model
 
 import (
+	"fmt"
+	"github.com/opesun/copyrecur"
+	"github.com/opesun/extract"
+	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/require"
+	"io/ioutil"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"github.com/opesun/extract"
-	"github.com/opesun/hypecms/model/scut"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"github.com/opesun/copyrecur"
-	"github.com/opesun/hypecms/model/basic"
 	"strings"
-	"github.com/opesun/require"
 )
 
 type m map[string]interface{}
 
-const(
+const (
 	cant_mod_public = "Can't modify public template."
 )
 
@@ -41,7 +41,7 @@ func NewFile(opt map[string]interface{}, inp map[string][]string, root, host str
 	}
 	rule := map[string]interface{}{
 		"filepath": "must",
-		"where":	"must",
+		"where":    "must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
 	if e_err != nil {
@@ -62,7 +62,7 @@ func SaveFile(opt map[string]interface{}, inp map[string][]string, root, host st
 	}
 	rule := map[string]interface{}{
 		"filepath": "must",
-		"content":	"must",
+		"content":  "must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
 	if e_err != nil {
@@ -125,19 +125,25 @@ func ForkPublic(db *mgo.Database, opt map[string]interface{}, root, host string)
 // Taken from http://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
 // exists returns whether the given file or directory exists or not
 func Exists(path string) (bool, error) {
-    _, err := os.Stat(path)
-    if err == nil { return true, nil }
-    if os.IsNotExist(err) { return false, nil }
-    return false, err
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 // Publish a private template, so others can use it too.
 func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	rule := map[string]interface{}{
-		"public_name": 	"must",
+		"public_name": "must",
 	}
 	dat, ex_err := extract.New(rule).Extract(inp)
-	if ex_err != nil { return ex_err }
+	if ex_err != nil {
+		return ex_err
+	}
 	public_name := dat["public_name"].(string)
 	from := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
 	to := filepath.Join(root, "templates", "public", public_name)
@@ -146,7 +152,9 @@ func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string
 	if exis {
 		return fmt.Errorf("Public template with name " + public_name + " already exists.")
 	}
-	if exis_err != nil { return exis_err }
+	if exis_err != nil {
+		return exis_err
+	}
 	copy_err := copyrecur.CopyDir(from, to)
 	if copy_err != nil {
 		return fmt.Errorf("There was an error while copying.")
@@ -170,7 +178,9 @@ func DeletePrivate(opt map[string]interface{}, inp map[string][]string, root, ho
 		"template_name": "must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
-	if e_err != nil { return e_err }
+	if e_err != nil {
+		return e_err
+	}
 	template_name := dat["template_name"].(string)
 	if template_name == scut.TemplateName(opt) {
 		return fmt.Errorf("For safety reasons you can only delete private templates not in use.")
@@ -187,13 +197,15 @@ func DeletePrivate(opt map[string]interface{}, inp map[string][]string, root, ho
 // Fork current private template into an other private one.
 func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	if scut.TemplateType(opt) != "private" {
-		return fmt.Errorf("Your current template is not a private one.")	// Kinda unsensical error message but ok...
+		return fmt.Errorf("Your current template is not a private one.") // Kinda unsensical error message but ok...
 	}
 	rule := map[string]interface{}{
 		"new_template_name": "must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
-	if e_err != nil { return e_err }
+	if e_err != nil {
+		return e_err
+	}
 	new_template_name := dat["new_template_name"].(string)
 	to := filepath.Join(root, "templates", "private", host, new_template_name)
 	e, e_err := Exists(to)
@@ -224,23 +236,25 @@ func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
 		"template_type": "must",
 	}
 	dat, e_err := extract.New(rule).Extract(inp)
-	if e_err != nil { return e_err }
+	if e_err != nil {
+		return e_err
+	}
 	template_name := dat["template_name"].(string)
 	template_type := dat["template_type"].(string)
 	id := basic.CreateOptCopy(db)
 	q := m{"_id": id}
 	var upd m
-	if template_type == "private" {					// Such a pointless duplication here, rethink.
+	if template_type == "private" { // Such a pointless duplication here, rethink.
 		upd = m{
 			"$set": m{
-				"Template": 	template_name,
-				"TplIsPrivate":	true,
+				"Template":     template_name,
+				"TplIsPrivate": true,
 			},
 		}
 	} else {
 		upd = m{
 			"$set": m{
-				"Template": 	template_name,
+				"Template": template_name,
 			},
 			"$unset": m{
 				"TplIsPrivate": 1,
@@ -253,29 +267,33 @@ func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
 func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
 	var path string
 	if typ == "public" {
-		path =  filepath.Join(root, "templates", "public")
+		path = filepath.Join(root, "templates", "public")
 	} else {
 		path = filepath.Join(root, "templates", "private", host)
 	}
 	fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, path))
-	if read_err != nil { return nil, read_err }
+	if read_err != nil {
+		return nil, read_err
+	}
 	return Contains(fileinfos, search_str), nil
 }
 
 type ReqLink struct {
-	Typ 		string
-	Tempname	string
-	Filepath	string
+	Typ      string
+	Tempname string
+	Filepath string
 }
 
 func ReqLinks(opt map[string]interface{}, file, root, host string) []ReqLink {
 	pos := require.RequirePositions(file)
 	ret := []ReqLink{}
 	for _, v := range pos {
-		fi := file[v[0]+10:v[1]-2]		// cut {{require anything/anything.t}} => anything/anything.t
+		fi := file[v[0]+10 : v[1]-2] // cut {{require anything/anything.t}} => anything/anything.t
 		var typ, path, name string
 		exists_in_template, err := Exists(filepath.Join(root, scut.GetTPath(opt, host), fi))
-		if err != nil { continue }
+		if err != nil {
+			continue
+		}
 		if exists_in_template {
 			typ = scut.TemplateType(opt)
 			path = fi
@@ -299,7 +317,7 @@ type Breadc struct {
 // fs is strings.Split(filepath, "/") where filepath is "aboutus/joe.tpl"
 func CreateBreadCrumb(fs []string) []Breadc {
 	ret := []Breadc{}
-	for i:=1; i<len(fs); i++ {
+	for i := 1; i < len(fs); i++ {
 		str := strings.Replace(filepath.Join(fs[:i+1]...), "\\", "/", -1)
 		ret = append(ret, Breadc{fs[i], "/" + str})
 	}
@@ -308,7 +326,7 @@ func CreateBreadCrumb(fs []string) []Breadc {
 
 func Install(db *mgo.Database, id bson.ObjectId) error {
 	template_editor_options := m{
-		// "example": "any value",
+	// "example": "any value",
 	}
 	q := m{"_id": id}
 	upd := m{

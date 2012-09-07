@@ -12,19 +12,19 @@ import (
 
 // General context for the application.
 type Uni struct {
-	Db		*mgo.Database
-	W		http.ResponseWriter
-	Req		*http.Request
-	secret	string						// Used for things like encryption/decryption. Basically a permanent random data.
-	P		string						// Path string
-	Paths	[]string 					// Path slice, contains the url (after the domain) splitted by "/"
-	opt		string						// Original string representation of the option, if one needs a version which is guaranteedly untinkered.
-	Opt		map[string]interface{}		// Freshest options from database.
-	Dat		map[string]interface{} 		// General communication channel.
-	Put		func(...interface{})   		// Just a convenience function to allow fast output to http response.
-	Root	string                 		// Absolute path of the application.
-	Ev		*Ev
-	GetHook	func(string, string) interface{}
+	Db      *mgo.Database
+	W       http.ResponseWriter
+	Req     *http.Request
+	secret  string                 // Used for things like encryption/decryption. Basically a permanent random data.
+	P       string                 // Path string
+	Paths   []string               // Path slice, contains the url (after the domain) splitted by "/"
+	opt     string                 // Original string representation of the option, if one needs a version which is guaranteedly untinkered.
+	Opt     map[string]interface{} // Freshest options from database.
+	Dat     map[string]interface{} // General communication channel.
+	Put     func(...interface{})   // Just a convenience function to allow fast output to http response.
+	Root    string                 // Absolute path of the application.
+	Ev      *Ev
+	GetHook func(string, string) interface{}
 }
 
 // Set only once.
@@ -52,7 +52,7 @@ func (u *Uni) SetSecret(s string) {
 // With the help of this type it's possible for the model to not have direct access to everything (*context.Uni), but still trigger events,
 // which in turn will result in hooks (which will have access to everything) being called.
 type Ev struct {
-	uni 	*Uni
+	uni    *Uni
 	Params []interface{}
 }
 

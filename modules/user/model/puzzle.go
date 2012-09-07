@@ -17,7 +17,7 @@ func PuzzleGroup(puzzle_group []interface{}) (puzzles []string, can_fail int) {
 	puzzles = []string{}
 	if len(puzzle_group) > 1 {
 		num, is_num := puzzle_group[len(puzzle_group)-1].(int)
-		if is_num {		// Would make no sense otherwise.
+		if is_num { // Would make no sense otherwise.
 			if num < len(puzzle_group) {
 				can_fail = num
 			}

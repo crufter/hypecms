@@ -1,20 +1,20 @@
 package content_model
 
 import (
+	"fmt"
 	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/hypecms/model/patterns"
+	"github.com/opesun/slugify"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"github.com/opesun/slugify"
 	"strings"
-	"fmt"
 )
 
-const(
-	Tag_fieldname 				= "_tags"			// goes to database
-	Tag_fieldname_displayed 	= "tags"			// comes from user interface, it is in the rules
-	Tag_cname 					= "tags"
-	Count_fieldname 			= "count"
+const (
+	Tag_fieldname           = "_tags" // goes to database
+	Tag_fieldname_displayed = "tags"  // comes from user interface, it is in the rules
+	Tag_cname               = "tags"
+	Count_fieldname         = "count"
 )
 
 type m map[string]interface{}
@@ -46,7 +46,7 @@ func separateTags(db *mgo.Database, tagnames []string) ([]bson.ObjectId, []strin
 		slug := slugify.S(val)
 		slugs = append(slugs, slug)
 	}
-	db.C(Tag_cname).Find(m{"slug":m{ "$in":slugs}}).Limit(0).All(&i)
+	db.C(Tag_cname).Find(m{"slug": m{"$in": slugs}}).Limit(0).All(&i)
 	ret_ids := []bson.ObjectId{}
 	contains := createM(slugs, tagnames)
 	i = basic.Convert(i).([]interface{})
@@ -69,10 +69,12 @@ func dec(db *mgo.Database, ids []bson.ObjectId, typ string) error {
 func insertTags(db *mgo.Database, tagnames []string) []bson.ObjectId {
 	ret := []bson.ObjectId{}
 	for _, v := range tagnames {
-		if len(v) == 0 { continue }
+		if len(v) == 0 {
+			continue
+		}
 		id := bson.NewObjectId()
 		slug := slugify.S(v)
-		tag := m{"_id": id, "slug":slug, "name":v, Count_fieldname:0}
+		tag := m{"_id": id, "slug": slug, "name": v, Count_fieldname: 0}
 		db.C(Tag_cname).Insert(tag)
 		ret = append(ret, id)
 	}
@@ -151,26 +153,26 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod, typ s
 	}
 	tags_i, _ := dat[Tag_fieldname_displayed]
 	delete(dat, Tag_fieldname_displayed)
-	tags := tags_i.(string)					// Example: "Cars, Bicycles"
+	tags := tags_i.(string) // Example: "Cars, Bicycles"
 	tags_sl := strings.Split(tags, ",")
 	tags_sl = stripEmpty(tags_sl)
 	switch mod {
-		case "insert":
-			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
-			inserted_ids := insertTags(db, to_insert_slugs)
-			all_ids := mergeIds(existing_ids, inserted_ids)
-			inc(db, all_ids, typ)
-			dat[Tag_fieldname] = all_ids
-		case "update":
-			existing_ids, to_insert_slugs := separateTags(db, tags_sl)
-			inserted_ids := insertTags(db, to_insert_slugs)
-			old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
-			new_ids := mergeIds(existing_ids, inserted_ids)
-			inc_ids := diffIds(new_ids, old_ids)
-			inc(db, inc_ids, typ)
-			addToSet(db, content["_id"].(bson.ObjectId), new_ids)
-		default:
-			panic("Bad mode at addTags.")
+	case "insert":
+		existing_ids, to_insert_slugs := separateTags(db, tags_sl)
+		inserted_ids := insertTags(db, to_insert_slugs)
+		all_ids := mergeIds(existing_ids, inserted_ids)
+		inc(db, all_ids, typ)
+		dat[Tag_fieldname] = all_ids
+	case "update":
+		existing_ids, to_insert_slugs := separateTags(db, tags_sl)
+		inserted_ids := insertTags(db, to_insert_slugs)
+		old_ids := toIdSlice(content[Tag_fieldname].([]interface{}))
+		new_ids := mergeIds(existing_ids, inserted_ids)
+		inc_ids := diffIds(new_ids, old_ids)
+		inc(db, inc_ids, typ)
+		addToSet(db, content["_id"].(bson.ObjectId), new_ids)
+	default:
+		panic("Bad mode at addTags.")
 	}
 }
 
@@ -180,7 +182,9 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	content_id = basic.StripId(content_id)
 	content := find(db, content_id)
 	typ := content["type"].(string)
-	if content == nil { return fmt.Errorf("Cant find content when pulling tags.") }
+	if content == nil {
+		return fmt.Errorf("Cant find content when pulling tags.")
+	}
 	tag_objectids := content[Tag_fieldname].([]interface{})
 	cache := createMObjectId(toIdSlice(tag_objectids))
 	to_pull := []bson.ObjectId{}
@@ -192,7 +196,7 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 		}
 	}
 	dec(db, to_pull, typ)
-	q := m{"_id": content["_id"].(bson.ObjectId) }
+	q := m{"_id": content["_id"].(bson.ObjectId)}
 	upd := m{"$pullAll": m{Tag_fieldname: to_pull}}
 	return db.C(Cname).Update(q, upd)
 }
@@ -200,7 +204,9 @@ func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 // Deletes a tag entirely.
 func DeleteTag(db *mgo.Database, tag_id string) error {
 	err := patterns.DeleteById(db, Tag_cname, tag_id)
-	if err != nil {return err}
+	if err != nil {
+		return err
+	}
 	return PullTagFromAll(db, tag_id)
 }
 
@@ -213,7 +219,7 @@ func PullTagFromAll(db *mgo.Database, tag_id string) error {
 //	return patterns.FindChildrenByParent(db, Tag_cname, m{field: value}, Cname, Tag_fieldname, children_query)
 //}
 
-func FindTag(db *mgo.Database, field string, value interface{}) (map[string]interface{}, error){
+func FindTag(db *mgo.Database, field string, value interface{}) (map[string]interface{}, error) {
 	return patterns.FindEq(db, "tags", field, value)
 }
 
@@ -223,6 +229,6 @@ func FindTag(db *mgo.Database, field string, value interface{}) (map[string]inte
 
 func TagSearchQuery(fieldname, val string) map[string]interface{} {
 	return map[string]interface{}{
-		fieldname: bson.RegEx{ "^" + val, "u"},
+		fieldname: bson.RegEx{"^" + val, "u"},
 	}
 }

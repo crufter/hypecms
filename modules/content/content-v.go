@@ -1,18 +1,18 @@
 package content
 
-import(
-	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/basic"
-	"github.com/opesun/routep"
-	"github.com/opesun/jsonp"
-	"labix.org/v2/mgo/bson"
-	"github.com/opesun/hypecms/model/scut"
-	"github.com/opesun/hypecms/model/patterns"
-	"github.com/opesun/hypecms/modules/content/model"
-	"github.com/opesun/hypecms/modules/display/model"
+import (
 	"encoding/json"
 	"fmt"
+	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/model/patterns"
+	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/modules/content/model"
+	"github.com/opesun/hypecms/modules/display/model"
+	"github.com/opesun/jsonp"
 	"github.com/opesun/resolver"
+	"github.com/opesun/routep"
+	"labix.org/v2/mgo/bson"
 	"strings"
 )
 
@@ -30,17 +30,19 @@ func userEdit(uni *context.Uni, urimap map[string]string) error {
 		return fmt.Errorf("You have no rights to insert a content.")
 	}
 	ed_err := Edit(uni, urimap)
-	if ed_err != nil { return ed_err }
-	uni.Dat["_points"] = []string{"edit-content"}	// Must contain require content/edit-form.t to work well.
+	if ed_err != nil {
+		return ed_err
+	}
+	uni.Dat["_points"] = []string{"edit-content"} // Must contain require content/edit-form.t to work well.
 	return nil
 }
 
 func tagView(uni *context.Uni, urimap map[string]string) error {
-	fieldname := "slug"		// This should not be hardcoded.
+	fieldname := "slug" // This should not be hardcoded.
 	specific := len(urimap) == 2
 	var search_value string
 	var children_query map[string]interface{}
-	if specific { 
+	if specific {
 		children_query["type"] = urimap["first"]
 		search_value = urimap["second"]
 	} else {
@@ -56,7 +58,7 @@ func tagView(uni *context.Uni, urimap map[string]string) error {
 			"content": 300,
 		},
 		"so": "-created",
-		"c": "contents",
+		"c":  "contents",
 		"q": map[string]interface{}{
 			"_tags": tag["_id"],
 		},
@@ -80,10 +82,10 @@ func tagSearch(uni *context.Uni) error {
 	pnq := uni.P + "?" + uni.Req.URL.RawQuery
 	query := map[string]interface{}{
 		"so": "-created",
-		"c": "tags",
-		"q": q,
-		"p": "page",
-		"l": 20,
+		"c":  "tags",
+		"q":  q,
+		"p":  "page",
+		"l":  20,
 	}
 	cl := display_model.RunQuery(uni.Db, "tag_list", query, uni.Req.Form, pnq)
 	uni.Dat["tag_list"] = cl["tag_list"]
@@ -115,7 +117,7 @@ func contentView(uni *context.Uni, content_map map[string]string) error {
 	if !found {
 		return fmt.Errorf("Can't find content.")
 	}
-	dont_query := map[string]interface{}{"password":0}
+	dont_query := map[string]interface{}{"password": 0}
 	resolver.ResolveOne(uni.Db, content, dont_query)
 	uni.Dat["_points"] = []string{"content"}
 	uni.Dat["content"] = content
@@ -133,10 +135,10 @@ func contentSearch(uni *context.Uni) error {
 	}
 	query := map[string]interface{}{
 		"so": "-created",
-		"c": "contents",
-		"q": q,
-		"p": "page",
-		"l": 20,
+		"c":  "contents",
+		"q":  q,
+		"p":  "page",
+		"l":  20,
 	}
 	pnq := uni.P + "?" + uni.Req.URL.RawQuery
 	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
@@ -194,7 +196,9 @@ func Index(uni *context.Uni) error {
 	var v []interface{}
 	visible_types := []string{}
 	types, has := jsonp.GetM(uni.Opt, "Modules.content.types")
-	if !has { return fmt.Errorf("Can't find content types.") }
+	if !has {
+		return fmt.Errorf("Can't find content types.")
+	}
 	for i, _ := range types {
 		visible_types = append(visible_types, i)
 	}
@@ -204,7 +208,7 @@ func Index(uni *context.Uni) error {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P+"?"+uni.Req.URL.RawQuery, 10)
 	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
 	uni.Dat["paging"] = paging_inf
 	v = basic.Convert(v).([]interface{})
@@ -234,13 +238,13 @@ func List(uni *context.Uni) error {
 		return fmt.Errorf("Can not extract typ at list.")
 	}
 	var v []interface{}
-	q := m{"type":typ}
-	search_sl, has := uni.Req.Form["search"];
+	q := m{"type": typ}
+	search_sl, has := uni.Req.Form["search"]
 	if has && len(search_sl[0]) > 0 {
 		q["$and"] = content_model.GenerateQuery(search_sl[0])
 		uni.Dat["search"] = search_sl[0]
 	}
-	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P + "?" + uni.Req.URL.RawQuery, 10)
+	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P+"?"+uni.Req.URL.RawQuery, 10)
 	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
 	uni.Dat["paging"] = paging_inf
 	v = basic.Convert(v).([]interface{})
@@ -261,14 +265,14 @@ func TypeConfig(uni *context.Uni) error {
 	if !has {
 		return fmt.Errorf("Can not extract typ at type config.")
 	}
-	op, ok := jsonp.Get(uni.Opt, "Modules.content.types." + typ)
+	op, ok := jsonp.Get(uni.Opt, "Modules.content.types."+typ)
 	if !ok {
 		return fmt.Errorf("Can not find content type " + typ + " in options.")
 	}
 	uni.Dat["type"] = typ
 	uni.Dat["type_options"], _ = json.MarshalIndent(op, "", "    ")
 	uni.Dat["op"] = op
-	user_type_op, has := jsonp.Get(uni.Dat["_user"], "content_options." + typ)
+	user_type_op, has := jsonp.Get(uni.Dat["_user"], "content_options."+typ)
 	uni.Dat["user_type_op"] = user_type_op
 	uni.Dat["_points"] = []string{"content/type-config"}
 	return nil
@@ -290,14 +294,16 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 	var indb interface{}
 	if hasid {
 		uni.Dat["op"] = "update"
-		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb)						// Ugly.
+		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb) // Ugly.
 		indb = basic.Convert(indb)
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
 		latest_draft := content_model.GetUpToDateDraft(uni.Db, bson.ObjectIdHex(id), indb.(map[string]interface{}))
 		uni.Dat["latest_draft"] = latest_draft
 		timeline, err := content_model.ContentTimeline(uni.Db, indb.(map[string]interface{}))
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		uni.Dat["timeline"] = timeline
 	} else {
 		uni.Dat["op"] = "insert"
@@ -309,21 +315,27 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 	uni.Dat["is_draft"] = true
 	if hasid {
 		built, err := content_model.BuildDraft(uni.Db, typ, id)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		d := built["data"].(map[string]interface{})
 		if _, draft_of_sg := built["draft_of"]; draft_of_sg {
 			uni.Dat["content_parent"] = true
 			fresher, err := content_model.IsDraftUpToDate(uni.Db, built, d)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			uni.Dat["up_to_date"] = fresher
 			uni.Dat["op"] = "update"
-		} else {	// It's possible that it has no parent at all, then it is a fresh new draft, first version.
+		} else { // It's possible that it has no parent at all, then it is a fresh new draft, first version.
 			uni.Dat["op"] = "insert"
 		}
 		resolver.ResolveOne(uni.Db, d, nil)
 		uni.Dat["content"] = d
 		timeline, err := content_model.DraftTimeline(uni.Db, patterns.ToIdWithCare(id))
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		uni.Dat["timeline"] = timeline
 		uni.Dat["draft"] = built
 		return d, nil
@@ -337,10 +349,14 @@ func EditVersion(uni *context.Uni, typ, id string) (interface{}, error) {
 	uni.Dat["is_version"] = true
 	version_id := patterns.ToIdWithCare(id)
 	version, err := content_model.FindVersion(uni.Db, version_id)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	resolver.ResolveOne(uni.Db, version, nil)
 	timeline, err := content_model.DraftTimeline(uni.Db, version_id)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	uni.Dat["timeline"] = timeline
 	uni.Dat["op"] = "update"
 	uni.Dat["content"] = version
@@ -373,14 +389,14 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	if !hast {
 		return fmt.Errorf("Can't extract type at edit.")
 	}
-	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types." + rtyp + ".rules")
+	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types."+rtyp+".rules")
 	if !hasr {
 		return fmt.Errorf("Can't find rules of " + rtyp)
 	}
 	uni.Dat["content_type"] = rtyp
 	uni.Dat["type"] = rtyp
 	id, ok := ma["id"]
-	hasid := ok && len(id) > 0	// Corrigate routep.Comp because it sets a map key with an empty value...
+	hasid := ok && len(id) > 0 // Corrigate routep.Comp because it sets a map key with an empty value...
 	var field_dat interface{}
 	var err error
 	subt := subType(typ)
@@ -391,14 +407,20 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 		fmt.Println(rtyp, id, hasid)
 		field_dat, err = EditDraft(uni, rtyp, id, hasid)
 	case "version":
-		if !hasid { return fmt.Errorf("Version must have id.") }
+		if !hasid {
+			return fmt.Errorf("Version must have id.")
+		}
 		field_dat, err = EditVersion(uni, rtyp, id)
 	default:
 		panic(fmt.Sprintf("Unkown content subtype: %v.", subt))
 	}
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	fields, err := scut.RulesToFields(rules, field_dat)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	uni.Dat["fields"] = fields
 	return nil
 }
@@ -410,7 +432,9 @@ func AEdit(uni *context.Uni) error {
 		return fmt.Errorf("Bad url at edit.")
 	}
 	ed_err := Edit(uni, ma)
-	if ed_err != nil { return ed_err }
+	if ed_err != nil {
+		return ed_err
+	}
 	uni.Dat["_points"] = []string{"content/edit"}
 	return nil
 }

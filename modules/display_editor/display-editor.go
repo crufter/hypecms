@@ -2,19 +2,19 @@
 package display_editor
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
-	"fmt"
-	"strings"
-	"encoding/json"
 	"sort"
+	"strings"
 )
 
-var Hooks = map[string]interface{} {
+var Hooks = map[string]interface{}{
 	"Back":      Back,
 	"Install":   Install,
 	"Uninstall": Uninstall,
@@ -89,7 +89,7 @@ func Search(uni *context.Uni) error {
 }
 
 func Edit(uni *context.Uni, point_name string) error {
-	point, ok := jsonp.GetM(uni.Opt, "Display-points." + point_name)
+	point, ok := jsonp.GetM(uni.Opt, "Display-points."+point_name)
 	if !ok {
 		return fmt.Errorf("Can't find point named ", point_name)
 	}

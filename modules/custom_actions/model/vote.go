@@ -1,12 +1,12 @@
 package custom_actions_model
 
-import(
-	"labix.org/v2/mgo/bson"
-	"github.com/opesun/hypecms/model/patterns"
+import (
+	"fmt"
 	"github.com/opesun/extract"
+	"github.com/opesun/hypecms/model/patterns"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
-	"fmt"
+	"labix.org/v2/mgo/bson"
 )
 
 type m map[string]interface{}
@@ -39,16 +39,20 @@ func generateVoteQuery(doc_id, user_id bson.ObjectId, vote_options []string) map
 
 // Most return values ever.
 func sharedProc(action map[string]interface{}, inp map[string][]string) (map[string]interface{}, string, []string, string, error) {
-	collection 			:= action["c"].(string)
-	vote_options		:= jsonp.ToStringSlice(action["vote_options"].([]interface{}))
+	collection := action["c"].(string)
+	vote_options := jsonp.ToStringSlice(action["vote_options"].([]interface{}))
 	rules := map[string]interface{}{
-		"document_id": 		"must",
-		"vote_option":		"must",
+		"document_id": "must",
+		"vote_option": "must",
 	}
 	dat, err := extract.New(rules).Extract(inp)
-	if err != nil { return nil, "", nil, "", err }
+	if err != nil {
+		return nil, "", nil, "", err
+	}
 	input_vote := dat["vote_option"].(string)
-	if !isLegalOption(vote_options, input_vote) { return nil, "", nil, "", fmt.Errorf("Not a legal option.") }
+	if !isLegalOption(vote_options, input_vote) {
+		return nil, "", nil, "", fmt.Errorf("Not a legal option.")
+	}
 	return dat, collection, vote_options, input_vote, nil
 }
 
@@ -67,11 +71,15 @@ func sharedProc(action map[string]interface{}, inp map[string][]string) (map[str
 func Vote(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string) error {
 	doc_type, has_dt := action["doc_typ"]
 	dat, collection, vote_options, input_vote, err := sharedProc(action, inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	doc_id := patterns.ToIdWithCare(dat["document_id"].(string))
 	user_id := user["_id"].(bson.ObjectId)
 	q := generateVoteQuery(doc_id, user_id, vote_options)
-	if has_dt { q["type"] = doc_type.(string) }
+	if has_dt {
+		q["type"] = doc_type.(string)
+	}
 	upd := m{
 		"$addToSet": m{
 			input_vote: user_id,
@@ -89,15 +97,23 @@ func Vote(db *mgo.Database, user, action map[string]interface{}, inp map[string]
 // Decreases the counter field of the given vote option, and pulls the user_id from the field of the given vote option.
 func Unvote(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string) error {
 	can_unvote, has_cu := action["can_unvote"]
-	if !has_cu || can_unvote.(bool) == false { return fmt.Errorf("Can't unvote.") }
+	if !has_cu || can_unvote.(bool) == false {
+		return fmt.Errorf("Can't unvote.")
+	}
 	dat, collection, _, input_vote, err := sharedProc(action, inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	doc_id := patterns.ToIdWithCare(dat["document_id"].(string))
 	user_id := user["_id"].(bson.ObjectId)
 	q := m{"_id": doc_id, input_vote: user_id}
 	count, err := db.C(collection).Find(q).Count()
-	if err != nil { return err }
-	if count != 1 { return fmt.Errorf("Can't unvote a doc which you haven't vote on yet.") }
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return fmt.Errorf("Can't unvote a doc which you haven't vote on yet.")
+	}
 	q = m{"_id": doc_id}
 	upd := m{
 		"$inc": m{

@@ -1,13 +1,13 @@
 package display_editor_model
 
-import(
+import (
+	"fmt"
+	"github.com/opesun/extract"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"github.com/opesun/extract"
-	"fmt"
-	"github.com/opesun/jsonp"
 	"strings"
 )
 
@@ -35,9 +35,9 @@ func New(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 // See display_model.RunQueries for further explanation.
 func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 	rule := map[string]interface{}{
-		"name":			"must",
-		"prev_name":	"must",
-		"queries":		"must",
+		"name":      "must",
+		"prev_name": "must",
+		"queries":   "must",
 	}
 	r := extract.New(rule)
 	dat, err := r.Extract(inp)
@@ -72,7 +72,7 @@ func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 		}
 	}
 	upd := m{
-		"$set":m{
+		"$set": m{
 			"Display-points." + dat["name"].(string) + ".queries": que_m,
 		},
 	}
@@ -82,7 +82,7 @@ func Save(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 		}
 	}
 	id := basic.CreateOptCopy(db)
-	q := m{"_id":id}
+	q := m{"_id": id}
 	return db.C("options").Update(q, upd)
 }
 
@@ -93,7 +93,7 @@ func Delete(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 	}
 	name := name_sl[0]
 	id := basic.CreateOptCopy(db)
-	q := m{"_id":id}
+	q := m{"_id": id}
 	upd := m{
 		"$unset": m{
 			"Display-points." + name: 1,
@@ -102,15 +102,14 @@ func Delete(db *mgo.Database, ev ifaces.Event, inp map[string][]string) error {
 	return db.C("options").Update(q, upd)
 }
 func Install(db *mgo.Database, id bson.ObjectId) error {
-	display_editor_options := m{
-	}
+	display_editor_options := m{}
 	q := m{"_id": id}
 	upd := m{
 		"$set": m{
 			"Modules.display_editor": display_editor_options,
 		},
 	}
-	return db.C("options").Update(q, upd)	
+	return db.C("options").Update(q, upd)
 }
 
 func Uninstall(db *mgo.Database, id bson.ObjectId) error {
@@ -120,5 +119,5 @@ func Uninstall(db *mgo.Database, id bson.ObjectId) error {
 			"Modules.display_editor": 1,
 		},
 	}
-	return db.C("options").Update(q, upd)	
+	return db.C("options").Update(q, upd)
 }

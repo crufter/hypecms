@@ -14,9 +14,9 @@ import (
 	"github.com/opesun/hypecms/modules/admin"
 	"github.com/opesun/hypecms/modules/display"
 	"github.com/opesun/jsonp"
-	"labix.org/v2/mgo"
 	"io"
 	"io/ioutil"
+	"labix.org/v2/mgo"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -25,31 +25,31 @@ import (
 )
 
 const (
-	unfortunate_error			= "An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	unexported_front			= "Module %v does not export Front hook."
-	unexported_back				= "Module %v does not export Back hook."
-	no_user_module_build_hook	= "User module does not export build hook."
-	no_module_at_back			= "Tried to run a back hook, but no module was specified."
-	no_action					= "No action specified when accessing module %v."
-	adminback_no_module			= "No module specified when accessing admin back."
-	cant_run_back				= "Can't run back hook of not installed module %v."
-	cant_test					= "Can't test module because it is not even installed: %v."
+	unfortunate_error         = "An unfortunate error has happened. We are deeply sorry for the inconvenience."
+	unexported_front          = "Module %v does not export Front hook."
+	unexported_back           = "Module %v does not export Back hook."
+	no_user_module_build_hook = "User module does not export build hook."
+	no_module_at_back         = "Tried to run a back hook, but no module was specified."
+	no_action                 = "No action specified when accessing module %v."
+	adminback_no_module       = "No module specified when accessing admin back."
+	cant_run_back             = "Can't run back hook of not installed module %v."
+	cant_test                 = "Can't test module because it is not even installed: %v."
 )
 
 // See handleFlags methods about these vars and their uses.
-var(
-	ABS_PATH 		string
-	CONF_FN			string
-	DB_USER 		string
-	DB_PASS 		string
-	DB_ADDR 		string
-	DEBUG			bool
-	DB_NAME			string
-	ADDR			string
-	PORT_NUM		string
-	OPT_CACHE		bool
-	SERVE_FILES		bool
-	SECRET			string
+var (
+	ABS_PATH    string
+	CONF_FN     string
+	DB_USER     string
+	DB_PASS     string
+	DB_ADDR     string
+	DEBUG       bool
+	DB_NAME     string
+	ADDR        string
+	PORT_NUM    string
+	OPT_CACHE   bool
+	SERVE_FILES bool
+	SECRET      string
 )
 
 func loadConfFromFile() {
@@ -70,21 +70,41 @@ func loadConfFromFile() {
 		return
 	}
 	// Doh...
-	if db_user, ok := conf["db_user"].(string); ok { DB_USER = db_user }
-	if db_pass, ok := conf["db_pass"].(string); ok { DB_PASS = db_pass }
-	if db_addr, ok := conf["db_addr"].(string); ok { DB_ADDR = db_addr }
-	if debug, ok := conf["debug"].(bool); ok { DEBUG = debug }
-	if db_name, ok := conf["db_name"].(string); ok { DB_NAME = db_name }
-	if addr, ok := conf["addr"].(string); ok { ADDR = addr }
-	if port_num, ok := conf["port_num"].(string); ok { PORT_NUM = port_num }
-	if opt_cache, ok := conf["opt_cache"].(bool); ok { OPT_CACHE = opt_cache }
-	if serve_files, ok := conf["serve_files"].(bool); ok { SERVE_FILES = serve_files }
-	if secret, ok := conf["secret"].(string); ok { SECRET = secret }
+	if db_user, ok := conf["db_user"].(string); ok {
+		DB_USER = db_user
+	}
+	if db_pass, ok := conf["db_pass"].(string); ok {
+		DB_PASS = db_pass
+	}
+	if db_addr, ok := conf["db_addr"].(string); ok {
+		DB_ADDR = db_addr
+	}
+	if debug, ok := conf["debug"].(bool); ok {
+		DEBUG = debug
+	}
+	if db_name, ok := conf["db_name"].(string); ok {
+		DB_NAME = db_name
+	}
+	if addr, ok := conf["addr"].(string); ok {
+		ADDR = addr
+	}
+	if port_num, ok := conf["port_num"].(string); ok {
+		PORT_NUM = port_num
+	}
+	if opt_cache, ok := conf["opt_cache"].(bool); ok {
+		OPT_CACHE = opt_cache
+	}
+	if serve_files, ok := conf["serve_files"].(bool); ok {
+		SERVE_FILES = serve_files
+	}
+	if secret, ok := conf["secret"].(string); ok {
+		SECRET = secret
+	}
 }
 
 func handleConfigVars() {
 	flag.StringVar(&ABS_PATH, "abs_path", "c:/gowork/src/github.com/opesun/hypecms", "absolute path")
-	flag.StringVar(&CONF_FN, "conf_fn", "config.json",	"config filename")
+	flag.StringVar(&CONF_FN, "conf_fn", "config.json", "config filename")
 	// Everything else we can try to load from file.
 	loadConfFromFile()
 	flag.StringVar(&DB_USER, "db_user", "", "database username")
@@ -98,7 +118,7 @@ func handleConfigVars() {
 	flag.BoolVar(&SERVE_FILES, "serve_files", true, "serve files from Go or not")
 	flag.StringVar(&SECRET, "secret", "pLsCh4nG3Th1$.AlSoThisShouldbeatLeast16bytes", "secret characters used for encryption and the like")
 	flag.Parse()
-}		
+}
 
 // Quickly print the data to http response.
 var Put func(...interface{})
@@ -148,17 +168,17 @@ func appendParams(str string, err error, action_name string, cont map[string]int
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
-		for key, val := range cont {	// This way we can include additional data in the get params, not only action name and errors.
+		for key, val := range cont { // This way we can include additional data in the get params, not only action name and errors.
 			v.Set(key, fmt.Sprint(val))
 		}
 		v.Del("error")
-		v.Del("ok")	// See *1
+		v.Del("ok") // See *1
 		v.Del("action")
-		if len(action_name) > 0 {	// runDebug calls this function with an empty action name.
+		if len(action_name) > 0 { // runDebug calls this function with an empty action name.
 			v.Set("action", action_name)
 		}
 		if err == nil {
-			v.Set("ok", "true")	// This could be left out, but hey. *1
+			v.Set("ok", "true") // This could be left out, but hey. *1
 		} else {
 			v.Set("error", err.Error())
 		}
@@ -211,12 +231,12 @@ func runBacks(uni *context.Uni) (string, error) {
 	if l < 3 {
 		return "", fmt.Errorf(no_module_at_back)
 	}
-	modname := uni.Paths[2] 			// TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
+	modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 	if l < 4 {
 		return "", fmt.Errorf(no_action, modname)
 	}
 	action_name := uni.Paths[3]
-	if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+	if _, installed := jsonp.Get(uni.Opt, "Modules."+modname); !installed {
 		return action_name, fmt.Errorf(cant_run_back, modname)
 	}
 	h := mod.GetHook(modname, "Back")
@@ -265,14 +285,14 @@ func runD(uni *context.Uni) error {
 		return fmt.Errorf("No module specified to test.")
 	}
 	modname := uni.Paths[2]
-	if _, installed := jsonp.Get(uni.Opt, "Modules." + modname); !installed {
+	if _, installed := jsonp.Get(uni.Opt, "Modules."+modname); !installed {
 		return fmt.Errorf(cant_test, modname)
 	}
 	h := mod.GetHook(modname, "Test")
 	if h == nil {
 		return fmt.Errorf("Module %v does not export Test hook.", modname)
 	}
-	hook, ok := h.(func(*context.Uni)error)
+	hook, ok := h.(func(*context.Uni) error)
 	if !ok {
 		return fmt.Errorf("Test hook of %v has bad signature.", modname)
 	}
@@ -288,7 +308,7 @@ func runDebug(uni *context.Uni) {
 func buildUser(uni *context.Uni) error {
 	h := mod.GetHook("user", "BuildUser")
 	if h != nil {
-		return h.(func(*context.Uni)error)(uni)
+		return h.(func(*context.Uni) error)(uni)
 	}
 	return fmt.Errorf(no_user_module_build_hook)
 }
@@ -330,18 +350,18 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	}
 	defer err()
 	uni := &context.Uni{
-		Db:    		db,
-		W:     		w,
-		Req:   		req,
-		Put:   		Put,
-		Dat:   		make(map[string]interface{}),
-		Root:  		ABS_PATH,
-		P:     		req.URL.Path,
-		Paths: 		strings.Split(req.URL.Path, "/"),
-		GetHook:	mod.GetHook,
+		Db:      db,
+		W:       w,
+		Req:     req,
+		Put:     Put,
+		Dat:     make(map[string]interface{}),
+		Root:    ABS_PATH,
+		P:       req.URL.Path,
+		Paths:   strings.Split(req.URL.Path, "/"),
+		GetHook: mod.GetHook,
 	}
 	uni.Ev = context.NewEv(uni)
-	opt, opt_str, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE)	// Tricky part about the host, see comments at main_model.
+	opt, opt_str, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE) // Tricky part about the host, see comments at main_model.
 	if err != nil {
 		uni.Put(err.Error())
 		return
@@ -378,7 +398,7 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 	if uni.Paths[1] == "template" {
 		p := scut.GetTPath(uni.Opt, uni.Req.Host)
 		http.ServeFile(w, req, filepath.Join(uni.Root, p, strings.Join(uni.Paths[2:], "/")))
-	} else {	// "tpl"
+	} else { // "tpl"
 		http.ServeFile(w, req, filepath.Join(uni.Root, "modules", uni.Paths[2], "tpl", strings.Join(uni.Paths[3:], "/")))
 	}
 }
@@ -414,5 +434,5 @@ func main() {
 		func(w http.ResponseWriter, req *http.Request) {
 			getSite(db, w, req)
 		})
-	http.ListenAndServe(ADDR + ":" + PORT_NUM, nil)
+	http.ListenAndServe(ADDR+":"+PORT_NUM, nil)
 }

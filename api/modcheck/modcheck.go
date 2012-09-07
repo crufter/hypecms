@@ -2,35 +2,35 @@
 // This way we can avoid runtime problems.
 package modcheck
 
-import(
-	"labix.org/v2/mgo/bson"
+import (
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
-	"fmt"
+	"labix.org/v2/mgo/bson"
 )
 
 func adCheck(h interface{}) bool {
-	_, ok := h.(func(*context.Uni)error)
+	_, ok := h.(func(*context.Uni) error)
 	return ok
 }
 
 func installCheck(h interface{}) bool {
-	_, ok := h.(func(*context.Uni, bson.ObjectId)error)
+	_, ok := h.(func(*context.Uni, bson.ObjectId) error)
 	return ok
 }
 
 func frontCheck(h interface{}) bool {
-	_, ok := h.(func(*context.Uni, *bool)error)
+	_, ok := h.(func(*context.Uni, *bool) error)
 	return ok
 }
 
 func backCheck(h interface{}) bool {
-	_, ok := h.(func(*context.Uni, string)error)
+	_, ok := h.(func(*context.Uni, string) error)
 	return ok
 }
 
 func testCheck(h interface{}) bool {
-	_, ok := h.(func(*context.Uni)error)
+	_, ok := h.(func(*context.Uni) error)
 	return ok
 }
 

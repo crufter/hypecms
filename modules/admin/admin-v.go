@@ -1,15 +1,15 @@
 package admin
 
-import(
+import (
+	"encoding/json"
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/routep"
 	"io/ioutil"
 	"path/filepath"
-	"encoding/json"
-	"github.com/opesun/hypecms/modules/admin/model"
 	"sort"
-	"fmt"
 )
 
 func Index(uni *context.Uni) error {
@@ -109,7 +109,7 @@ func AD(uni *context.Uni) error {
 	case "uninstall":
 		err = Uninstall(uni)
 	default:
-		_, installed := jsonp.Get(uni.Opt, "Modules." + modname)
+		_, installed := jsonp.Get(uni.Opt, "Modules."+modname)
 		if !installed {
 			fmt.Errorf("There is no module named ", modname, " installed.")
 		}
@@ -117,7 +117,7 @@ func AD(uni *context.Uni) error {
 		if h == nil {
 			return fmt.Errorf("Module ", modname, " does not export hook AD.")
 		}
-		hook, ok := h.(func(*context.Uni)error)
+		hook, ok := h.(func(*context.Uni) error)
 		if !ok {
 			return fmt.Errorf("Hook AD of module %v has bad signature.", modname)
 		}

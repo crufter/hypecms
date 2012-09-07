@@ -1,25 +1,25 @@
 package admin_model
 
-import(
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/opesun/extract"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/hypecms/model/basic"
 	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/extract"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"encoding/json"
-	"fmt"
 	"time"
 )
 
 type m map[string]interface{}
 
 // consts for regUser modes.
-const(
-	first_admin = 1
+const (
+	first_admin     = 1
 	admin_with_name = 2
-	generic_user = 3
+	generic_user    = 3
 )
 
 func SiteHasAdmin(db *mgo.Database) bool {
@@ -36,11 +36,11 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 	subr := map[string]interface{}{
 		"must": 1,
 		"type": "string",
-		"min":	1,
+		"min":  1,
 	}
 	rule := map[string]interface{}{
-		"password": 		subr,
-		"password_again":	subr,
+		"password":       subr,
+		"password_again": subr,
 	}
 	if mode != first_admin {
 		rule["name"] = subr
@@ -51,20 +51,20 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 	}
 	pass := dat["password"].(string)
 	pass_again := dat["password_again"].(string)
-	if  pass != pass_again {
+	if pass != pass_again {
 		return fmt.Errorf("Password and password confirmation differs.")
 	}
 	a := map[string]interface{}{"password": user_model.EncodePass(pass)}
-	switch mode {					// Redundant in places for better readability.
-		case first_admin:
-			a["name"] = "admin"
-			a["level"] = 300
-		case admin_with_name:
-			a["name"] = dat["name"]
-			a["level"] = 300
-		case generic_user:
-			a["name"] = dat["name"]
-			a["level"] = 100
+	switch mode { // Redundant in places for better readability.
+	case first_admin:
+		a["name"] = "admin"
+		a["level"] = 300
+	case admin_with_name:
+		a["name"] = dat["name"]
+		a["level"] = 300
+	case generic_user:
+		a["name"] = dat["name"]
+		a["level"] = 100
 	}
 	err = db.C("users").Insert(a)
 	if err != nil {
@@ -91,13 +91,13 @@ func RegAdmin(db *mgo.Database, ev ifaces.Event, post map[string][]string) error
 // Modules.modulename
 func InstallB(db *mgo.Database, ev ifaces.Event, opt map[string]interface{}, modn, mode string) (bson.ObjectId, error) {
 	var object_id bson.ObjectId
-	if _, already := jsonp.Get(opt, "Modules." + modn); mode == "install" && already {
+	if _, already := jsonp.Get(opt, "Modules."+modn); mode == "install" && already {
 		return object_id, fmt.Errorf("Module " + modn + " is already installed.")
 	} else if mode == "uninstall" && !already {
 		return object_id, fmt.Errorf("Module " + modn + " is not installed.")
 	}
 	object_id = basic.CreateOptCopy(db)
-	return object_id, nil 
+	return object_id, nil
 }
 
 func SaveConfig(db *mgo.Database, ev ifaces.Event, encoded_conf string) error {

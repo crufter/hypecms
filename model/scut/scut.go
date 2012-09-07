@@ -1,13 +1,13 @@
 // Package scut contains a somewhat ugly but useful collection of frequently appearing patterns to allow faster prototyping.
 package scut
 
-import(
+import (
 	"fmt"
-	"sort"
+	"io/ioutil"
 	"labix.org/v2/mgo/bson"
 	"path/filepath"
+	"sort"
 	"strings"
-	"io/ioutil"
 )
 
 // Converts all bson.ObjectId s to string. Usually called before displaying a database query result.
@@ -59,6 +59,7 @@ func OrderKeys(d map[string]interface{}) []interface{} {
 	}
 	return ret
 }
+
 // TODO: ret should contain the rules, so we can display/js validate based on them too.
 // Extract module should be modified to not blow up when encountering an unkown rule field, so we can embed metainformation (like text or input, WYSIWYG editor, etc) in the rule too.
 //
@@ -69,7 +70,7 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 	already_in := map[string]struct{}{}
 	for _, v := range prior {
 		if _, contains := rule[v]; contains {
-			item := map[string]interface{}{v:1, "key":v}
+			item := map[string]interface{}{v: 1, "key": v}
 			if dat != nil {
 				item["value"] = dat[v]
 			}
@@ -87,7 +88,7 @@ func abcKeys(rule map[string]interface{}, dat map[string]interface{}, prior []st
 	sort.Strings(keys)
 	for _, v := range keys {
 		if _, in := already_in[v]; !in {
-			item := map[string]interface{}{v:1, "key":v}
+			item := map[string]interface{}{v: 1, "key": v}
 			if dat != nil {
 				item["value"] = dat[v]
 			}
@@ -151,7 +152,9 @@ func GetFile(root, fi string, opt map[string]interface{}, host string, file_read
 	if err == nil {
 		return b, nil
 	}
-	if !PossibleModPath(fi) { return nil, fmt.Errorf("Not found.") }
+	if !PossibleModPath(fi) {
+		return nil, fmt.Errorf("Not found.")
+	}
 	mp := GetModTPath(fi)
 	return file_reader(filepath.Join(root, mp[0], mp[1]))
 }
@@ -201,7 +204,7 @@ func IsGuest(user interface{}) bool {
 // Gives back the user level.
 func Ulev(useri interface{}) int {
 	if useri == nil {
-		return -1	// useri should never be nil BTW
+		return -1 // useri should never be nil BTW
 	}
 	user := useri.(map[string]interface{})
 	ulev, has := user["level"]
@@ -224,12 +227,14 @@ func Host(host string, opt map[string]interface{}) string {
 	alias_whitelist, has_alias_whitelist := opt["host_alias_whitelist"]
 	if has_alias_whitelist {
 		awm := alias_whitelist.(map[string]interface{})
-		if _, allowed := awm[host]; !allowed && len(awm) > 0 {	// To prevent entirely locking yourself out of the site. Still can introduce problems if misused.
+		if _, allowed := awm[host]; !allowed && len(awm) > 0 { // To prevent entirely locking yourself out of the site. Still can introduce problems if misused.
 			panic(fmt.Sprintf("Unapproved host alias %v.", host))
 		}
 	}
 	canon_host, has_canon := opt["canonical_host"]
-	if !has_canon { return host }
+	if !has_canon {
+		return host
+	}
 	return canon_host.(string)
 }
 

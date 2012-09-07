@@ -1,18 +1,18 @@
 package content_model
 
-import(
+import (
+	"fmt"
+	"github.com/opesun/extract"
+	ifaces "github.com/opesun/hypecms/interfaces"
+	"github.com/opesun/hypecms/model/basic"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	ifaces "github.com/opesun/hypecms/interfaces"
-	"github.com/opesun/extract"
-	"github.com/opesun/hypecms/model/basic"
-	"fmt"
 	"time"
 )
 
 func commentRequiredLevel(content_options map[string]interface{}, op string) int {
 	var req_lev int
-	if lev, has_lev := content_options[op + "_comment_level"]; has_lev {
+	if lev, has_lev := content_options[op+"_comment_level"]; has_lev {
 		req_lev = int(lev.(float64))
 	} else {
 		req_lev = 100
@@ -30,21 +30,25 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 		return fmt.Errorf("You have no rights to comment.")
 	}
 	rule := map[string]interface{}{
-		"content_id": 	"must",
-		"comment_id":	"must",
-		"type":			"must",
+		"content_id": "must",
+		"comment_id": "must",
+		"type":       "must",
 	}
 	dat, err := extract.New(rule).Extract(inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	content_id_str := basic.StripId(dat["content_id"].(string))
-	typ := dat["type"].(string)		// We check this because they can lie about the type, sending a less strictly guarded type name and gaining access.
+	typ := dat["type"].(string) // We check this because they can lie about the type, sending a less strictly guarded type name and gaining access.
 	if !typed(db, bson.ObjectIdHex(content_id_str), typ) {
 		return fmt.Errorf("Content is not of type %v.", typ)
 	}
 	// Even if he has the required level, and he is below level 200 (not a moderator), he can't modify other people's comment, only his owns.
 	// So we query here the comment and check who is the owner of it.
 	if user_level < 200 && op != "insert" {
-		if user_level == 0 { return fmt.Errorf("Not registered users can't update or delete comments currently.") }
+		if user_level == 0 {
+			return fmt.Errorf("Not registered users can't update or delete comments currently.")
+		}
 		comment_id_str := basic.StripId(dat["comment_id"].(string))
 		auth, err := findCommentAuthor(db, content_id_str, comment_id_str)
 		if err != nil {
@@ -62,9 +66,9 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 func insertToVirtual(db *mgo.Database, content_id, comment_id, author bson.ObjectId, in_moderation bool) error {
 	comment_link := map[string]interface{}{
 		"_contents_parent": content_id,
-		"_id":		comment_id,
-		"_users_author":	author,
-		"created":			time.Now().Unix(),
+		"_id":              comment_id,
+		"_users_author":    author,
+		"created":          time.Now().Unix(),
 	}
 	return db.C("comments").Insert(comment_link)
 }
@@ -72,7 +76,7 @@ func insertToVirtual(db *mgo.Database, content_id, comment_id, author bson.Objec
 // Places a comment into its final place - the comment array field of a given content.
 func insertFinal(db *mgo.Database, comment map[string]interface{}, comment_id, content_id bson.ObjectId) error {
 	comment["comment_id"] = comment_id
-	q := bson.M{ "_id": content_id}
+	q := bson.M{"_id": content_id}
 	upd := bson.M{
 		"$inc": bson.M{
 			"comment_count": 1,
@@ -90,7 +94,9 @@ func MoveToFinalWE(db *mgo.Database, inp map[string][]string) error {
 		"comment_id": "must",
 	}
 	dat, err := extract.New(r).Extract(inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	comment_id := basic.ToIdWithCare(dat["comment_id"])
 	return MoveToFinal(db, comment_id)
 }
@@ -99,7 +105,9 @@ func MoveToFinalWE(db *mgo.Database, inp map[string][]string) error {
 func MoveToFinal(db *mgo.Database, comment_id bson.ObjectId) error {
 	var comm interface{}
 	err := db.C("comments_moderation").Find(m{"_id": comment_id}).One(&comm)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	comment := basic.Convert(comm).(map[string]interface{})
 	comment["comment_id"] = comment["_id"]
 	delete(comment, "comment_id")
@@ -171,7 +179,9 @@ func UpdateComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 		},
 	}
 	err = db.C("contents").Update(q, upd)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return db.C("comments").Remove(m{"_id": comment_id})
 }
 
@@ -186,7 +196,7 @@ func DeleteComment(db *mgo.Database, ev ifaces.Event, inp map[string][]string, u
 		"comments.comment_id": bson.ObjectIdHex(ids[1]),
 	}
 	upd := bson.M{
-		"$inc":	bson.M{
+		"$inc": bson.M{
 			"comment_count": -1,
 		},
 		"$pull": bson.M{
@@ -205,7 +215,9 @@ func findComment(db *mgo.Database, content_id, comment_id string) (map[string]in
 		//"comments.comment_id": bson.ObjectIdHex(comment_id),	
 	}
 	find_err := db.C("contents").Find(q).One(&v)
-	if find_err != nil { return nil, find_err }
+	if find_err != nil {
+		return nil, find_err
+	}
 	if v == nil {
 		return nil, fmt.Errorf("Can't find content with id %v.", content_id)
 	}
@@ -221,7 +233,9 @@ func findComment(db *mgo.Database, content_id, comment_id string) (map[string]in
 	// TODO: there must be a better way.
 	for _, v_i := range comments {
 		v, is_map := v_i.(map[string]interface{})
-		if !is_map { continue }
+		if !is_map {
+			continue
+		}
 		if val_i, has := v["comment_id"]; has {
 			if val_id, ok := val_i.(bson.ObjectId); ok {
 				if val_id.Hex() == comment_id {
@@ -235,7 +249,9 @@ func findComment(db *mgo.Database, content_id, comment_id string) (map[string]in
 
 func findCommentAuthor(db *mgo.Database, content_id, comment_id string) (bson.ObjectId, error) {
 	comment, err := findComment(db, content_id, comment_id)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	author, has := comment["created_by"]
 	if !has {
 		return "", fmt.Errorf("Given content has no author.")

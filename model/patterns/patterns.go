@@ -2,12 +2,11 @@
 // These functions are intended as inner building blocks of saner APIs.
 package patterns
 
-
-import(
-	"github.com/opesun/hypecms/model/basic"
-	"labix.org/v2/mgo/bson"
-	"labix.org/v2/mgo"
+import (
 	"fmt"
+	"github.com/opesun/hypecms/model/basic"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 )
 
 type m map[string]interface{}
@@ -30,8 +29,12 @@ func FindQ(db *mgo.Database, coll string, query map[string]interface{}) (map[str
 	}
 	var res interface{}
 	err := db.C(coll).Find(query).One(&res)
-	if err != nil { return nil, err }
-	if res == nil { return nil, fmt.Errorf("Can't find document at FindEq.") }
+	if err != nil {
+		return nil, err
+	}
+	if res == nil {
+		return nil, fmt.Errorf("Can't find document at FindEq.")
+	}
 	doc := basic.Convert(res.(bson.M)).(map[string]interface{})
 	return doc, nil
 }
@@ -45,8 +48,12 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 	q[parent_fk_field] = parent_id
 	var children []interface{}
 	err := db.C(children_coll).Find(q).All(&children)
-	if err != nil { return nil, err }
-	if children == nil { return nil, fmt.Errorf("Can't find children.") }
+	if err != nil {
+		return nil, err
+	}
+	if children == nil {
+		return nil, fmt.Errorf("Can't find children.")
+	}
 	children = basic.Convert(children).([]interface{})
 	return children, nil
 }
@@ -56,18 +63,24 @@ func FindChildren(db *mgo.Database, children_coll, parent_fk_field string, paren
 // Finds a document in [parent_coll] collection based on [field] [value] equality, then queries
 // [children_coll] for documents which has the _id of that document in their parent_fk_field.
 // Returns children list only, no parent.
-func FindChildrenByParent(db *mgo.Database, parent_coll string, parent_q map[string]interface{}, children_coll, parent_fk_field string, children_q map[string]interface{}) ([]interface{}, error)  {
+func FindChildrenByParent(db *mgo.Database, parent_coll string, parent_q map[string]interface{}, children_coll, parent_fk_field string, children_q map[string]interface{}) ([]interface{}, error) {
 	parent, err := FindQ(db, parent_coll, parent_q)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return FindChildren(db, children_coll, parent_fk_field, parent["_id"].(bson.ObjectId), children_q)
 }
 
 func FieldStartsWith(db *mgo.Database, collname, fieldname, val string) ([]interface{}, error) {
 	var res []interface{}
-	q := m{fieldname: bson.RegEx{ "^" + val, "u"}}
+	q := m{fieldname: bson.RegEx{"^" + val, "u"}}
 	err := db.C(collname).Find(q).All(&res)
-	if err != nil { return nil, err }
-	if res == nil { return nil, fmt.Errorf("Can't find %v starting with %v.", fieldname, val) }
+	if err != nil {
+		return nil, err
+	}
+	if res == nil {
+		return nil, fmt.Errorf("Can't find %v starting with %v.", fieldname, val)
+	}
 	res = basic.Convert(res).([]interface{})
 	return res, nil
 }
@@ -75,7 +88,7 @@ func FieldStartsWith(db *mgo.Database, collname, fieldname, val string) ([]inter
 // Takes a collection, a field and a value and pulls that value from all docs in the collection.
 // Caution, it does not take care about string id values, or even worse, non stripped string id values.
 func PullFromAll(db *mgo.Database, collname, fieldname string, value interface{}) error {
-	_, err := db.C(collname).UpdateAll(nil, m{"$pull":m{fieldname:value}})
+	_, err := db.C(collname).UpdateAll(nil, m{"$pull": m{fieldname: value}})
 	return err
 }
 
@@ -106,7 +119,11 @@ func IncAll(db *mgo.Database, collname string, ids []bson.ObjectId, fieldnames [
 func Satisfies(db *mgo.Database, collname string, id bson.ObjectId, query map[string]interface{}) (bool, error) {
 	query["_id"] = id
 	count, err := db.C(collname).Find(query).Count()
-	if err != nil { return false, err }
-	if count == 1 { return true, nil }
+	if err != nil {
+		return false, err
+	}
+	if count == 1 {
+		return true, nil
+	}
 	return false, fmt.Errorf("Does not satisfy.")
 }

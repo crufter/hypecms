@@ -1,25 +1,25 @@
 // Collection independent helper functions.
 package basic
 
-import(
+import (
+	"fmt"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/slugify"
-	"labix.org/v2/mgo/bson"
 	"labix.org/v2/mgo"
-	"fmt"
+	"labix.org/v2/mgo/bson"
 	"time"
 )
 
-const(
-	Delete_collection_postfix		= "_deleted"
-	Version_collection_postfix		= "_version"
-	Created_by						= "_users_created_by"
-	Created							= "created"
-	Last_modified_by				= "_users_last_modified_by"
-	Last_modified					= "last_modified"
-	Version_datefield				= "version_date"
-	Fresh							= "fresh"				// Saved into a version, pointing to the "living" doc.
-	Prev_version					= "previous_version"	// Goes into the "living" doc.	
+const (
+	Delete_collection_postfix  = "_deleted"
+	Version_collection_postfix = "_version"
+	Created_by                 = "_users_created_by"
+	Created                    = "created"
+	Last_modified_by           = "_users_last_modified_by"
+	Last_modified              = "last_modified"
+	Version_datefield          = "version_date"
+	Fresh                      = "fresh"            // Saved into a version, pointing to the "living" doc.
+	Prev_version               = "previous_version" // Goes into the "living" doc.	
 )
 
 // Converts a given interface value to an ObjectId with utmost care, taking all possible malformedness into account.
@@ -77,27 +77,31 @@ func Copy(db *mgo.Database, from_collname, to_collname string, id bson.ObjectId)
 // Moves document from one collection to another.
 func Move(db *mgo.Database, from_collname, to_collname string, id bson.ObjectId) error {
 	err := Copy(db, from_collname, to_collname, id)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	q := bson.M{"_id": id}
 	return db.C(from_collname).Remove(q)
 }
 
 // Deletes a document from a given collection by moving it to collname + "_deleted".
 func Delete(db *mgo.Database, collname string, id bson.ObjectId) error {
-	return Move(db, collname, collname + Delete_collection_postfix, id)
+	return Move(db, collname, collname+Delete_collection_postfix, id)
 }
 
 // Version id for insert, live id for querying.
 func SaveVersion(db *mgo.Database, coll string, version_id, live_id, parent, root bson.ObjectId) error {
 	var v interface{}
 	err := db.C(coll).Find(bson.M{"_id": live_id}).One(&v)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	copy := v.(bson.M)
 	if parent != "" {
-		copy["-parent"] = parent	// This can be either a version, or a draft.
+		copy["-parent"] = parent // This can be either a version, or a draft.
 	}
 	if root != "" {
-		copy["root"] = root					// This can be either a version, or a draft.
+		copy["root"] = root // This can be either a version, or a draft.
 	}
 	copy[Version_datefield] = time.Now().Unix()
 	copy["_id"] = version_id
@@ -110,8 +114,10 @@ func SaveVersion(db *mgo.Database, coll string, version_id, live_id, parent, roo
 func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (parent, root, last_version bson.ObjectId, err error) {
 	parent = draft_id
 	var v interface{}
- 	err = db.C(coll + "_draft").Find(bson.M{"_id": draft_id}).One(&v)
-	if err != nil { return }
+	err = db.C(coll + "_draft").Find(bson.M{"_id": draft_id}).One(&v)
+	if err != nil {
+		return
+	}
 	draft := v.(bson.M)
 	// Not all drafts have the draft_of_version field.
 	last_version_i, has_v := draft["draft_of_version"]
@@ -132,11 +138,15 @@ func GetDraftParent(db *mgo.Database, coll string, draft_id bson.ObjectId) (pare
 func GetParentTroughContent(db *mgo.Database, coll string, content_id bson.ObjectId) (parent, root bson.ObjectId, err error) {
 	var content_doc_i interface{}
 	err = db.C(coll).Find(bson.M{"_id": content_id}).One(&content_doc_i)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	content_doc := content_doc_i.(bson.M)
 	var v interface{}
 	err = db.C(coll + Version_collection_postfix).Find(bson.M{"_id": content_doc["pointing_to"].(bson.ObjectId)}).One(&v)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	parent_version := v.(bson.M)
 	parent = parent_version["_id"].(bson.ObjectId)
 	roo, has_roo := parent_version["root"]
@@ -170,15 +180,19 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		if has_draft && len(draft_i.(string)) > 0 {
 			draft_id := ToIdWithCare(draft_i.(string))
 			parent, root, _, err = GetDraftParent(db, coll, draft_id)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 		}
-		if parent == "" {	// Parent is "" if we are not coming from a draft.
+		if parent == "" { // Parent is "" if we are not coming from a draft.
 			dat["root"] = version_id
 		} else {
 			dat["root"] = root
 		}
 		err = db.C(coll).Insert(dat)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		if version {
 			err = SaveVersion(db, coll, version_id, ins_id, parent, root)
 		}
@@ -194,16 +208,20 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		} else {
 			parent, root, err = GetParentTroughContent(db, coll, live_id)
 		}
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		q := bson.M{"_id": live_id}
-		dat["pointing_to"] = version_id		// Points to the new version now.
+		dat["pointing_to"] = version_id // Points to the new version now.
 		if root != "" {
 			dat["root"] = root
 		}
 		fmt.Println(dat)
 		upd := bson.M{"$set": dat}
 		err = db.C(coll).Update(q, upd)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		if version {
 			// Dat must contain -parent
 			err = SaveVersion(db, coll, version_id, live_id, parent, root)
@@ -215,8 +233,10 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		// err = db.C(coll).Find
 		// Not implemented yet.
 	}
-	if err != nil { return err }
-	ev.Trigger(coll + "." + op, dat)
+	if err != nil {
+		return err
+	}
+	ev.Trigger(coll+"."+op, dat)
 	return nil
 }
 
@@ -316,7 +336,9 @@ func Slug(rule map[string]interface{}, dat map[string]interface{}) {
 func StripId(str_id string) string {
 	l := len(str_id)
 	if l != 24 {
-		if l < 38 { panic("Bad id at basic.StripId.") }
+		if l < 38 {
+			panic("Bad id at basic.StripId.")
+		}
 		return str_id[13:37]
 	}
 	return str_id
@@ -324,7 +346,7 @@ func StripId(str_id string) string {
 
 // Helps to extract a bunch of ids from the UI input.
 func ExtractIds(dat map[string][]string, keys []string) ([]string, error) {
-	ret := []string {}
+	ret := []string{}
 	for _, v := range keys {
 		id_s, has_id_s := dat[v]
 		if !has_id_s {

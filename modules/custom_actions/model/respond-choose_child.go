@@ -1,12 +1,12 @@
 package custom_actions_model
 
-import(
-	"labix.org/v2/mgo/bson"
+import (
+	"fmt"
 	"github.com/opesun/extract"
 	"github.com/opesun/hypecms/model/patterns"
 	"github.com/opesun/hypecms/modules/content/model"
 	"labix.org/v2/mgo"
-	"fmt"
+	"labix.org/v2/mgo/bson"
 )
 
 // With this two actions, one can implement a QA site, similar to StackOverflow.
@@ -14,13 +14,19 @@ import(
 // Checks if user_id is the author of the parent of the chosen document.
 func IsAuthor(db *mgo.Database, coll, parent_fieldname string, user_id, chosen_doc_id bson.ObjectId) (bson.ObjectId, error) {
 	chosen_doc, err := patterns.FindEq(db, coll, "_id", chosen_doc_id)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	parent_id := chosen_doc[parent_fieldname]
 	// Check if author of equals to user_id, because only the parent author can chose a child.
 	parent_doc, err := patterns.FindEq(db, coll, "_id", parent_id)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	owner := parent_doc["_users_created_by"].(bson.ObjectId) == user_id
-	if !owner { return "", fmt.Errorf("You can only choose a child of your own document.") }
+	if !owner {
+		return "", fmt.Errorf("You can only choose a child of your own document.")
+	}
 	return parent_id.(bson.ObjectId), nil
 }
 
@@ -29,10 +35,14 @@ func Exceeded(db *mgo.Database, coll, parent_fieldname, choose_fieldname string,
 	var res []interface{}
 	// Find all chosen children.
 	err := db.C(coll).Find(m{parent_fieldname: parent_id, choose_fieldname: true}).All(&res)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	current_count := len(res)
-	max_choices_exceeded := res != nil && current_count > max_choices - 1
-	if max_choices_exceeded { return 0, fmt.Errorf("There is already %v chosen child(ren) of this parent document.", max_choices) }
+	max_choices_exceeded := res != nil && current_count > max_choices-1
+	if max_choices_exceeded {
+		return 0, fmt.Errorf("There is already %v chosen child(ren) of this parent document.", max_choices)
+	}
 	return current_count, nil
 }
 
@@ -80,25 +90,35 @@ func IncrementParent(db *mgo.Database, coll, choose_fieldname string, parent_id 
 // Sets choose_fieldname to the number of already chosen children + 1 in the chosen document.
 // Increases "has_" + choose_fieldname by 1 in parent document.
 func ChooseChild(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string) error {
-	choose_fieldname 	:= action["choose_fieldname"].(string)
-	parent_fieldname 	:= action["parent_fieldname"].(string)
-	coll				:= action["c"].(string)
-	max_choices		 	:= 1
-	mc, has_mc 			:= action["max_choices"]
-	if has_mc { max_choices = int(mc.(float64)) }
+	choose_fieldname := action["choose_fieldname"].(string)
+	parent_fieldname := action["parent_fieldname"].(string)
+	coll := action["c"].(string)
+	max_choices := 1
+	mc, has_mc := action["max_choices"]
+	if has_mc {
+		max_choices = int(mc.(float64))
+	}
 	rule := m{
-		"chosen_doc_id":	"must",
+		"chosen_doc_id": "must",
 	}
 	dat, err := extract.New(rule).Extract(inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	user_id := user["_id"].(bson.ObjectId)
 	chosen_doc_id := patterns.ToIdWithCare(dat["chosen_doc_id"])
 	parent_id, auth_err := IsAuthor(db, coll, parent_fieldname, user_id, chosen_doc_id)
-	if auth_err != nil { return err }
+	if auth_err != nil {
+		return err
+	}
 	current_count, exc_err := Exceeded(db, coll, parent_fieldname, choose_fieldname, parent_id, max_choices)
-	if exc_err != nil { return err }
+	if exc_err != nil {
+		return err
+	}
 	err = MarkAsChosen(db, coll, choose_fieldname, chosen_doc_id, current_count)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return IncrementParent(db, coll, choose_fieldname, parent_id, 1)
 }
 
@@ -107,21 +127,27 @@ func ChooseChild(db *mgo.Database, user, action map[string]interface{}, inp map[
 // Unsets choose_fieldname in chosen document.
 // Decreases "has_" + choose_fieldname by 1 in parent document.
 func UnchooseChild(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string) error {
-	choose_fieldname 	:= action["choose_fieldname"].(string)
-	parent_fieldname 	:= action["parent_fieldname"].(string)
-	coll				:= action["c"].(string)
+	choose_fieldname := action["choose_fieldname"].(string)
+	parent_fieldname := action["parent_fieldname"].(string)
+	coll := action["c"].(string)
 	return nil
 	rule := m{
-		"chosen_doc_id":	"must",
+		"chosen_doc_id": "must",
 	}
 	dat, err := extract.New(rule).Extract(inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	user_id := user["_id"].(bson.ObjectId)
 	chosen_doc_id := patterns.ToIdWithCare(dat["chosen_doc_id"])
 	parent_id, auth_err := IsAuthor(db, coll, parent_fieldname, user_id, chosen_doc_id)
-	if auth_err != nil { return auth_err }
+	if auth_err != nil {
+		return auth_err
+	}
 	err = UnmarkAsChosen(db, coll, choose_fieldname, chosen_doc_id)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return IncrementParent(db, coll, choose_fieldname, parent_id, -1)
 }
 
@@ -144,19 +170,27 @@ func UnchooseChild(db *mgo.Database, user, action map[string]interface{}, inp ma
 // Inserts new content with the id of the parent.
 // Increments field named "counter_fieldname" in parent.
 func RespondContent(db *mgo.Database, user, action map[string]interface{}, inp map[string][]string, response_content_type_options map[string]interface{}) error {
-	parent_fieldname 	:= action["parent_fieldname"].(string)
-	counter_fieldname 	:= action["counter_fieldname"].(string)
+	parent_fieldname := action["parent_fieldname"].(string)
+	counter_fieldname := action["counter_fieldname"].(string)
 	rcto := response_content_type_options
 	parent, has_parent := inp["response_parent"]
-	if !has_parent { return fmt.Errorf("No parent given.") }
+	if !has_parent {
+		return fmt.Errorf("No parent given.")
+	}
 	parent_id := patterns.ToIdWithCare(parent)
 	q := m{"_id": parent_id}
 	count, err := db.C("contents").Find(q).Count()
-	if err != nil { return err }
-	if count == 0 { return fmt.Errorf("Can't find parent with id %v.", parent_id) }
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("Can't find parent with id %v.", parent_id)
+	}
 	fixval := m{parent_fieldname: parent_id}
 	_, err = content_model.InsertWithFix(db, nil, rcto, inp, user["_id"].(bson.ObjectId), fixval)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	upd := m{
 		"$inc": m{
 			counter_fieldname: 1,
@@ -181,12 +215,16 @@ func DeleteContentResponse(db *mgo.Database, user, action map[string]interface{}
 	if can_delete_i, has := action["can_delete"]; has {
 		can_delete = can_delete_i.(bool)
 	}
-	if !can_delete { return fmt.Errorf("Can't delete response.") }
-	response_id :=	patterns.ToIdWithCare(inp["respone_id"][0])
+	if !can_delete {
+		return fmt.Errorf("Can't delete response.")
+	}
+	response_id := patterns.ToIdWithCare(inp["respone_id"][0])
 	delete_unless, has_du := action["delete_unless"]
 	if has_du {
 		sat, err := patterns.Satisfies(db, "contents", response_id, delete_unless.(map[string]interface{}))
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		if sat {
 			return fmt.Errorf("Can't delete response, satisfies \"unless\" query.")
 		}

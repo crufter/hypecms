@@ -4,11 +4,11 @@
 package user
 
 import (
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
 	"net/http"
-	"fmt"
 )
 
 var Hooks = map[string]interface{}{
@@ -19,8 +19,11 @@ var Hooks = map[string]interface{}{
 
 // Recover from wrong ObjectId like panics. Unset the cookie.
 func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) {
-	r := recover(); if r == nil { return }
-	*err = nil	// Just to be sure.
+	r := recover()
+	if r == nil {
+		return
+	}
+	*err = nil // Just to be sure.
 	c := &http.Cookie{Name: "user", Value: "", MaxAge: 3600000, Path: "/"}
 	http.SetCookie(w, c)
 	dat["_user"] = user_model.EmptyUser()
@@ -31,13 +34,19 @@ func BuildUser(uni *context.Uni) (err error) {
 	defer unsetCookie(uni.W, uni.Dat, &err)
 	var user_id_str string
 	c, err := uni.Req.Cookie("user")
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	user_id_str = c.Value
 	block_key := []byte(uni.Secret())
 	user_id, err := user_model.DecryptId(user_id_str, block_key)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	user, err := user_model.BuildUser(uni.Db, uni.Ev, user_id, uni.Req.Header)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	uni.Dat["_user"] = user
 	return
 }
@@ -46,20 +55,28 @@ func BuildUser(uni *context.Uni) (err error) {
 func RegLoginBuild(uni *context.Uni) error {
 	db := uni.Db
 	ev := uni.Ev
-	guest_rules, _ := jsonp.GetM(uni.Opt, "Modules.user.guest_rules")	// RegksterGuest will do fine with nil.
+	guest_rules, _ := jsonp.GetM(uni.Opt, "Modules.user.guest_rules") // RegksterGuest will do fine with nil.
 	inp := uni.Req.Form
 	http_header := uni.Req.Header
 	dat := uni.Dat
 	w := uni.W
 	block_key := []byte(uni.Secret())
 	guest_id, err := user_model.RegisterGuest(db, ev, guest_rules, inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	_, _, err = user_model.FindLogin(db, inp)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	err = user_model.Login(w, guest_id, block_key)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	user, err := user_model.BuildUser(db, ev, guest_id, http_header)
-	if err != nil {	return err }
+	if err != nil {
+		return err
+	}
 	dat["_user"] = user
 	return nil
 }
@@ -81,9 +98,9 @@ func PuzzleSolved(uni *context.Uni, path string) error {
 	locate := fmt.Sprintf("Modules.%v_puzzles", path)
 	puzzle_group_i, ok := jsonp.GetS(uni.Opt, locate)
 	if !ok {
-		return fmt.Errorf("Can't find puzzle names. Returning, because your system is unsecure.")	// We return an error here just to be sure.
+		return fmt.Errorf("Can't find puzzle names. Returning, because your system is unsecure.") // We return an error here just to be sure.
 	}
-	can_fail := 0	// How manny puzzle one can fail before returning an error.
+	can_fail := 0 // How manny puzzle one can fail before returning an error.
 	puzzle_group, can_fail := user_model.PuzzleGroup(puzzle_group_i)
 	failed := 0
 	failed_puzzles := []string{}
@@ -111,7 +128,7 @@ func PuzzleSolved(uni *context.Uni, path string) error {
 	return nil
 }
 
-func ShowHashcash(uni* context.Uni) (string, error) {
+func ShowHashcash(uni *context.Uni) (string, error) {
 	return "", nil
 }
 
@@ -125,7 +142,7 @@ func ShowPuzzle(uni *context.Uni, puzzle_path string) (string, error) {
 
 func Register(uni *context.Uni) error {
 	inp := uni.Req.Form
-	rules, _ := jsonp.GetM(uni.Opt, "Modules.user.rules")		// RegisterUser will be fine with nil.
+	rules, _ := jsonp.GetM(uni.Opt, "Modules.user.rules") // RegisterUser will be fine with nil.
 	_, err := user_model.RegisterUser(uni.Db, uni.Ev, rules, inp)
 	return err
 }
