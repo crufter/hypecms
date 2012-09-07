@@ -42,8 +42,8 @@ func getHook(modname string, method string, map_only bool) interface{} {
 		r = get(template_editor.Hooks, method, map_only)
 	case "custom_actions":
 		r = get(custom_actions.Hooks, method, map_only)
-	default: // Such a crucial bug.
-		panic("mod.Gethook cant find module " + modname)
+	default:
+		r = nil 	// panic("mod.Gethook cant find module " + modname)
 	}
 	return r
 }

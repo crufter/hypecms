@@ -129,12 +129,12 @@ type m map[string]interface{}
 // All views are going to use this hook.
 func runFrontHooks(uni *context.Uni) {
 	var err error
-	top_hooks, ok := jsonp.GetS(uni.Opt, "Hooks.Front")
-	if ok && len(top_hooks) > 0 {
-		for _, v := range top_hooks {
-			modname := v.(string)
+	front_hooks := context.All(uni.Ev, "Front")
+	if len(front_hooks) > 0 {
+		for _, v := range front_hooks {
+			modname := v.Modname
 			hijacked := false
-			if h := mod.GetHook(modname, "Front"); h != nil {
+			if h := v.Func; h != nil {
 				hook, ok := h.(func(*context.Uni, *bool) error)
 				if !ok {
 					err = fmt.Errorf("Front hook of %v has bad signature.", modname)

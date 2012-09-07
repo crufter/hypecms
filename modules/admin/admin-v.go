@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	// "strings"
 )
 
 func Index(uni *context.Uni) error {
@@ -19,7 +20,7 @@ func Index(uni *context.Uni) error {
 		if mapi, k := v.(map[string]interface{}); k {
 			items := []string{}
 			for ind, _ := range mapi {
-				items = append(items, ind)
+				items = append(items, nameize(ind))
 			}
 			sort.Strings(items)
 			adm["menu"] = items
@@ -47,6 +48,11 @@ func EditConfig(uni *context.Uni) error {
 	return nil
 }
 
+func alreadyInstalled(opt map[string]interface{}, modname string) bool {
+	_, ok := jsonp.Get(opt, "Modules." + modname)
+	return ok
+}
+
 // TODO: Highlight already installed packages.
 func Install(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"admin/install"}
@@ -55,10 +61,11 @@ func Install(uni *context.Uni) error {
 	if err == nil {
 		modules := []string{}
 		for _, v := range dirs {
-			if v.IsDir() {
-				modules = append(modules, v.Name())
+			if v.IsDir() && !alreadyInstalled(uni.Opt, v.Name()) && uni.GetHook(v.Name(), "Install") != nil {	// TODO: this is slow.
+				modules = append(modules, nameize(v.Name()))
 			}
 		}
+		sort.Strings(modules)
 		adm["modules"] = modules
 	} else {
 		adm["error"] = err.Error()
@@ -67,14 +74,23 @@ func Install(uni *context.Uni) error {
 	return nil
 }
 
+// Do not turn this on ATM!
+// Links in admin index, install and uninstall views will go nuts.
+func nameize(s string) string {
+	// s = strings.Replace(s, "_", " ", -1)
+	// return strings.Title(s)
+	return s
+}
+
 func Uninstall(uni *context.Uni) error {
 	installed_mods := []string{}
 	modules, has := uni.Opt["Modules"]
 	if has {
 		for i, _ := range modules.(map[string]interface{}) {
-			installed_mods = append(installed_mods, i)
+			installed_mods = append(installed_mods, nameize(i))			// TODO: what to do with modules not having a proper Uninstall hook?
 		}
 	}
+	sort.Strings(installed_mods)
 	uni.Dat["installed_modules"] = installed_mods
 	uni.Dat["_points"] = []string{"admin/uninstall"}
 	return nil

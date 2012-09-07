@@ -55,7 +55,7 @@ func Install(uni *context.Uni, id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
 		"$set": m{
-			"Modules.custom_action": custom_action_options,
+			"Modules.custom_actions": custom_action_options,
 		},
 	}
 	return uni.Db.C("options").Update(q, upd)
@@ -65,7 +65,7 @@ func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
 		"$unset": m{
-			"Modules.custom_action": 1,
+			"Modules.custom_actions": 1,
 		},
 	}
 	return uni.Db.C("options").Update(q, upd)
