@@ -64,7 +64,7 @@ type Ev struct {
 // All allows to retrieve all hooks and execute them by hand.
 // Not used in the model, because most hooks require *Uni, but we do not have that in the model.
 // Use Iterate instead of it in the model layers.
-func All(e *Ev, path string) []struct{Func interface{}; Modname string} {
+func all(e *Ev, path string) []struct{Func interface{}; Modname string} {
 	modnames, ok := jsonp.GetS(e.uni.Opt, "Hooks." + path)
 	if !ok { return nil }
 	hooks := []struct{Func interface{}; Modname string}{}
@@ -77,9 +77,9 @@ func All(e *Ev, path string) []struct{Func interface{}; Modname string} {
 }
 
 // Return the name of the modules subscribed to a path.
-func AllNames(e *Ev, path string) []string {
+func allNames(e *Ev, path string) []string {
 	names := []string{}
-	a := All(e, path)
+	a := all(e, path)
 	for _, v := range a {
 		names = append(names, v.Modname)
 	}
@@ -87,9 +87,9 @@ func AllNames(e *Ev, path string) []string {
 }
 
 // Return all functions subscribed to a path.
-func AllFuncs(e *Ev, path string) []interface{} {
+func allFuncs(e *Ev, path string) []interface{} {
 	funcs := []interface{}{}
-	a := All(e, path)
+	a := all(e, path)
 	for _, v := range a {
 		funcs = append(funcs, v.Func)
 	}
@@ -113,7 +113,7 @@ func (e *Ev) Trigger(eventname string, params ...interface{}) {
 // Stopfunc must return a boolean value. A boolean value of true stops the iteration.
 // Iterate allows to mimic the semantics of calling all hooks one by one, with *Uni if the need it, without having access to *Uni.
 func (e *Ev) Iterate(eventname string, stopfunc interface{}, params ...interface{}) {
-	
+	e.trigger(eventname, stopfunc, params...)
 }
 
 // This is not included for the time being.
@@ -125,7 +125,7 @@ func (e *Ev) Iterate(eventname string, stopfunc interface{}, params ...interface
 // }
 
 func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface{}) {
-	subscribed := All(e, eventname)
+	subscribed := all(e, eventname)
 	hookname := hooknameize(eventname)
 	var stopfunc_numin int
 	if stopfunc != nil {

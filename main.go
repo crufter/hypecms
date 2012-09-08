@@ -129,27 +129,15 @@ type m map[string]interface{}
 // All views are going to use this hook.
 func runFrontHooks(uni *context.Uni) {
 	var err error
-	front_hooks := context.All(uni.Ev, "Front")
-	if len(front_hooks) > 0 {
-		for _, v := range front_hooks {
-			modname := v.Modname
-			hijacked := false
-			if h := v.Func; h != nil {
-				hook, ok := h.(func(*context.Uni, *bool) error)
-				if !ok {
-					err = fmt.Errorf("Front hook of %v has bad signature.", modname)
-					break
-				}
-				err = hook(uni, &hijacked)
-			} else {
-				err = fmt.Errorf(unexported_front, modname)
-				break
-			}
-			if hijacked {
-				break
-			}
+	hijacked := false
+	i := func(er error) bool {
+		if er != nil {
+			err = er
+			return true
 		}
+		return hijacked
 	}
+	uni.Ev.Iterate("Front", i, &hijacked)
 	if err == nil {
 		display.D(uni)
 	} else {
