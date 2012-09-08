@@ -25,15 +25,15 @@ var Hooks = map[string]interface{}{
 }
 
 func NewFile(uni *context.Uni) error {
-	return te_model.NewFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.NewFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func SaveFile(uni *context.Uni) error {
-	return te_model.SaveFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.SaveFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func DeleteFile(uni *context.Uni) error {
-	return te_model.DeleteFile(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.DeleteFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func ForkPublic(uni *context.Uni) error {
@@ -41,19 +41,19 @@ func ForkPublic(uni *context.Uni) error {
 }
 
 func PublishPrivate(uni *context.Uni) error {
-	return te_model.PublishPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.PublishPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func DeletePrivate(uni *context.Uni) error {
-	return te_model.DeletePrivate(uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.DeletePrivate(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func ForkPrivate(uni *context.Uni) error {
-	return te_model.ForkPrivate(uni.Db, uni.Opt, map[string][]string(uni.Req.Form), uni.Root, uni.Req.Host)
+	return te_model.ForkPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 func SwitchToTemplate(uni *context.Uni) error {
-	return te_model.SwitchToTemplate(uni.Db, map[string][]string(uni.Req.Form))
+	return te_model.SwitchToTemplate(uni.Db, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
 // main.runBackHooks invokes this trough mod.GetHook.
@@ -196,6 +196,7 @@ func search(uni *context.Uni, path string) error {
 	return nil
 }
 
+// Search amongst public templates.
 func SearchPublic(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/search"}
 	uni.Dat["is_public"] = true
@@ -204,6 +205,7 @@ func SearchPublic(uni *context.Uni) error {
 	return nil
 }
 
+// Search amongst private templates.
 func SearchPrivate(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/search"}
 	uni.Dat["is_private"] = true
@@ -212,6 +214,7 @@ func SearchPrivate(uni *context.Uni) error {
 	return nil
 }
 
+// Search amongst modules.
 func SearchMod(uni *context.Uni) error {
 	uni.Dat["_points"] = []string{"template_editor/search"}
 	uni.Dat["is_mod"] = true

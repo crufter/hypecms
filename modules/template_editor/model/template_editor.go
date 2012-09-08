@@ -25,6 +25,7 @@ func CanModifyTemplate(opt map[string]interface{}) bool {
 	return scut.TemplateType(opt) == "private"
 }
 
+// Returns true if a given filepath (relative or absolute) identifies a directory.
 func IsDir(filep string) bool {
 	filep_s := strings.Split(filep, "/")
 	if strings.Index(filep_s[len(filep_s)-1], ".") == -1 {
@@ -109,7 +110,7 @@ func ForkPublic(db *mgo.Database, opt map[string]interface{}, root, host string)
 	from := filepath.Join(root, scut.GetTPath(opt, host))
 	to := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
 	copy_err := copyrecur.CopyDir(from, to)
-	if copy_err != nil && copy_err.Error() != "Destination already exists" {
+	if copy_err != nil {	// && copy_err.Error() != "Destination already exists"
 		return copy_err
 	}
 	id := basic.CreateOptCopy(db)
@@ -136,9 +137,18 @@ func Exists(path string) (bool, error) {
 }
 
 // Publish a private template, so others can use it too.
+// Copies the whole directory of /templates/private/{host}/{current_template} to /templates/public/{input:public_name}
+// Fails if a public template with the chosen name already exists.
 func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
+	if scut.TemplateType(opt) == "public" {
+		return fmt.Errorf("You can't publish your current template, because it is already public.")
+	}
 	rule := map[string]interface{}{
-		"public_name": "must",
+		"public_name": map[string]interface{}{
+			"must": 1,
+			"type": "string",
+			"min":	2,
+		},
 	}
 	dat, ex_err := extract.New(rule).Extract(inp)
 	if ex_err != nil {
@@ -162,6 +172,7 @@ func PublishPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string
 	return nil
 }
 
+// Filter
 func Contains(fi []os.FileInfo, term string) []os.FileInfo {
 	ret_fis := []os.FileInfo{}
 	for _, v := range fi {
@@ -188,13 +199,13 @@ func DeletePrivate(opt map[string]interface{}, inp map[string][]string, root, ho
 	full_p := filepath.Join(root, "templates", "private", host, template_name)
 	err := os.RemoveAll(full_p)
 	if err != nil {
-		fmt.Println(err)
 		return fmt.Errorf("Can't delete private template named %v. It probably does not exist.", template_name)
 	}
 	return nil
 }
 
 // Fork current private template into an other private one.
+// Copies the whole directory from /templates/private/{host}/{current_template} to /templates/private/{host}/{inp:new_private_name}
 func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]string, root, host string) error {
 	if scut.TemplateType(opt) != "private" {
 		return fmt.Errorf("Your current template is not a private one.") // Kinda unsensical error message but ok...
@@ -209,11 +220,11 @@ func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]
 	new_template_name := dat["new_template_name"].(string)
 	to := filepath.Join(root, "templates", "private", host, new_template_name)
 	e, e_err := Exists(to)
+	if e_err != nil {
+		return fmt.Errorf("Can't determine if private template exists.")
+	}
 	if e {
 		return fmt.Errorf("Private template named %v already exists.", new_template_name)
-	} else if e_err != nil {
-		fmt.Println(e_err.Error())
-		return fmt.Errorf("Can't determine if private template exists.")
 	}
 	from := filepath.Join(root, "templates", "private", host, scut.TemplateName(opt))
 	copy_err := copyrecur.CopyDir(from, to)
@@ -230,7 +241,9 @@ func ForkPrivate(db *mgo.Database, opt map[string]interface{}, inp map[string][]
 	return db.C("options").Update(q, upd)
 }
 
-func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
+// Switches from one template to another.
+// Fails if the template we want to switch does not exist.
+func SwitchToTemplate(db *mgo.Database, inp map[string][]string, root, host string) error {
 	rule := map[string]interface{}{
 		"template_name": "must",
 		"template_type": "must",
@@ -239,12 +252,30 @@ func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
 	if e_err != nil {
 		return e_err
 	}
-	template_name := dat["template_name"].(string)
 	template_type := dat["template_type"].(string)
+	template_name := dat["template_name"].(string)
+	var e bool
+	var err error
+	if template_type == "public" {
+		e, err = Exists(filepath.Join(root, "templates/public", template_name))
+	} else {
+		e, err = Exists(filepath.Join(root, "templates/private", host, template_name))
+	}
+	if err != nil {
+		return fmt.Errorf("Can't determine if template exists.")
+	}
+	if !e {
+		return fmt.Errorf("%v template named %v does not exist.", template_type, template_name)
+	}
+	return switchToTemplateDb(db, template_type, template_name)
+}
+
+// Does the database operation involved in template switch.
+func switchToTemplateDb(db *mgo.Database, template_type, template_name string) error {
 	id := basic.CreateOptCopy(db)
 	q := m{"_id": id}
 	var upd m
-	if template_type == "private" { // Such a pointless duplication here, rethink.
+	if template_type == "private" {
 		upd = m{
 			"$set": m{
 				"Template":     template_name,
@@ -264,26 +295,17 @@ func SwitchToTemplate(db *mgo.Database, inp map[string][]string) error {
 	return db.C("options").Update(q, upd)
 }
 
-func Search(root, host, typ, search_str string) ([]os.FileInfo, error) {
-	var path string
-	if typ == "public" {
-		path = filepath.Join(root, "templates", "public")
-	} else {
-		path = filepath.Join(root, "templates", "private", host)
-	}
-	fileinfos, read_err := ioutil.ReadDir(filepath.Join(root, path))
-	if read_err != nil {
-		return nil, read_err
-	}
-	return Contains(fileinfos, search_str), nil
-}
-
 type ReqLink struct {
 	Typ      string
 	Tempname string
 	Filepath string
 }
 
+// Extracts all requires ( {{require example.t}} ) from a given file.
+// Takes into account fallback files too.
+// First it checks if the file exists in the current template. If yes, the link will point to that file.
+// If not, then the link will point to the fallback module file.
+// TODO: Case when the required file does not exists anywhere is not handled.
 func ReqLinks(opt map[string]interface{}, file, root, host string) []ReqLink {
 	pos := require.RequirePositions(file)
 	ret := []ReqLink{}

@@ -10,7 +10,7 @@ You are using the <b>{{if .can_modify}}private{{else}}public{{end}}</b> template
 	<h3>Publish this private template</h3>
 	If you want to publish this private template of yours, so others can use and improve it, name the template and share it:
 	<form action="/b/template_editor/publish_private" method="post">
-		<input name="public_name">
+		<input name="public_name" value="{{.template_name}}">
 		<input type="submit">
 	</form>
 	<br />
