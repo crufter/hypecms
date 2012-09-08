@@ -152,8 +152,12 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 			ret = v.Call(nil)
 		} else {
 			inp := []reflect.Value{}
-			if t.In(0) == reflect.TypeOf(e.uni) {
-				inp = append(inp, reflect.ValueOf(e.uni))
+			uni_t := reflect.TypeOf(e.uni)
+			// If the caller passed in *Uni explicitly, we dont have to trick with it passing it in implicitly.
+			if len(params) > 0 && reflect.TypeOf(params[0]) != uni_t {
+				if t.In(0) == uni_t {
+					inp = append(inp, reflect.ValueOf(e.uni))
+				}
 			}
 			for _, param := range params {
 				inp = append(inp, reflect.ValueOf(param))
