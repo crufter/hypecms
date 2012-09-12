@@ -1,5 +1,4 @@
 // HypeCMS is a CMS and/or framework for web applications, and more.
-// Copyright Opesun Technologies Kft. 2012. See license.txt.
 package main
 
 import (
@@ -13,6 +12,7 @@ import (
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/admin"
 	"github.com/opesun/hypecms/modules/display"
+	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"io"
 	"io/ioutil"
@@ -32,7 +32,6 @@ const (
 	no_module_at_back         = "Tried to run a back hook, but no module was specified."
 	no_action                 = "No action specified when accessing module %v."
 	adminback_no_module       = "No module specified when accessing admin back."
-	cant_run_back             = "Can't run back hook of not installed module %v."
 	cant_test                 = "Can't test module because it is not even installed: %v."
 )
 
@@ -146,7 +145,7 @@ func runFrontHooks(uni *context.Uni) {
 }
 
 // This is real basic yet, it would be cool to include all elements of result.
-func appendParams(str string, err error, action_name string, cont map[string]interface{}) string {
+func appendParams(str string, action_name string, err error, cont map[string]interface{}) string {
 	p := strings.Split(str, "?")
 	var inp string
 	if len(p) > 1 {
@@ -208,7 +207,7 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 		}
 		uni.Put(string(v))
 	} else {
-		redir = appendParams(redir, err, action_name, cont)
+		redir = appendParams(redir, action_name, err, cont)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
 }
@@ -224,9 +223,14 @@ func runBacks(uni *context.Uni) (string, error) {
 		return "", fmt.Errorf(no_action, modname)
 	}
 	action_name := uni.Paths[3]
-	if _, installed := jsonp.Get(uni.Opt, "Modules."+modname); !installed {
-		return action_name, fmt.Errorf(cant_run_back, modname)
+	err, puzzle_err := user.OkayToDoAction(uni, modname, action_name)
+	if err != nil {
+		return action_name, err
 	}
+	if puzzle_err != nil {
+		return action_name, err
+	}
+	fmt.Println("left it")
 	h := mod.GetHook(modname, "Back")
 	if h == nil {
 		return action_name, fmt.Errorf(unexported_back, modname)
@@ -235,7 +239,7 @@ func runBacks(uni *context.Uni) (string, error) {
 	if !ok {
 		return action_name, fmt.Errorf("Back hooks of %v has bad signature.", modname)
 	}
-	err := hook(uni, action_name)
+	err = hook(uni, action_name)
 	return action_name, err
 }
 

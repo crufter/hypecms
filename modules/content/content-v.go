@@ -19,16 +19,6 @@ import (
 type m map[string]interface{}
 
 func userEdit(uni *context.Uni, urimap map[string]string) error {
-	ulev, hasu := jsonp.GetI(uni.Dat, "_user.level")
-	if !hasu {
-		return fmt.Errorf("No user level found, or it is not an integer.")
-	}
-	_, hasid := urimap["id"]
-	if hasid && ulev < minLev(uni.Opt, "edit") {
-		return fmt.Errorf("You have no rights to edit a content.")
-	} else if ulev < minLev(uni.Opt, "insert") {
-		return fmt.Errorf("You have no rights to insert a content.")
-	}
 	ed_err := Edit(uni, urimap)
 	if ed_err != nil {
 		return ed_err

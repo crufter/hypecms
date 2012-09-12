@@ -3,11 +3,11 @@ package content
 import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/model/patterns"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/content/model"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
-	//"labix.org/v2/mgo"
 	"fmt"
 	"labix.org/v2/mgo/bson"
 	"strings"
@@ -43,23 +43,36 @@ func SaveConfig(uni *context.Uni) error {
 	return nil
 }
 
-func prepareOp(uni *context.Uni, op string) (bson.ObjectId, string, error) {
+func allowsContent(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 	typ_s, hastype := uni.Req.Form["type"]
 	if !hastype {
 		return "", "", fmt.Errorf("No type when doing content op %v.", op)
 	}
 	typ := typ_s[0]
-	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
+	if op != "insert" {
+		if !content_model.Typed(uni.Db, patterns.ToIdWithCare(uni.Req.Form["id"][0]), typ) { 	// TODO: dont let it panic if not exists, return errror message.
+			return "", "", fmt.Errorf("Content is not of type %v.", typ)
+		}
+	}
+	auth_opts, ignore := user.AuthOpts(uni, "content.types." + typ, op)
+	if ignore {
+		return "", "", fmt.Errorf("Auth options should not be ignored.")
+	}
+	err, _ := user.AuthAction(uni, auth_opts)
+	if err != nil {
+		return "", "", err
+	}
+	uid_i, has_uid := jsonp.Get(uni.Dat, "_user._id")
 	if !has_uid {
-		return "", typ, fmt.Errorf("Can't %v content, you have no id.", op)
+		return "", "", fmt.Errorf("Can't %v content, you have no id.", op)
 	}
-	type_opt, _ := jsonp.GetM(uni.Opt, "Modules.content.types."+typ)
+	uid := uid_i.(bson.ObjectId)
 	user_level := scut.Ulev(uni.Dat["_user"])
-	allowed_err := content_model.AllowsContent(uni.Db, uni.Req.Form, type_opt, uid.(bson.ObjectId), user_level, op)
+	allowed_err := content_model.CanModifyContent(uni.Db, uni.Req.Form, 300, uid, user_level)
 	if allowed_err != nil {
-		return "", typ, allowed_err
+		return "", "", allowed_err
 	}
-	return uid.(bson.ObjectId), typ, nil
+	return uid, typ, nil
 }
 
 // We never update drafts.
@@ -108,7 +121,7 @@ func SaveDraft(uni *context.Uni) error {
 
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 func Insert(uni *context.Uni) error {
-	uid, typ, prep_err := prepareOp(uni, "insert")
+	uid, typ, prep_err := allowsContent(uni, "insert")
 	if prep_err != nil {
 		return prep_err
 	}
@@ -132,7 +145,7 @@ func Insert(uni *context.Uni) error {
 
 // TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
 func Update(uni *context.Uni) error {
-	uid, typ, prep_err := prepareOp(uni, "insert")
+	uid, typ, prep_err := allowsContent(uni, "insert")
 	if prep_err != nil {
 		return prep_err
 	}
@@ -155,7 +168,7 @@ func Update(uni *context.Uni) error {
 }
 
 func Delete(uni *context.Uni) error {
-	uid, _, prep_err := prepareOp(uni, "insert")
+	uid, _, prep_err := allowsContent(uni, "insert")
 	if prep_err != nil {
 		return prep_err
 	}
@@ -166,42 +179,46 @@ func Delete(uni *context.Uni) error {
 	return content_model.Delete(uni.Db, uni.Ev, id, uid)[0] // HACK for now.
 }
 
-// Defaults to 100.
-func AllowsComment(uni *context.Uni, inp map[string][]string, user_level int, op string) (string, error) {
+func allowsComment(uni *context.Uni, op string) (string, error, error) {
+	inp := uni.Req.Form
+	user_level := scut.Ulev(uni.Dat["_user"])
 	typ_s, has_typ := inp["type"]
 	if !has_typ {
-		return "", fmt.Errorf("Can't find content type when commenting.")
+		return "", fmt.Errorf("Can't find content type when commenting."), nil
 	}
 	typ := typ_s[0]
-	cont_opt, has := jsonp.GetM(uni.Opt, "Modules.content.types."+typ)
-	if !has {
-		return "", fmt.Errorf("Can't find options for content type %v.", typ)
+	if op != "insert" {
+		// We check this because they can lie about the type, sending a less strictly guarded type name and gaining access.
+		if !content_model.Typed(uni.Db, bson.ObjectIdHex(inp["content_id"][0]), typ) {		// TODO: dont assume this exists.
+			return "", fmt.Errorf("Content is not of type %v.", typ), nil
+		}
+	}
+	auth_opts, ignore := user.AuthOpts(uni, "content.types." + typ, op + "_comment")
+	if ignore {
+		return "", fmt.Errorf("Auth options should not be ignored."), nil
+	}
+	err, puzzle_err := user.AuthAction(uni, auth_opts)
+	if err != nil {
+		return "", err, nil
 	}
 	var user_id bson.ObjectId
-	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
+	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")		// At this point the user will have a user id. TODO: except when the auth_opts is misconfigured.
+	if !has {
+		return "", fmt.Errorf("User has no id."), nil
+	}
 	if has {
 		user_id = user_id_i.(bson.ObjectId)
 	}
-	err := content_model.AllowsComment(uni.Db, inp, cont_opt, user_id, user_level, op)
-	return typ, err
+	if op != "insert" {
+		err = content_model.CanModifyComment(uni.Db, inp, 300, user_id, user_level)		// TODO: remove hard-coded value.
+	}
+	return typ, err, puzzle_err
 }
 
 func InsertComment(uni *context.Uni) error {
-	inp := uni.Req.Form
-	user_level := scut.Ulev(uni.Dat["_user"])
-	typ, allow_err := AllowsComment(uni, inp, user_level, "insert")
+	typ, allow_err, puzzle_err := allowsComment(uni, "insert")
 	if allow_err != nil {
 		return allow_err
-	}
-	if user_level == -1 {
-		err := user.PuzzleSolved(uni, "content.types.blog.comment_insert")
-		if err != nil {
-			return err
-		}
-		err = user.RegLoginBuild(uni)
-		if err != nil {
-			return err
-		}
 	}
 	uid, has_uid := jsonp.Get(uni.Dat, "_user._id")
 	if !has_uid {
@@ -212,18 +229,18 @@ func InsertComment(uni *context.Uni) error {
 	if !hasrule {
 		return fmt.Errorf("Can't find comment rules of content type " + typ)
 	}
-	mf, has := jsonp.GetI(uni.Opt, "Modules.content.types."+typ+".moderate_comment")
-	moderate_first := has && mf < user_level
-	if moderate_first {
+	mf, has := jsonp.GetB(uni.Opt, "Modules.content.types."+typ+".moderate_comment")
+	var moderate_first bool
+	if (has && mf) || puzzle_err != nil {
+		moderate_first = true
 		uni.Dat["_cont"] = map[string]interface{}{"awaits-moderation": true}
 	}
+	inp := uni.Req.Form
 	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, user_id, moderate_first)
 }
 
 func UpdateComment(uni *context.Uni) error {
-	inp := uni.Req.Form
-	user_level := scut.Ulev(uni.Dat["_user"])
-	typ, allow_err := AllowsComment(uni, inp, user_level, "update")
+	typ, allow_err, _ := allowsComment(uni, "update")
 	if allow_err != nil {
 		return allow_err
 	}
@@ -235,12 +252,12 @@ func UpdateComment(uni *context.Uni) error {
 	if !has_uid {
 		return fmt.Errorf("Can't update comment, you have no id.")
 	}
+	inp := uni.Req.Form
 	return content_model.UpdateComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId))
 }
 
 func DeleteComment(uni *context.Uni) error {
-	user_level := scut.Ulev(uni.Dat["_user"])
-	_, allow_err := AllowsComment(uni, uni.Req.Form, user_level, "delete")
+	_, allow_err, _ := allowsComment(uni, "delete")
 	if allow_err != nil {
 		return allow_err
 	}
@@ -256,7 +273,7 @@ func MoveToFinal(uni *context.Uni) error {
 }
 
 func PullTags(uni *context.Uni) error {
-	_, _, err := prepareOp(uni, "update")
+	_, err, _ := allowsComment(uni, "update")
 	if err != nil {
 		return err
 	}
@@ -266,7 +283,7 @@ func PullTags(uni *context.Uni) error {
 
 }
 
-func deleteTag(uni *context.Uni) error {
+func DeleteTag(uni *context.Uni) error {
 	if scut.Ulev(uni.Dat["_user"]) < 300 {
 		return fmt.Errorf("Only an admin can delete a tag.")
 	}
@@ -277,7 +294,7 @@ func deleteTag(uni *context.Uni) error {
 func SaveTypeConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
 	return nil // Temp.
-	return content_model.SaveTypeConfig(uni.Db, map[string][]string(uni.Req.Form))
+	return content_model.SaveTypeConfig(uni.Db, uni.Req.Form)
 }
 
 // TODO: Ugly name.
@@ -288,21 +305,10 @@ func SavePersonalTypeConfig(uni *context.Uni) error {
 		return fmt.Errorf("Can't find user id.")
 	}
 	user_id := user_id_i.(bson.ObjectId)
-	return content_model.SavePersonalTypeConfig(uni.Db, map[string][]string(uni.Req.Form), user_id)
-}
-
-func minLev(opt map[string]interface{}, op string) int {
-	if v, ok := jsonp.Get(opt, "Modules.content."+op+"_level"); ok {
-		return int(v.(float64))
-	}
-	return 300 // This is sparta.
+	return content_model.SavePersonalTypeConfig(uni.Db, uni.Req.Form, user_id)
 }
 
 func Back(uni *context.Uni, action string) error {
-	_, ok := jsonp.Get(uni.Opt, "Modules.content")
-	if !ok {
-		return fmt.Errorf("No content options.")
-	}
 	var r error
 	switch action {
 	case "insert":
@@ -330,7 +336,7 @@ func Back(uni *context.Uni, action string) error {
 	case "pull_tags":
 		r = PullTags(uni)
 	case "delete_tag":
-		r = deleteTag(uni)
+		r = DeleteTag(uni)
 	case "move_to_final":
 		r = MoveToFinal(uni)
 	case "save_type_config":

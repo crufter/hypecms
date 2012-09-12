@@ -5,7 +5,6 @@ import (
 	"github.com/opesun/extract"
 	ifaces "github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/hypecms/model/basic"
-	"github.com/opesun/jsonp"
 	"github.com/opesun/resolver"
 	"github.com/opesun/slugify"
 	"labix.org/v2/mgo"
@@ -17,59 +16,26 @@ const (
 	Cname = "contents"
 )
 
-// Precedence: type && op, type, op, all
-func requiredLevel(content_options map[string]interface{}, typ, op string) int {
-	access := fmt.Sprintf("types.%v.%v_level", typ, op)
-	type_op_lev, has := jsonp.Get(content_options, access)
-	if has {
-		return int(type_op_lev.(float64))
-	}
-	access = fmt.Sprintf("types.%v.level", typ)
-	type_lev, has := jsonp.Get(content_options, access)
-	if has {
-		return int(type_lev.(float64))
-	}
-	lev, has := content_options["level"]
-	if has {
-		return int(lev.(float64))
-	}
-	return 300
-}
-
-// op is insert/update/delete
-func AllowsContent(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int, op string) error {
+// Checks if one is entitled to modify other peoples content.
+func CanModifyContent(db *mgo.Database, inp map[string][]string, correction_level int, user_id bson.ObjectId, user_level int) error {
 	rule := map[string]interface{}{
-		"type": "must",
 		"id":   "must",
 	}
 	dat, err := extract.New(rule).Extract(inp)
 	if err != nil {
 		return err
 	}
-	var inserting bool
-	if len(dat["id"].(string)) == 0 {
-		inserting = true
-	}
-	req_lev := requiredLevel(content_options, dat["type"].(string), op)
-	if user_level < req_lev {
-		return fmt.Errorf("You have no rights to manage contents.")
-	}
-	if user_level < 200 && !inserting {
+	if user_level < correction_level {
 		content := find(db, dat["id"].(string))
 		if content == nil {
 			return fmt.Errorf("Can't find content.")
-		}
-		content_type := content["type"].(string)
-		type_from_input := dat["type"].(string)
-		if content_type != type_from_input {
-			return fmt.Errorf("No rights: content type is %v instead of %v.", content_type, type_from_input)
 		}
 		auth, err := contentAuthor(content)
 		if err != nil {
 			return err
 		}
 		if auth.Hex() != user_id.Hex() {
-			return fmt.Errorf("You are not the rightous owner of the content.")
+			return fmt.Errorf("You can not modify this type of content if it is not yours.")
 		}
 	}
 	return nil
@@ -89,7 +55,7 @@ func find(db *mgo.Database, content_id string) map[string]interface{} {
 	return basic.Convert(v).(map[string]interface{})
 }
 
-func typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
+func Typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
 	var v interface{}
 	q := m{"_id": content_id, "type": typ}
 	err := db.C("contents").Find(q).One(&v)
@@ -367,8 +333,22 @@ func SavePersonalTypeConfig(db *mgo.Database, inp map[string][]string, user_id b
 
 func Install(db *mgo.Database, id bson.ObjectId) error {
 	content_options := m{
+		"actions": m{
+			"insert_comment": m{
+				"auth": false,
+			},
+		},
 		"types": m{
 			"blog": m{
+				"actions": m{
+					"insert_comment": m{
+						"auth": m{
+							"min_lev": 0,
+							"no_puzzles_lev": 2,
+							"hot_reg": 2,
+						},
+					},
+				},
 				"comment_rules": m{
 					basic.Created:     false,
 					basic.Created_by:  false,

@@ -3,10 +3,9 @@
 package template_editor
 
 import (
+	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
-	//"github.com/opesun/jsonp"
-	"fmt"
 	te_model "github.com/opesun/hypecms/modules/template_editor/model"
 	"github.com/opesun/routep"
 	"io/ioutil"

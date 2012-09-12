@@ -1,3 +1,4 @@
+// This package contains helper functions which run at the top level of the system - at main.go
 package main_model
 
 import (
@@ -15,6 +16,8 @@ const (
 	cant_encode_config = "Can't encode config. - No way this should happen anyway."
 )
 
+// mutex locked map set
+// Puts the JSON encoded string version of the option document to cache.
 func set(c map[string]string, key, val string) {
 	mut := new(sync.Mutex)
 	mut.Lock()
@@ -23,6 +26,7 @@ func set(c map[string]string, key, val string) {
 }
 
 // mutex locked map get
+// Gets the JSON encoded string version of the option document from the cache.
 func has(c map[string]string, str string) (string, bool) {
 	mut := new(sync.Mutex)
 	mut.Lock()
@@ -35,6 +39,13 @@ func has(c map[string]string, str string) (string, bool) {
 // Leave it as is, we may migrate back to the "multiple http servers from one process" approach. *1
 var cache = make(map[string]string)
 
+// Loads the freshest option document from the database, and caches it if cache_it is true.
+// Returns both the map[string]interface{} which comes from the database directly, and a JSON encoded string version too.
+// The string version is being returned to be able to serve a version of the option document which is 100% untampered.
+// (Assuming that the string is stored as private and only a copy of it can be retrieved)
+//
+// The data is also stored in the cache as a string to provide its immutability.
+// (One pageload this way can't mess up the option document for the next.)
 func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, string, error) {
 	host = "anything" // See *1
 	ret := map[string]interface{}{}

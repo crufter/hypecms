@@ -1,8 +1,10 @@
 // Package scut contains a somewhat ugly but useful collection of frequently appearing patterns to allow faster prototyping.
+// Methods here are mainly related to view- or conroller-like parts.
 package scut
 
 import (
 	"fmt"
+	"github.com/opesun/numcon"
 	"io/ioutil"
 	"labix.org/v2/mgo/bson"
 	"path/filepath"
@@ -198,20 +200,29 @@ func IsRegistered(user interface{}) bool {
 }
 
 func IsGuest(user interface{}) bool {
+	ulev := Ulev(user)
+	return (ulev > 0 && ulev < 100)
+}
+
+func IsStranger(user interface{}) bool {
 	return Ulev(user) == 0
+}
+
+func SolvedPuzzles(user interface{}) bool {
+	return Ulev(user) > 1
 }
 
 // Gives back the user level.
 func Ulev(useri interface{}) int {
 	if useri == nil {
-		return -1 // useri should never be nil BTW
+		return 0 // useri should never be nil BTW
 	}
 	user := useri.(map[string]interface{})
 	ulev, has := user["level"]
 	if !has {
-		return -1
+		return 0
 	}
-	return int(ulev.(int))
+	return numcon.IntP(ulev)
 }
 
 // Merges b into a (overwriting members in a.

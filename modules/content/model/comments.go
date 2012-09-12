@@ -10,25 +10,10 @@ import (
 	"time"
 )
 
-func commentRequiredLevel(content_options map[string]interface{}, op string) int {
-	var req_lev int
-	if lev, has_lev := content_options[op+"_comment_level"]; has_lev {
-		req_lev = int(lev.(float64))
-	} else {
-		req_lev = 100
-	}
-	return req_lev
-}
-
-func AllowsComment(db *mgo.Database, inp map[string][]string, content_options map[string]interface{}, user_id bson.ObjectId, user_level int, op string) error {
-	_, turned_off := content_options["comments_off"]
-	if turned_off {
-		return fmt.Errorf("Comments are turned off currently.")
-	}
-	req_lev := commentRequiredLevel(content_options, op)
-	if user_level < req_lev {
-		return fmt.Errorf("You have no rights to comment.")
-	}
+// Only called when doing update or delete.
+// At inserting, user.OkayToDoAction is sufficient.
+// This needs additional action: you can only update or delete a given comment only if it's yours (under a certain level).
+func CanModifyComment(db *mgo.Database, inp map[string][]string, correction_level int, user_id bson.ObjectId, user_level int) error {
 	rule := map[string]interface{}{
 		"content_id": "must",
 		"comment_id": "must",
@@ -38,17 +23,10 @@ func AllowsComment(db *mgo.Database, inp map[string][]string, content_options ma
 	if err != nil {
 		return err
 	}
-	content_id_str := basic.StripId(dat["content_id"].(string))
-	typ := dat["type"].(string) // We check this because they can lie about the type, sending a less strictly guarded type name and gaining access.
-	if !typed(db, bson.ObjectIdHex(content_id_str), typ) {
-		return fmt.Errorf("Content is not of type %v.", typ)
-	}
-	// Even if he has the required level, and he is below level 200 (not a moderator), he can't modify other people's comment, only his owns.
+	// Even if he has the required level, and he is below correction_level, he can't modify other people's comment, only his owns.
 	// So we query here the comment and check who is the owner of it.
-	if user_level < 200 && op != "insert" {
-		if user_level == 0 {
-			return fmt.Errorf("Not registered users can't update or delete comments currently.")
-		}
+	if user_level < correction_level {
+		content_id_str := basic.StripId(dat["content_id"].(string))
 		comment_id_str := basic.StripId(dat["comment_id"].(string))
 		auth, err := findCommentAuthor(db, content_id_str, comment_id_str)
 		if err != nil {

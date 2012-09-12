@@ -1,4 +1,5 @@
 // Context contains the type Uni. An instance of this type is passed to the modules when routing the control to them.
+// For license see license.txt.
 package context
 
 import (

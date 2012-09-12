@@ -1,4 +1,4 @@
-// Collection independent helper functions.
+// A collection of independent helper functions mainly related to database operations.
 package basic
 
 import (

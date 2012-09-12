@@ -84,7 +84,7 @@ func Login(w http.ResponseWriter, user_id bson.ObjectId, block_key []byte) error
 // we proceed with an empty user.
 func EmptyUser() map[string]interface{} {
 	user := make(map[string]interface{})
-	user["level"] = -1
+	user["level"] = 0
 	return user
 }
 
@@ -246,13 +246,17 @@ func guestDefaults(rules map[string]interface{}) {
 
 // Quickly register someone when he does an action as a guest.
 // guest_rules can be nil.
-func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]interface{}, inp map[string][]string) (bson.ObjectId, error) {
+func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]interface{}, inp map[string][]string, solved_puzzle bool) (bson.ObjectId, error) {
 	guestDefaults(guest_rules)
 	user, err := extract.New(guest_rules).Extract(inp)
 	if err != nil {
 		return "", err
 	}
-	user["level"] = 0
+	if solved_puzzle {
+		user["level"] = 2
+	} else {
+		user["level"] = 1
+	}
 	user_id := bson.NewObjectId()
 	user["_id"] = user_id
 	err = db.C("users").Insert(user)

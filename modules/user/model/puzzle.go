@@ -13,7 +13,7 @@ func Hashcash(inp map[string][]string, options map[string]interface{}) error {
 // pg := []interface{}{"hashcash", "captcha", 1}
 // This means "Solve hashcash and captcha. One of the puzzles may fail."
 // This allows one to serve hashcash to those who have javascript enabled and fall back to captchas for those who don't.
-func PuzzleGroup(puzzle_group []interface{}) (puzzles []string, can_fail int) {
+func InterpretPuzzleGroup(puzzle_group []interface{}) (puzzles []string, can_fail int) {
 	puzzles = []string{}
 	if len(puzzle_group) > 1 {
 		num, is_num := puzzle_group[len(puzzle_group)-1].(int)
