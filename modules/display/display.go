@@ -15,7 +15,6 @@ import (
 	"github.com/opesun/require"
 	"github.com/russross/blackfriday"
 	"html/template"
-	"net/http"
 	"runtime/debug"
 	"strings"
 )
@@ -114,12 +113,17 @@ func DisplayTemplate(uni *context.Uni, filep string) error {
 		return nil
 	}
 	uni.Dat["_tpl"] = "/templates/" + scut.TemplateType(uni.Opt) + "/" + scut.TemplateName(uni.Opt) + "/"
-	prepareAndExec(uni.Root, string(file), uni.Req.Host, uni.Dat, uni.Opt, uni.W)
+	prepareAndExec(uni, string(file))
 	return nil
 }
 
 // Loads localization, template functions and executes the template.
-func prepareAndExec(root, file, host string, dat, opt map[string]interface{}, w http.ResponseWriter) {
+func prepareAndExec(uni *context.Uni, file string) {
+	root := uni.Root
+	host := uni.Req.Host
+	dat := uni.Dat
+	opt := uni.Opt
+	w := uni.W
 	langs, has := jsonp.Get(dat, "_user.languages") // _user should always has languages field
 	if !has {
 		langs = []string{"en"}
@@ -130,7 +134,7 @@ func prepareAndExec(root, file, host string, dat, opt map[string]interface{}, w 
 	}
 	loc, _ := display_model.LoadLocTempl(file, langs_s, root, scut.GetTPath(opt, host), nil) // TODO: think about errors here.
 	dat["loc"] = merge(dat["loc"], loc)
-	funcMap := template.FuncMap(display_model.Builtins(dat))
+	funcMap := template.FuncMap(builtins(uni))
 	t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	t.Execute(w, dat) // TODO: watch for errors in execution.
@@ -157,7 +161,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 		return nil
 	}
 	uni.Dat["_tpl"] = "/modules/" + strings.Split(filep, "/")[0] + "/tpl/"
-	prepareAndExec(uni.Root, string(file), uni.Req.Host, uni.Dat, uni.Opt, uni.W)
+	prepareAndExec(uni, string(file))
 	return nil
 }
 

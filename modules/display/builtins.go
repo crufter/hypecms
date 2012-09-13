@@ -1,9 +1,11 @@
-package display_model
+package display
 
 // All functions which can be called from templates resides here.
 
 import (
+	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"reflect"
 	"strings"
@@ -35,9 +37,19 @@ func eq(a, b interface{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-// We must recreate this map each time because map access is not threadsafe.
-func Builtins(dat map[string]interface{}) map[string]interface{} {
-	user := dat["_user"]
+func showPuzzles(uni *context.Uni, mod_name, action_name string) string {
+	str, err := user.ShowPuzzles(uni, mod_name, action_name)
+	if err != nil {
+		return err.Error()
+	}
+	return str
+}
+
+// We must recreate this map each time because map write is not threadsafe.
+// Write will happen when a hook modifies the map (hook call is not implemented yet).
+func builtins(uni *context.Uni) map[string]interface{} {
+	dat := uni.Dat
+	user := uni.Dat["_user"]
 	ret := map[string]interface{}{
 		"get": func(s ...string) interface{} {
 			return get(dat, s...)
@@ -62,6 +74,7 @@ func Builtins(dat map[string]interface{}) map[string]interface{} {
 			return scut.IsAdmin(user)
 		},
 		"eq": eq,
+		"show_puzzles": showPuzzles,
 	}
 	return ret
 }

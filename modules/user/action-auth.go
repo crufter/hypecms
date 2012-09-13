@@ -119,7 +119,7 @@ func AuthAction(uni *context.Uni, auth_options map[string]interface{}) (error, e
 	if user_level < no_puzzles_lev {
 		puzzle_err = PuzzlesSolved(uni, auth_options)
 	}
-	if (puzzle_err == nil && hot_reg == 1) || (puzzle_err != nil && hot_reg == 2) {
+	if user_level == 0 && ((puzzle_err == nil && hot_reg >= 1) || (puzzle_err != nil && hot_reg == 2)) {
 		err = RegLoginBuild(uni, puzzle_err == nil)
 	}
 	return err, puzzle_err
@@ -151,10 +151,6 @@ func RegLoginBuild(uni *context.Uni, solved_puzzle bool) error {
 	w := uni.W
 	block_key := []byte(uni.Secret())
 	guest_id, err := user_model.RegisterGuest(db, ev, guest_rules, inp, solved_puzzle)
-	if err != nil {
-		return err
-	}
-	_, _, err = user_model.FindLogin(db, inp)
 	if err != nil {
 		return err
 	}
@@ -252,7 +248,7 @@ func timer(uni *context.Uni, options map[string]interface{}) error {
 
 // Show puzzles for action. Called as a template function.
 func ShowPuzzles(uni *context.Uni, mod_name, action_name string) (string, error) {
-	return "", nil
+	return "", fmt.Errorf(not_impl)
 }
 
 func showHashcash(uni *context.Uni) (string, error) {

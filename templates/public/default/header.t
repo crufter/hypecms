@@ -34,10 +34,12 @@
 								<div class="widget PageList" id="PageList1">
 									<div>
 										<ul>
-											<li class="current"><a href="/admin">Admin site</a></li>
-											<li><a href="/admin/content/edit/blog">New content</a></li>
-											<li><a href="/">Main page</a></li>
-											<li><a href="/help">Help</a></li>
+											<li><a href="/">Home</a></li>
+											{{if is_admin}}
+												<li class="current"><a href="/admin">Admin</a></li>
+											{{end}}
+											<li><a href="/about-us">About us</a></li>
+											<li><a href="/contact">Contact</a></li>
 										</ul>
 										<div class="clear"></div>
 										<span class="widget-item-control">

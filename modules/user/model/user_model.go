@@ -172,6 +172,7 @@ func nameRule() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "strings",
 		"min":  4,
+		"max":	50,
 		"must": true,
 	}
 }
@@ -199,7 +200,7 @@ func userDefaults(rules map[string]interface{}) {
 	name_rule := nameRule()
 	pass_rule := map[string]interface{}{
 		"type": "string",
-		"min":  8,
+		"min":  4,
 		"must": true,
 	}
 	b := []string{"name", "password", "password_again"}
@@ -241,13 +242,16 @@ func guestDefaults(rules map[string]interface{}) {
 		rules = map[string]interface{}{}
 	}
 	name_rule := nameRule()
-	rules["name"] = name_rule
+	rules["guest_name"] = name_rule
 }
 
 // Quickly register someone when he does an action as a guest.
 // guest_rules can be nil.
 func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]interface{}, inp map[string][]string, solved_puzzle bool) (bson.ObjectId, error) {
-	guestDefaults(guest_rules)
+	if guest_rules == nil {
+		guest_rules = map[string]interface{}{}
+		guestDefaults(guest_rules)
+	}
 	user, err := extract.New(guest_rules).Extract(inp)
 	if err != nil {
 		return "", err
@@ -261,7 +265,7 @@ func RegisterGuest(db *mgo.Database, ev ifaces.Event, guest_rules map[string]int
 	user["_id"] = user_id
 	err = db.C("users").Insert(user)
 	if err != nil {
-		return "", fmt.Errorf("Name is not unique.")
+		return "", fmt.Errorf("Name is not unique.")	// Not true, errors can occur for other reasons too.
 	}
 	return user_id, nil
 }

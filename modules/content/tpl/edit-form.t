@@ -1,3 +1,14 @@
+<script src="/shared/nicEdit/nicEdit.js"></script>
+<script>
+$(function() {
+
+$(".html-editor").each(function(index, elem) {
+	var id = $(elem).attr("id")
+	//new nicEditor({fullPanel : true, iconsPath : '/shared/nicEdit/nicEditorIcons.gif'}).panelInstance(id)
+})
+
+})
+</script>
 {{if .is_draft}}
 	{{if .draft.parent_draft}}
 		<a href="/admin/content/edit/{{.type}}_draft/{{.draft.parent_draft}}">Parent draft.</a><br />
@@ -22,7 +33,11 @@
 {{$content := .content}}
 {{range .fields}}
 	{{.key}}<br />
-	<input name="{{.key}}" value="{{.value}}" /><br />
+	{{if eq .key "content"}}
+		<textarea id="{{.key}}-field" name="content" class="html-editor"></textarea>
+	{{else}}
+		<input name="{{.key}}" value="{{.value}}" /><br />
+	{{end}}
 	<br />
 	{{if .tags}}
 		<script src="/tpl/content/tag_finder.js"></script>
