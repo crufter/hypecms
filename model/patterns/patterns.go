@@ -32,9 +32,6 @@ func FindQ(db *mgo.Database, coll string, query map[string]interface{}) (map[str
 	if err != nil {
 		return nil, err
 	}
-	if res == nil {
-		return nil, fmt.Errorf("Can't find document at FindEq.")
-	}
 	doc := basic.Convert(res.(bson.M)).(map[string]interface{})
 	return doc, nil
 }

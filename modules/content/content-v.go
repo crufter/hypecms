@@ -27,7 +27,7 @@ func userEdit(uni *context.Uni, urimap map[string]string) error {
 	return nil
 }
 
-func tagView(uni *context.Uni, urimap map[string]string) error {
+func tagView(uni *context.Uni, urimap map[string]string) (error, bool) {
 	fieldname := "slug" // This should not be hardcoded.
 	specific := len(urimap) == 2
 	var search_value string
@@ -40,7 +40,7 @@ func tagView(uni *context.Uni, urimap map[string]string) error {
 	}
 	tag, err := content_model.FindTag(uni.Db, fieldname, search_value)
 	if err != nil {
-		return err
+		return nil, false
 	}
 	pnq := uni.P + "?" + uni.Req.URL.RawQuery
 	query := map[string]interface{}{
@@ -59,7 +59,7 @@ func tagView(uni *context.Uni, urimap map[string]string) error {
 	uni.Dat["content_list"] = cl["content_list"]
 	uni.Dat["content_list_navi"] = cl["content_list_navi"]
 	uni.Dat["_points"] = []string{"tag"}
-	return nil
+	return nil, true
 }
 
 func tagSearch(uni *context.Uni) error {
@@ -85,10 +85,10 @@ func tagSearch(uni *context.Uni) error {
 	return nil
 }
 
-func contentView(uni *context.Uni, content_map map[string]string) error {
+func contentView(uni *context.Uni, content_map map[string]string) (error, bool) {
 	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !ok {
-		return nil
+		return fmt.Errorf("No content types."), false
 	}
 	slug_keymap := map[string]struct{}{}
 	for _, v := range types.(map[string]interface{}) {
@@ -105,13 +105,13 @@ func contentView(uni *context.Uni, content_map map[string]string) error {
 	}
 	content, found := content_model.FindContent(uni.Db, slug_keys, content_map["slug"])
 	if !found {
-		return fmt.Errorf("Can't find content.")
+		return nil, false
 	}
 	dont_query := map[string]interface{}{"password": 0}
 	resolver.ResolveOne(uni.Db, content, dont_query)
 	uni.Dat["_points"] = []string{"content"}
 	uni.Dat["content"] = content
-	return nil
+	return nil, true
 }
 
 func contentSearch(uni *context.Uni) error {
@@ -153,7 +153,14 @@ func Front(uni *context.Uni, hijacked *bool) error {
 	// Tag view: list contents in that category.
 	if tag_err == nil {
 		*hijacked = true
-		return tagView(uni, tag_map)
+		err, hijack := tagView(uni, tag_map)
+		if err != nil {
+			return err
+		}
+		if hijack {
+			*hijacked = true
+			return nil
+		}
 	}
 	_, tag_search_err := routep.Comp("/tag-search", uni.P)
 	if tag_search_err == nil {
@@ -167,8 +174,14 @@ func Front(uni *context.Uni, hijacked *bool) error {
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {
-		*hijacked = true
-		return contentView(uni, content_map)
+		err, hijack := contentView(uni, content_map)
+		if err != nil {
+			return err
+		}
+		if hijack {
+			*hijacked = true
+			return nil
+		}
 	}
 	return nil
 }
