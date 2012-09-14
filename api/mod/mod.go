@@ -2,22 +2,8 @@
 // There may be a better solution then putting every exported (in terms of the cms) function into a map.
 package mod
 
-import (
-	"github.com/opesun/hypecms/modules/content"
-	"github.com/opesun/hypecms/modules/custom_actions"
-	"github.com/opesun/hypecms/modules/display_editor"
-	"github.com/opesun/hypecms/modules/skeleton"
-	"github.com/opesun/hypecms/modules/template_editor"
-	"github.com/opesun/hypecms/modules/user"
-)
-
-var Modules = []string{
-	"content",
-	"user",
-	"skeleton",
-	"display_editor",
-	"template_editor",
-	"custom_actions",
+// See
+var Modules = map[string]map[string]interface{}{
 }
 
 func get(a interface{}, method string, map_only bool) interface{} {
@@ -27,25 +13,14 @@ func get(a interface{}, method string, map_only bool) interface{} {
 	return a.(map[string]interface{})[method]
 }
 
+// Previously it was a big switch directly accessing the module Hooks,
+// now its less efficient since it uses the Modules map, but this construct allows you to drop in files.
 func getHook(modname string, method string, map_only bool) interface{} {
-	var r interface{}
-	switch modname {
-	case "content":
-		r = get(content.Hooks, method, map_only)
-	case "user":
-		r = get(user.Hooks, method, map_only)
-	case "skeleton":
-		r = get(skeleton.Hooks, method, map_only)
-	case "display_editor":
-		r = get(display_editor.Hooks, method, map_only)
-	case "template_editor":
-		r = get(template_editor.Hooks, method, map_only)
-	case "custom_actions":
-		r = get(custom_actions.Hooks, method, map_only)
-	default:
-		r = nil 	// panic("mod.Gethook cant find module " + modname)
+	modhooks, has := Modules[modname]
+	if !has {
+		return nil
 	}
-	return r
+	return get(modhooks, method, map_only)
 }
 
 func GetHook(modname string, method string) interface{} {

@@ -1,4 +1,4 @@
-
 /templates/private
 /uploads
 /shared
+*.gitignore

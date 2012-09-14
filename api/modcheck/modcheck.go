@@ -44,7 +44,7 @@ func add(a map[string][]string, b, c string) {
 
 func Check() {
 	errs := map[string][]string{}
-	for _, v := range mod.Modules {
+	for v, _ := range mod.Modules {		// Hehehe.
 		m := mod.GetHookMap(v)
 		_, ok := m.(map[string]interface{})
 		if !ok {
