@@ -1,6 +1,6 @@
 <div id="left-sidebar">
 	<ul>
-		<a href="/admin/content">List all contents</a>
+		<li><a href="/admin/content">List all contents</a></li>
 		{{range .content_menu}}
 			<li>
 			<a href="/admin/content/list/{{.}}">List {{.}} contents</a>
@@ -10,7 +10,8 @@
 				</ul>
 			</li>
 		{{end}}
-		<a href="/admin/content/tags">List tags</a>
+		<li><a href="/admin/content/tags">List tags</a></li>
+		<li><a href="/admin/content/list-comments">Comments</a></li>
 	</ul>
 </div>
 

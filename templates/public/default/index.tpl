@@ -9,7 +9,7 @@
 						{{range .queries.blog}}
 						<div class="post hentry uncustomized-post-template">
 							<h3 class="post-title entry-title">
-								<a href="/{{._id}}">{{.title}}</a>
+								<a href="/{{.slug}}">{{.title}}</a>
 							</h3>
 							{{$tags := ._tags}}
 							{{$user_name := ._users_created_by.name}}

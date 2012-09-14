@@ -41,18 +41,24 @@ func CanModifyComment(db *mgo.Database, inp map[string][]string, correction_leve
 
 // To be able to list all comments chronologically we insert it to a virtual collection named "comments", where there will be only a link.
 // "_id" equals to "comment_id" in the content comment array.
-func insertToVirtual(db *mgo.Database, content_id, comment_id, author bson.ObjectId, in_moderation bool) error {
+func insertToVirtual(db *mgo.Database, content_id, comment_id, author bson.ObjectId, typ string, in_moderation bool) error {
 	comment_link := map[string]interface{}{
 		"_contents_parent": content_id,
-		"_id":              comment_id,
 		"_users_author":    author,
 		"created":          time.Now().Unix(),
+		"content_type":		typ,
+		"in_moderation":	in_moderation,
+	}
+	if in_moderation {
+		comment_link["_comments_moderation"] = comment_id
+	} else {
+		comment_link["comment_id"] = comment_id
 	}
 	return db.C("comments").Insert(comment_link)
 }
 
 // Places a comment into its final place - the comment array field of a given content.
-func insertFinal(db *mgo.Database, comment map[string]interface{}, comment_id, content_id bson.ObjectId) error {
+func insertToFinal(db *mgo.Database, comment map[string]interface{}, comment_id, content_id bson.ObjectId) error {
 	comment["comment_id"] = comment_id
 	q := bson.M{"_id": content_id}
 	upd := bson.M{
@@ -79,10 +85,11 @@ func MoveToFinalWE(db *mgo.Database, inp map[string][]string) error {
 	return MoveToFinal(db, comment_id)
 }
 
-// Moves comment from moderation queue into its final place - the comment array field of a given content.
+// Moves a comment to its final destination (into the valid comments) from moderation queue.
 func MoveToFinal(db *mgo.Database, comment_id bson.ObjectId) error {
 	var comm interface{}
-	err := db.C("comments_moderation").Find(m{"_id": comment_id}).One(&comm)
+	q := m{"_id": comment_id}
+	err := db.C("comments_moderation").Find(q).One(&comm)
 	if err != nil {
 		return err
 	}
@@ -90,8 +97,8 @@ func MoveToFinal(db *mgo.Database, comment_id bson.ObjectId) error {
 	comment["comment_id"] = comment["_id"]
 	delete(comment, "comment_id")
 	content_id := comment["_contents_parent"].(bson.ObjectId)
-	q := m{"_id": content_id}
-	upd := m{
+	q2 := m{"_id": content_id}
+	upd2 := m{
 		"$inc": m{
 			"comment_count": 1,
 		},
@@ -99,24 +106,45 @@ func MoveToFinal(db *mgo.Database, comment_id bson.ObjectId) error {
 			"comments": comment,
 		},
 	}
-	return db.C("contents").Update(q, upd)
+	err = db.C("contents").Update(q2, upd2)
+	if err != nil {
+		return err
+	}
+	upd := m{
+		"$set": m{
+			"in_moderation": false,
+		},
+	}
+	err = db.C("comments").Update(q, upd)
+	if err != nil {
+		return err
+	}
+	return db.C("comments_moderation").Remove(q)
+}
+
+// Maybe we should just delete the comment in this case?
+// Think about it and implement it later.
+func MoveToModeration(db *mgo.Database, content_id, comment_id bson.ObjectId) error {
+	return fmt.Errorf("Not implemented yet.")
 }
 
 // Puts comment coming from UI into moderation queue.
-func insertModeration(db *mgo.Database, comment map[string]interface{}, comment_id, content_id bson.ObjectId) error {
+func insertModeration(db *mgo.Database, comment map[string]interface{}, comment_id, content_id bson.ObjectId, typ string) error {
 	comment["_id"] = comment_id
 	comment["_contents_parent"] = content_id
+	comment["content_type"] = typ
 	return db.C("comments_moderation").Insert(comment)
 }
 
 // Apart from rule, there is one mandatory field which must come from the UI: "content_id"
 // moderate_first should be read as "moderate first if it is a valid, spam protection passed comment"
 // Spam protection happens outside of this anyway.
-func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, inp map[string][]string, user_id bson.ObjectId, moderate_first bool) error {
+func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{}, inp map[string][]string, user_id bson.ObjectId, typ string, moderate_first bool) error {
 	dat, err := extract.New(rule).Extract(inp)
 	if err != nil {
 		return err
 	}
+	dat["type"] = typ
 	basic.DateAndAuthor(rule, dat, user_id, false)
 	ids, err := basic.ExtractIds(inp, []string{"content_id"})
 	if err != nil {
@@ -125,12 +153,13 @@ func InsertComment(db *mgo.Database, ev ifaces.Event, rule map[string]interface{
 	content_id := bson.ObjectIdHex(ids[0])
 	comment_id := bson.NewObjectId()
 	if moderate_first {
-		err = insertModeration(db, dat, comment_id, content_id)
+		err = insertModeration(db, dat, comment_id, content_id, typ)
 	} else {
-		err = insertFinal(db, dat, comment_id, content_id)
-		if err != nil {
-			err = insertToVirtual(db, content_id, comment_id, user_id, moderate_first)
-		}
+		err = insertToFinal(db, dat, comment_id, content_id)
+	}
+	// This will be made optional, a facebook style app does not need it, only a bloglike site.
+	if err == nil {
+		err = insertToVirtual(db, content_id, comment_id, user_id, typ, moderate_first)
 	}
 	return err
 }

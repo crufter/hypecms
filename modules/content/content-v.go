@@ -93,10 +93,10 @@ func contentView(uni *context.Uni, content_map map[string]string) (error, bool) 
 	slug_keymap := map[string]struct{}{}
 	for _, v := range types.(map[string]interface{}) {
 		type_conf := v.(map[string]interface{})
-		if slugval, has := type_conf["slug"]; has {
+		if slugval, has := type_conf["accessed_by"]; has {
 			slug_keymap[slugval.(string)] = struct{}{}
 		} else {
-			slug_keymap["_id"] = struct{}{}
+			slug_keymap["slug"] = struct{}{}
 		}
 	}
 	slug_keys := []string{}
@@ -135,7 +135,6 @@ func contentSearch(uni *context.Uni) error {
 	}
 	pnq := uni.P + "?" + uni.Req.URL.RawQuery
 	cl := display_model.RunQuery(uni.Db, "content_list", query, uni.Req.Form, pnq)
-	fmt.Println(cl)
 	uni.Dat["content_list"] = cl["content_list"]
 	uni.Dat["search_term"] = search_term
 	uni.Dat["content_list_navi"] = cl["content_list_navi"]
@@ -258,6 +257,27 @@ func List(uni *context.Uni) error {
 	uni.Dat["type"] = typ
 	uni.Dat["latest"] = v
 	uni.Dat["_points"] = []string{"content/list"}
+	return nil
+}
+
+func ListComments(uni *context.Uni) error {
+	_, err := routep.Comp("/admin/content/list-comments", uni.Req.URL.Path)
+	if err != nil {
+		return fmt.Errorf("Bad url at ListComments.")
+	}
+	query := map[string]interface{}{
+		"so": "-created",
+		"c":  "comments",
+		"q": map[string]interface{}{},
+		"p": "page",
+		"l": 20,
+		"r": map[string]interface{}{"password":0,"fulltext":0},
+	}
+	pnq := uni.P + "?" + uni.Req.URL.RawQuery
+	cl := display_model.RunQuery(uni.Db, "comment_list", query, uni.Req.Form, pnq)
+	uni.Dat["comment_list"] = cl["comment_list"]
+	uni.Dat["comment_list_navi"] = cl["comment_list_navi"]
+	uni.Dat["_points"] = []string{"content/list_comments"}
 	return nil
 }
 
@@ -462,6 +482,8 @@ func AD(uni *context.Uni) error {
 		err = List(uni)
 	case "tags":
 		err = ListTags(uni)
+	case "list-comments":
+		err = ListComments(uni)
 	default:
 		err = fmt.Errorf("Unkown content view.")
 	}

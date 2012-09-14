@@ -176,8 +176,8 @@ func addTags(db *mgo.Database, dat map[string]interface{}, id string, mod, typ s
 	}
 }
 
+// Removes tag(s) from a given content, so the content will no longer belong to that category(s) (tag(s)).
 // Pulls one or more tag ids from a content and decrements the tag counters.
-// UI can send "ObjectIdHex(\"abababab656b5a6b5a6b5a6b5\")" instead of "abababab656b5a6b5a6b5a6b5"
 func PullTags(db *mgo.Database, content_id string, tag_ids []string) error {
 	content_id = basic.StripId(content_id)
 	content := find(db, content_id)

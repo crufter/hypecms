@@ -22,6 +22,8 @@ var Hooks = map[string]interface{}{
 	"Test":      Test,
 }
 
+const not_impl = "Not implemented yet."
+
 func Test(uni *context.Uni) error {
 	front := jsonp.HasVal(uni.Opt, "Hooks.Front", "content")
 	if !front {
@@ -38,21 +40,23 @@ func Uninstall(uni *context.Uni, id bson.ObjectId) error {
 	return content_model.Uninstall(uni.Db, id)
 }
 
+// 
 func SaveConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
-	return nil
+	return fmt.Errorf(not_impl)
 }
 
 func allowsContent(uni *context.Uni, op string) (bson.ObjectId, string, error) {
-	typ_s, hastype := uni.Req.Form["type"]
-	if !hastype {
-		return "", "", fmt.Errorf("No type when doing content op %v.", op)
-	}
-	typ := typ_s[0]
-	if op != "insert" {
-		if !content_model.Typed(uni.Db, patterns.ToIdWithCare(uni.Req.Form["id"][0]), typ) { 	// TODO: dont let it panic if not exists, return errror message.
-			return "", "", fmt.Errorf("Content is not of type %v.", typ)
+	var typ string
+	if op == "insert" {
+		typ = uni.Req.Form["type"][0]								// See TODO below.
+	} else {
+		content_id := patterns.ToIdWithCare(uni.Req.Form["id"][0])	// TODO: Don't let it panic if id does not exists, return descriptive error message.
+		_typ, err := content_model.TypeOf(uni.Db, content_id)
+		if err != nil {
+			return "", "", err
 		}
+		typ = _typ
 	}
 	auth_opts, ignore := user.AuthOpts(uni, "content.types." + typ, op)
 	if ignore {
@@ -75,7 +79,7 @@ func allowsContent(uni *context.Uni, op string) (bson.ObjectId, string, error) {
 	return uid, typ, nil
 }
 
-// We never update drafts.
+// We never update drafts, they are immutable.
 func SaveDraft(uni *context.Uni) error {
 	post := uni.Req.Form
 	typ_s, has_typ := post["type"]
@@ -119,6 +123,7 @@ func SaveDraft(uni *context.Uni) error {
 	return err
 }
 
+// Insert content.
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
 func Insert(uni *context.Uni) error {
 	uid, typ, prep_err := allowsContent(uni, "insert")
@@ -143,7 +148,8 @@ func Insert(uni *context.Uni) error {
 	return nil
 }
 
-// TODO: Separate the shared processes of Insert/Update (type and rule checking, extracting)
+// Update content.
+// TODO: Consider separating the shared processes of Insert/Update (type and rule checking, extracting)
 func Update(uni *context.Uni) error {
 	uid, typ, prep_err := allowsContent(uni, "insert")
 	if prep_err != nil {
@@ -167,6 +173,7 @@ func Update(uni *context.Uni) error {
 	return nil
 }
 
+// Delete content.
 func Delete(uni *context.Uni) error {
 	uid, _, prep_err := allowsContent(uni, "insert")
 	if prep_err != nil {
@@ -179,19 +186,15 @@ func Delete(uni *context.Uni) error {
 	return content_model.Delete(uni.Db, uni.Ev, id, uid)[0] // HACK for now.
 }
 
+// Return values: content type, general (fatal) error, puzzle error
+// Puzzle error is returned to support the decision of wether to put the comment into a moderation queue.
 func allowsComment(uni *context.Uni, op string) (string, error, error) {
 	inp := uni.Req.Form
 	user_level := scut.Ulev(uni.Dat["_user"])
-	typ_s, has_typ := inp["type"]
-	if !has_typ {
-		return "", fmt.Errorf("Can't find content type when commenting."), nil
-	}
-	typ := typ_s[0]
-	if op != "insert" {
-		// We check this because they can lie about the type, sending a less strictly guarded type name and gaining access.
-		if !content_model.Typed(uni.Db, bson.ObjectIdHex(inp["content_id"][0]), typ) {		// TODO: dont assume this exists.
-			return "", fmt.Errorf("Content is not of type %v.", typ), nil
-		}
+	content_id := bson.ObjectIdHex(inp["content_id"][0])
+	typ, err := content_model.TypeOf(uni.Db, content_id)
+	if err != nil {
+		return "", err, nil
 	}
 	auth_opts, ignore := user.AuthOpts(uni, "content.types." + typ, op + "_comment")
 	if ignore {
@@ -236,7 +239,7 @@ func InsertComment(uni *context.Uni) error {
 		uni.Dat["_cont"] = map[string]interface{}{"awaits-moderation": true}
 	}
 	inp := uni.Req.Form
-	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, user_id, moderate_first)
+	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, user_id, typ, moderate_first)
 }
 
 func UpdateComment(uni *context.Uni) error {
@@ -293,13 +296,14 @@ func DeleteTag(uni *context.Uni) error {
 
 func SaveTypeConfig(uni *context.Uni) error {
 	// id := scut.CreateOptCopy(uni.Db)
-	return nil // Temp.
+	return fmt.Errorf(not_impl)
 	return content_model.SaveTypeConfig(uni.Db, uni.Req.Form)
 }
 
 // TODO: Ugly name.
+//
 func SavePersonalTypeConfig(uni *context.Uni) error {
-	return nil // Temp.
+	return fmt.Errorf(not_impl) // Temp.
 	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
 	if !has {
 		return fmt.Errorf("Can't find user id.")

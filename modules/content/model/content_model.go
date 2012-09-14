@@ -14,6 +14,7 @@ import (
 
 const (
 	Cname = "contents"
+	not_impl = "Not implemented yet."
 )
 
 // Checks if one is entitled to modify other peoples content.
@@ -55,7 +56,24 @@ func find(db *mgo.Database, content_id string) map[string]interface{} {
 	return basic.Convert(v).(map[string]interface{})
 }
 
-func Typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
+// Returns the type of a given content.
+func TypeOf(db *mgo.Database, content_id bson.ObjectId) (string, error) {
+	var v interface{}
+	q := m{"_id": content_id}
+	err := db.C("contents").Find(q).One(&v)
+	if err != nil {
+		return "", err
+	}
+	con := basic.Convert(v.(bson.M)).(map[string]interface{})
+	typ, has := con["type"]
+	if !has {
+		return "", fmt.Errorf("Content is malformed: has no type.")
+	}
+	return typ.(string), nil
+}
+
+// Unused atm. Probably will be deleted.
+func typed(db *mgo.Database, content_id bson.ObjectId, typ string) bool {
 	var v interface{}
 	q := m{"_id": content_id, "type": typ}
 	err := db.C("contents").Find(q).One(&v)
@@ -129,26 +147,8 @@ func filterTooShort(s []string, min_len int) []string {
 	return ret
 }
 
-// Mostly for in-developement use.
-func RegenerateFulltext(db *mgo.Database) error {
-	return nil
-}
-
-// TODO:
-// Resolve may be extended so you can set the queried fields. Now the whole object is queried, and it can cause problems, like
-// including the password of the author and such.
-func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
-	var res interface{}
-	db.C("contents").Find(m{"_id": id}).One(&res)
-	dat := basic.Convert(res).(map[string]interface{})
-	fields := map[string]interface{}{
-		"name":  1,
-		"slug":  1,
-		"title": 1,
-	}
-	resolver.ResolveOne(db, dat, fields)
-	dat = basic.Convert(dat).(map[string]interface{})
-	non_split := walkDeep(dat)
+// Very simple way of building a fulltext field - split it by spaces, then slug each string.
+func simpleFulltext(non_split []string) []string {
 	split := []string{}
 	for _, v := range non_split {
 		split = append(split, strings.Split(v, " ")...)
@@ -161,10 +161,33 @@ func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
 	return filterTooShort(slugified, 3)
 }
 
+// Generates the fulltext field by querying the content, resolving it's foreign keys, then trimming them
+func generateFulltext(db *mgo.Database, id bson.ObjectId) []string {
+	var res interface{}
+	db.C("contents").Find(m{"_id": id}).One(&res)
+	dat := basic.Convert(res).(map[string]interface{})
+	fields := map[string]interface{}{
+		"name":  1,
+		"slug":  1,
+		"title": 1,
+	}
+	resolver.ResolveOne(db, dat, fields)
+	dat = basic.Convert(dat).(map[string]interface{})
+	non_split := walkDeep(dat)
+	return simpleFulltext(non_split)
+}
+
+// Queries a content and then updates it to save the fulltext field.
 func saveFulltext(db *mgo.Database, id bson.ObjectId) error {
 	fulltext := generateFulltext(db, id)
 	return db.C("contents").Update(m{"_id": id}, m{"$set": m{"fulltext": fulltext}})
 }
+
+// Mostly for in-development use. Iterates trough all contents in the contents collection and regenerates their fulltext field.
+func RegenerateFulltext(db *mgo.Database) error {
+	return fmt.Errorf(not_impl)
+}
+
 
 func GenerateKeywords(s string) []string {
 	split := strings.Split(s, " ")

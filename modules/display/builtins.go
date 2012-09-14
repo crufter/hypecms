@@ -28,9 +28,24 @@ func get(dat map[string]interface{}, s ...string) interface{} {
 	return val
 }
 
-func date(timestamp int64, format string) string {
+func date(timestamp int64, format ...string) string {
+	var form string
+	if len(format) == 0 {
+		form = "2006.01.02 15:04:05"
+	} else {
+		form = format[0]
+	}
 	t := time.Unix(timestamp, 0)
-	return t.Format(format)
+	return t.Format(form)
+}
+
+func isMap(a interface{}) bool {
+	v := reflect.ValueOf(a)
+	switch kind := v.Kind(); kind {
+	case reflect.Map:
+		return true
+	}
+	return false
 }
 
 func eq(a, b interface{}) bool {
@@ -73,6 +88,7 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"is_admin": func() bool {
 			return scut.IsAdmin(user)
 		},
+		"is_map": isMap,
 		"eq": eq,
 		"show_puzzles": showPuzzles,
 	}

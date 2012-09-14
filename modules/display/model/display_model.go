@@ -152,8 +152,13 @@ func RunQueries(db *mgo.Database, queries map[string]interface{}, get map[string
 				CreateExcerpts(res, ex_m)
 			}
 		}
-		dont_query := map[string]interface{}{"password": 0}
-		resolver.ResolveAll(db, res, dont_query)
+		var resolve_fields map[string]interface{}
+		if val, has := v["r"]; has {
+			resolve_fields = val.(map[string]interface{})
+		} else {
+			resolve_fields = map[string]interface{}{"password": 0}
+		}
+		resolver.ResolveAll(db, res, resolve_fields)
 		qs[name] = res
 	}
 	return qs
