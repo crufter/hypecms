@@ -1,10 +1,18 @@
 <script src="/shared/nicEdit/nicEdit.js"></script>
+<link rel="stylesheet" type="text/css" href="/tpl/content/style.css">
 <script>
 $(function() {
 
 $(".html-editor").each(function(index, elem) {
 	var id = $(elem).attr("id")
-	//new nicEditor({fullPanel : true, iconsPath : '/shared/nicEdit/nicEditorIcons.gif'}).panelInstance(id)
+	new nicEditor({fullPanel : true, iconsPath : '/shared/nicEdit/nicEditorIcons.gif'}).panelInstance(id)
+})
+
+// Hack to overwrite default styling for nicEdit. This allows one to resize popup windows properly.
+$(".nicEdit-button").on("click", function(){
+	$("#code").css("margin-right", "10px")
+	$(".nicEdit-pane").css("padding-bottom", "18px")
+	$(".nicEdit-pane").css("overflow", "visible").css("width", "auto")
 })
 
 })
@@ -29,14 +37,14 @@ $(".html-editor").each(function(index, elem) {
 	<br />
 	{{end}}
 {{end}}
-<form action="/b/content/{{.op}}" method="post">
+<form action="/b/content/{{.op}}" method="post" id="edit-form">
 {{$content := .content}}
 {{range .fields}}
 	{{.key}}<br />
 	{{if eq .key "content"}}
-		<textarea id="{{.key}}-field" name="content" class="html-editor"></textarea>
+		<textarea id="{{.key}}-field" name="content" class="html-editor">{{.value}}</textarea>
 	{{else}}
-		<input name="{{.key}}" value="{{.value}}" /><br />
+		<input name="{{.key}}" value="{{.value}}" type="text" /><br />
 	{{end}}
 	<br />
 	{{if .tags}}
