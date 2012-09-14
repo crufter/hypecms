@@ -147,7 +147,7 @@ func DisplayFallback(uni *context.Uni, filep string) error {
 		return fmt.Errorf("Nothing to fall back to.") // No slash in fallback path means no modulename to fall back to.
 	}
 	if scut.PossibleModPath(filep) {
-		return fmt.Errorf("Fallback path is too long.")
+		return fmt.Errorf("Not a possible fallback path.")
 	}
 	file, err := require.R("", filep+".tpl", // Tricky, care.
 		func(root, fi string) ([]byte, error) {

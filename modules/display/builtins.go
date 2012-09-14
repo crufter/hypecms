@@ -7,6 +7,7 @@ import (
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
+	"html/template"
 	"reflect"
 	"strings"
 	"time"
@@ -60,6 +61,10 @@ func showPuzzles(uni *context.Uni, mod_name, action_name string) string {
 	return str
 }
 
+func html(s string) template.HTML {
+	return template.HTML(s)
+}
+
 // We must recreate this map each time because map write is not threadsafe.
 // Write will happen when a hook modifies the map (hook call is not implemented yet).
 func builtins(uni *context.Uni) map[string]interface{} {
@@ -91,6 +96,7 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"is_map": isMap,
 		"eq": eq,
 		"show_puzzles": showPuzzles,
+		"html": html,
 	}
 	return ret
 }

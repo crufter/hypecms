@@ -427,5 +427,6 @@ func main() {
 		func(w http.ResponseWriter, req *http.Request) {
 			getSite(db, w, req)
 		})
-	http.ListenAndServe(ADDR+":"+PORT_NUM, nil)
+	err = http.ListenAndServe(ADDR+":"+PORT_NUM, nil)
+	fmt.Println(err)
 }

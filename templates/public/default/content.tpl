@@ -12,7 +12,7 @@
 							{{$created := .content.created}}
 							{{require post_header.t}}	
 							<div class="post-body entry-content">
-								<p>{{.content.content}}</p>
+								<p>{{html .content.content}}</p>
 								{{require comment_listing.t}}
 								{{require comment_insert.t}}
 							</div>
