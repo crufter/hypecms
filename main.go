@@ -415,9 +415,9 @@ func main() {
 		if len(DB_PASS) == 0 {
 			panic("Database username is provided but password is missing.")
 		}
-		dial = DB_USER + ":" + DB_PASS + "@" + dial
+		dial = DB_USER + ":" + DB_PASS + "@" + dial + "/" + DB_NAME
 	}
-	session, err := mgo.Dial(DB_ADDR)
+	session, err := mgo.Dial(dial)
 	if err != nil {
 		panic(err)
 	}
