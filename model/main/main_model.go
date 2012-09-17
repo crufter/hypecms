@@ -21,8 +21,8 @@ const (
 func set(c map[string]string, key, val string) {
 	mut := new(sync.Mutex)
 	mut.Lock()
+	defer mut.Unlock()
 	c[key] = val
-	mut.Unlock()
 }
 
 // mutex locked map get
@@ -30,8 +30,8 @@ func set(c map[string]string, key, val string) {
 func has(c map[string]string, str string) (string, bool) {
 	mut := new(sync.Mutex)
 	mut.Lock()
+	defer mut.Unlock()
 	v, ok := c[str]
-	mut.Unlock()
 	return v, ok
 }
 

@@ -40,6 +40,7 @@ const (
 var (
 	ABS_PATH    string
 	CONF_FN     string
+	DB_ADM_MODE bool
 	DB_USER     string
 	DB_PASS     string
 	DB_ADDR     string
@@ -55,19 +56,22 @@ var (
 func loadConfFromFile() {
 	cf, err := ioutil.ReadFile(filepath.Join(ABS_PATH, CONF_FN))
 	if err != nil {
-		fmt.Println("Could not read the config file.")
+		fmt.Println("Could not read the config file, falling back to defaults.")
 		return
 	}
 	var conf_i interface{}
 	err = json.Unmarshal(cf, &conf_i)
 	if err != nil || conf_i == nil {
-		fmt.Println("Could not decode config json file.")
+		fmt.Println("Could not decode config json file, falling back to defaults.")
 		return
 	}
 	conf, ok := conf_i.(map[string]interface{})
 	if !ok {
-		fmt.Println("Config is not a map.")
+		fmt.Println("Config is not a map, falling back to defaults.")
 		return
+	}
+	if db_adm_mode, ok := conf["db_admin_mode"].(bool); ok {
+		DB_ADM_MODE = db_adm_mode
 	}
 	// Doh...
 	if db_user, ok := conf["db_user"].(string); ok {
@@ -107,6 +111,7 @@ func handleConfigVars() {
 	flag.StringVar(&CONF_FN, "conf_fn", "config.json", "config filename")
 	// Everything else we can try to load from file.
 	loadConfFromFile()
+	flag.BoolVar(&DB_ADM_MODE, "db_adm_mode", false, "connect to database as an admin")
 	flag.StringVar(&DB_USER, "db_user", "", "database username")
 	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
 	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
@@ -231,7 +236,6 @@ func runBacks(uni *context.Uni) (string, error) {
 	if puzzle_err != nil {
 		return action_name, err
 	}
-	fmt.Println("left it")
 	h := mod.GetHook(modname, "Back")
 	if h == nil {
 		return action_name, fmt.Errorf(unexported_back, modname)
@@ -337,7 +341,7 @@ func err() {
 }
 
 // getSite gets the freshest option document, caches it and creates an instance of context.Uni.
-func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
+func getSite(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 	Put = func(a ...interface{}) {
 		io.WriteString(w, fmt.Sprint(a...)+"\n")
 	}
@@ -352,6 +356,10 @@ func getSite(db *mgo.Database, w http.ResponseWriter, req *http.Request) {
 		P:       req.URL.Path,
 		Paths:   strings.Split(req.URL.Path, "/"),
 		GetHook: mod.GetHook,
+	}
+	// Not sure if not giving the db session to nonadmin installations increases security, but hey, one can never be too cautious, they dont need it anyway.
+	if DB_ADM_MODE {
+		uni.Session = session
 	}
 	uni.Ev = context.NewEv(uni)
 	opt, opt_str, err := main_model.HandleConfig(uni.Db, req.Host, OPT_CACHE) // Tricky part about the host, see comments at main_model.
@@ -397,16 +405,17 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 }
 
 func main() {
+	fmt.Println("Server has started.")
 	handleConfigVars()
 	if DEBUG {
 		modcheck.Check()
 	}
-	fmt.Println("Server has started.")
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 		}
 	}()
+	fmt.Println(DB_USER, DB_ADM_MODE, DB_PASS, PORT_NUM)
 	dial := DB_ADDR
 	if len(DB_USER) != 0 || len(DB_PASS) != 0 {
 		if len(DB_USER) == 0 {
@@ -415,7 +424,10 @@ func main() {
 		if len(DB_PASS) == 0 {
 			panic("Database username is provided but password is missing.")
 		}
-		dial = DB_USER + ":" + DB_PASS + "@" + dial + "/" + DB_NAME
+		dial = DB_USER + ":" + DB_PASS + "@" + dial
+		if !DB_ADM_MODE {
+			dial = dial + "/" + DB_NAME
+		}
 	}
 	session, err := mgo.Dial(dial)
 	if err != nil {
@@ -424,9 +436,13 @@ func main() {
 	db := session.DB(DB_NAME)
 	defer session.Close()
 	http.HandleFunc("/",
-		func(w http.ResponseWriter, req *http.Request) {
-			getSite(db, w, req)
-		})
+	func(w http.ResponseWriter, req *http.Request) {
+		getSite(session, db, w, req)
+	})
 	err = http.ListenAndServe(ADDR+":"+PORT_NUM, nil)
-	fmt.Println(err)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("There were a problem when starting the http server.")
 }

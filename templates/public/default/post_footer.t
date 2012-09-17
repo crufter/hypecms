@@ -2,9 +2,9 @@
 	<div class="post-footer-line post-footer-line-1">
 		{{if .comments}}
 		<!--<span class="date-header">time stamp...</span>-->
-		<span class="post-comment-link"><a class="comment-link" href="/{{._id}}#comments">{{$comment_count}} comments</a></span>
+		<span class="post-comment-link"><a class="comment-link" href="/{{.slug}}#comments">{{$comment_count}} comments</a></span>
 		{{else}}
-		<span class="post-comment-link"><a class="comment-link" href="/{{._id}}#leave_comment">Leave a comment</a></span>
+		<span class="post-comment-link"><a class="comment-link" href="/{{.slug}}#leave_comment">Leave a comment</a></span>
 		{{end}}
 		<span class="post-icons">
 			<span class="item-control blog-admin pid-191734713">

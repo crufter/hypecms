@@ -4,6 +4,10 @@
 		<div class="grid_8" id="main-wrapper">
 			<div class="main grid_8 section" id="main">
 				<div class="widget Blog" id="Blog1">
+					{{if .search_term}}
+						<h3>Your search: "{{.search_term}}".</h3>
+						<h4>{{.tag_list_navi.All_results}} matches.</h4>
+					{{end}}
 					<div class="blog-posts hfeed">
 						<div class="post hentry uncustomized-post-template">
 							{{if .error}}

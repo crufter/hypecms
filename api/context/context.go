@@ -14,19 +14,20 @@ import (
 
 // General context for the application.
 type Uni struct {
-	Db      *mgo.Database
-	W       http.ResponseWriter
-	Req     *http.Request
-	secret  string                 // Used for things like encryption/decryption. Basically a permanent random data.
-	P       string                 // Path string
-	Paths   []string               // Path slice, contains the url (after the domain) splitted by "/"
-	opt     string                 // Original string representation of the option, if one needs a version which is guaranteedly untinkered.
-	Opt     map[string]interface{} // Freshest options from database.
-	Dat     map[string]interface{} // General communication channel.
-	Put     func(...interface{})   // Just a convenience function to allow fast output to http response.
-	Root    string                 // Absolute path of the application.
-	Ev      *Ev
-	GetHook func(string, string) interface{}
+	Session 	*mgo.Session
+	Db      	*mgo.Database
+	W       	http.ResponseWriter
+	Req     	*http.Request
+	secret  	string                 		// Used for things like encryption/decryption. Basically a permanent random data.
+	P       	string                 		// Path string
+	Paths   	[]string               		// Path slice, contains the url (after the domain) splitted by "/"
+	opt     	string                 		// Original string representation of the option, if one needs a version which is guaranteedly untinkered.
+	Opt     	map[string]interface{} 		// Freshest options from database.
+	Dat     	map[string]interface{} 		// General communication channel.
+	Put     	func(...interface{})   		// Just a convenience function to allow fast output to http response.
+	Root    	string                 		// Absolute path of the application.
+	Ev      	*Ev
+	GetHook 	func(string, string) interface{}
 }
 
 // Set only once.
