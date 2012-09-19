@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"strconv"
 )
 
 func get(dat map[string]interface{}, s ...string) interface{} {
@@ -54,7 +55,7 @@ func eq(a, b interface{}) bool {
 }
 
 func showPuzzles(uni *context.Uni, mod_name, action_name string) string {
-	str, err := user.ShowPuzzles(uni, mod_name, action_name)
+	str, err := user.ShowPuzzlesPath(uni, mod_name, action_name)
 	if err != nil {
 		return err.Error()
 	}
@@ -63,6 +64,10 @@ func showPuzzles(uni *context.Uni, mod_name, action_name string) string {
 
 func html(s string) template.HTML {
 	return template.HTML(s)
+}
+
+func formatFloat(f float64, prec int) string {
+	return strconv.FormatFloat(f, 'f', prec, 64)
 }
 
 // We must recreate this map each time because map write is not threadsafe.
@@ -95,8 +100,11 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		},
 		"is_map": isMap,
 		"eq": eq,
-		"show_puzzles": showPuzzles,
+		"show_puzzles": func(a, b string) string {
+			return showPuzzles(uni, a, b)
+		},
 		"html": html,
+		"format_float": formatFloat,
 	}
 	return ret
 }

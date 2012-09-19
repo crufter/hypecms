@@ -26,7 +26,7 @@ const(
 )
 
 func defaultPuzzles(uni *context.Uni) []interface{} {
-	def, has := jsonp.GetS(uni.Opt, "Modules.user.default_puzzles")
+	def, has := jsonp.GetS(uni.Opt, "user.default_puzzles")
 	if !has || len(def) == 0 {
 		return []interface{}{"timer"}
 	}
@@ -42,13 +42,13 @@ func authDefaults(uni *context.Uni, auth_o map[string]interface{}) map[string]in
 		auth_o["min_lev"] = 300
 	}
 	if _, has := auth_o["no_puzzles_lev"]; !has {
-		auth_o["no_puzzles_lev"] = 1
+		auth_o["no_puzzles_lev"] = 2
 	}
 	if _, has := auth_o["puzzles"]; !has {
 		auth_o["puzzles"] = defaultPuzzles(uni)
 	}
 	if _, has := auth_o["hot_reg"]; !has {
-		auth_o["puzzles"] = 0
+		auth_o["hot_reg"] = 0
 	}
 	return auth_o
 }
@@ -77,7 +77,7 @@ func AuthOpts(uni *context.Uni, mod_name, action_name string) (auth_opts map[str
 // Example:
 // "Modules.%v.actions.%v.auth" : {
 // 		"min_lev": 0,				// Defaults to 300. 0 Means somebody who has a user level >= min_lev can do it.
-//		"no_puzzles_lev": 2			// Defaults to 1. Means someone who has a user level >= no_puzzles_lev will not have to solve the spam protection puzzle.
+//		"no_puzzles_lev": 2			// Defaults to 2. Means someone who has a user level >= no_puzzles_lev will not have to solve the spam protection puzzle.
 //		"puzzles": ["timer"]		// Defaults to defaultPuzzles(uni).
 //		"hot_reg": 2				// More precisely: "reg, login, build".
 //									// Defaults to 0. Specifies wether to register, login and build a guest user.
@@ -117,7 +117,7 @@ func AuthAction(uni *context.Uni, auth_options map[string]interface{}) (error, e
 	}
 	var puzzle_err error
 	if user_level < no_puzzles_lev {
-		puzzle_err = PuzzlesSolved(uni, auth_options)
+		puzzle_err = SolvePuzzles(uni, auth_options)
 	}
 	if user_level == 0 && ((puzzle_err == nil && hot_reg >= 1) || (puzzle_err != nil && hot_reg == 2)) {
 		err = RegLoginBuild(uni, puzzle_err == nil)
@@ -126,7 +126,7 @@ func AuthAction(uni *context.Uni, auth_options map[string]interface{}) (error, e
 }
 
 func guestRules(uni *context.Uni) map[string]interface{} {
-	rules, has := jsonp.GetM(uni.Opt, "Modules.user.guest_rules") // RegksterGuest will do fine with nil.
+	rules, has := jsonp.GetM(uni.Opt, "user.guest_rules") // RegksterGuest will do fine with nil.
 	if has {
 		return rules
 	}
@@ -184,14 +184,23 @@ func UserAllowed(uni *context.Uni, auth_options map[string]interface{}) error {
 	return nil
 }
 
-// Wraps PuzzlesSolved
-// Returns error on go on because one uses this function when wants to explicitly call PuzzlesSolved (see comment_insert action of content)
-func PuzzlesSolvedPath(uni *context.Uni, mod_name, action_name string) error {
+// Wraps SolvePuzzles
+// Returns error on go on because one uses this function when wants to explicitly call SolvePuzzles (see comment_insert action of content)
+func SolvePuzzlesPath(uni *context.Uni, mod_name, action_name string) error {
 	auth_opts, go_on := AuthOpts(uni, mod_name, action_name)
 	if go_on {
-		return fmt.Errorf("Given action is explicitly ignored.")
+		return fmt.Errorf("Can't solve puzzles: given action is explicitly ignored.")
 	}
-	return PuzzlesSolved(uni, auth_opts)
+	return SolvePuzzles(uni, auth_opts)
+}
+
+func puzzleOpt(uni *context.Uni, puzzlename string) (map[string]interface{}, error) {
+	puzzle_locate := fmt.Sprintf("user.puzzles.%v", puzzlename)
+	puzzle_opt, ok := jsonp.GetM(uni.Opt, puzzle_locate)
+	if !ok {
+		return nil, fmt.Errorf("Cant find puzzle named %v.", puzzlename)
+	}
+	return puzzle_opt, nil
 }
 
 // Run all the spam protection assigned to the given action - if there is any.
@@ -199,66 +208,100 @@ func PuzzlesSolvedPath(uni *context.Uni, mod_name, action_name string) error {
 // Naturally, if the user is above this level, he must not solve the puzzles.
 //
 // For further information, see documentation of UserAllowed method.
-func PuzzlesSolved(uni *context.Uni, auth_options map[string]interface{}) error {
+func SolvePuzzles(uni *context.Uni, auth_options map[string]interface{}) error {
 	puzzle_group_i, ok := auth_options["puzzles"]
 	if !ok {
 		return fmt.Errorf("Can't find puzzle names. Returning, because your system is unsecure.") // We return an error here just to be sure.
 	}
-	can_fail := 0 // How manny puzzle one can fail before returning an error.
 	puzzle_group, can_fail := user_model.InterpretPuzzleGroup(puzzle_group_i.([]interface{}))
 	failed := 0
 	failed_puzzles := []string{}
+	fmt.Println(puzzle_group)
 	for _, v := range puzzle_group {
-		if failed > can_fail {
-			return fmt.Errorf("Failed more than %v puzzles. Failed: %v.", can_fail, failed_puzzles)
+		puzzle_opt, err := puzzleOpt(uni, v)
+		if err != nil {
+			return err
 		}
-		puzzle_locate := fmt.Sprintf("Modules.user.puzzles.%v", v)
-		puzzle_opt, ok := jsonp.GetM(uni.Opt, puzzle_locate)
-		if !ok {
-			return fmt.Errorf("Cant find puzzle named %v.", v)
-		}
-		var err error
 		switch v {
 		case "hascash":
-			err = hashcash(uni, puzzle_opt)
+			err = solveHashcash(uni, puzzle_opt)
 		case "honeypot":
-			err = honeypot(uni, puzzle_opt)
+			err = solveHoneypot(uni, puzzle_opt)
 		case "timer":
-			err = timer(uni, puzzle_opt)
+			err = solveTimer(uni, puzzle_opt)
 		}
 		if err != nil {
 			failed_puzzles = append(failed_puzzles, v)
 			failed++
 		}
+		if failed > can_fail {
+			return err
+			//return fmt.Errorf("Failed more than %v puzzles. Failed: %v.", can_fail, failed_puzzles)
+		}
 	}
 	return nil
 }
 
-func honeypot(uni *context.Uni, options map[string]interface{}) error {
+func solveHoneypot(uni *context.Uni, puzzle_opts map[string]interface{}) error {
 	return fmt.Errorf(not_impl)
 }
 
-func hashcash(uni *context.Uni, options map[string]interface{}) error {
+func solveHashcash(uni *context.Uni, puzzle_opts map[string]interface{}) error {
 	return fmt.Errorf(not_impl)
 }
 
-func timer(uni *context.Uni, options map[string]interface{}) error {
-	return nil
+func solveTimer(uni *context.Uni, puzzle_opts map[string]interface{}) error {
+	return user_model.SolveTimer(uni.Secret(), uni.Req.Form, puzzle_opts)
 }
 
-// Show puzzles for action. Called as a template function.
-func ShowPuzzles(uni *context.Uni, mod_name, action_name string) (string, error) {
+// Show puzzles for action. Called as a template function, under the name "show_puzzles".
+func ShowPuzzlesPath(uni *context.Uni, mod_name, action_name string) (string, error) {
+	auth_opts, go_on := AuthOpts(uni, mod_name, action_name)
+	if go_on {
+		return "", fmt.Errorf("Can't show puzzles: given action is explicitly ignored.")
+	}
+	return ShowPuzzles(uni, auth_opts)
+}
+
+func ShowPuzzles(uni *context.Uni, auth_options map[string]interface{}) (string, error) {
+	puzzle_group_i, ok := auth_options["puzzles"]
+	if !ok {
+		return "", fmt.Errorf("Can't find puzzle names. Returning because your system is unsecure.") // We return an error here just to be sure.
+	}
+	puzzle_group, _ := user_model.InterpretPuzzleGroup(puzzle_group_i.([]interface{}))
+	var ret string
+	for _, v := range puzzle_group {
+		puzzle_opt, err := puzzleOpt(uni, v)
+		if err != nil {
+			return ret, err
+		}
+		var str string
+		switch v {
+		case "hascash":
+			str, err = showHashcash(uni, puzzle_opt)
+		case "timer":
+			str, err = showTimer(uni, puzzle_opt)
+		case "honeypot":
+			str, err = showHoneypot(uni, puzzle_opt)
+		case "default":
+			str, err = "", fmt.Errorf("Can't find puzzle named %v.", v)
+		}
+		ret = ret + str
+		if err != nil {
+			return ret, nil
+		}
+	}
+	return ret, nil
+}
+
+func showHashcash(uni *context.Uni, puzzle_opt map[string]interface{}) (string, error) {
 	return "", fmt.Errorf(not_impl)
 }
 
-func showHashcash(uni *context.Uni) (string, error) {
-	return "", fmt.Errorf(not_impl)
+func showTimer(uni *context.Uni, puzzle_opt map[string]interface{}) (string, error) {
+	return user_model.ShowTimer(uni.Secret(), puzzle_opt)
 }
 
-func showTimer(uni *context.Uni) (string, error) {
-	return "", nil
-}
-
-func showHoneypot(uni *context.Uni) (string, error) {
+func showHoneypot(uni *context.Uni, puzzle_opt map[string]interface{}) (string, error) {
 	return "", fmt.Errorf(not_impl)
 }

@@ -88,8 +88,7 @@ func EmptyUser() map[string]interface{} {
 	return user
 }
 
-// Creates a list of 2 char language abbreviations (for example: []string{"en", "de", "hu"}) out of the value of http header "Accept-Language".
-func ParseAcceptLanguage(l string) []string {
+func parseAcceptLanguage(l string) []string {
 	ret := []string{}
 	sl := strings.Split(l, ",")
 	c := map[string]struct{}{}
@@ -102,6 +101,18 @@ func ParseAcceptLanguage(l string) []string {
 		}
 	}
 	return ret
+}
+
+// Creates a list of 2 char language abbreviations (for example: []string{"en", "de", "hu"}) out of the value of http header "Accept-Language".
+func ParseAcceptLanguage(l string) (ret []string) {
+	defer func(){
+		r := recover()
+		if r != nil {
+			ret = []string{"en"}
+		}
+	}()
+	ret = parseAcceptLanguage(l)
+	return
 }
 
 // Decrypts a string with block_key.

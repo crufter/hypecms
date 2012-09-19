@@ -214,6 +214,16 @@ func DErr(uni *context.Uni, err error) {
 	uni.Put(err)
 }
 
+func BeforeDisplay(uni *context.Uni) {
+	defer func(){
+		r := recover()
+		if r != nil {
+			fmt.Println(r)
+		}
+	}()
+	uni.Ev.Trigger("BeforeDisplay")
+}
+
 // Displays a display point.
 func D(uni *context.Uni) {
 	points, points_exist := uni.Dat["_points"]
@@ -235,6 +245,7 @@ func D(uni *context.Uni) {
 			runQueries(uni, qmap)
 		}
 	}
+	BeforeDisplay(uni)
 	// While it is not the cheapest solution to convert bson.ObjectIds to strings here, where we have to iterate trough all values,
 	// it is still better than remembering (and forgetting) to convert it at every specific place.
 	scut.IdsToStrings(uni.Dat)

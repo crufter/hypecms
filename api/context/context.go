@@ -1,5 +1,4 @@
 // Context contains the type Uni. An instance of this type is passed to the modules when routing the control to them.
-// For license see license.txt.
 package context
 
 import (
@@ -63,9 +62,6 @@ type Ev struct {
 }
 
 // Return all hooks (modulename + hook function) subscribed to a path.
-// All allows to retrieve all hooks and execute them by hand.
-// Not used in the model, because most hooks require *Uni, but we do not have that in the model.
-// Use Iterate instead of it in the model layers.
 func all(e *Ev, path string) []struct{Func interface{}; Modname string} {
 	modnames, ok := jsonp.GetS(e.uni.Opt, "Hooks." + path)
 	if !ok { return nil }
@@ -104,7 +100,9 @@ func allFuncs(e *Ev, path string) []interface{} {
 // Example eventname: "content.insert"
 // Note that, different subscriptions should not be created for subsets of functionality,
 // eg: "content.blog.insert" (where blog is a content type) should not be used, because we build the hook function name from the access path, eg:
-// content.insert => ContentInsert may be a static, valid hookname, but ContentBlogInsert not.
+// content.insert => ContentInsert may be a static, valid hookname, but ContentBlogInsert not (a module author can't know that the type will be blog or
+// cats ahead of time).
+//
 // Filtering can be done inside ContentInsert if one module wants to act only on certain information (in the example case on certain content types).
 func (e *Ev) Trigger(eventname string, params ...interface{}) {
 	e.trigger(eventname, nil, params...)
@@ -119,7 +117,6 @@ func (e *Ev) Iterate(eventname string, stopfunc interface{}, params ...interface
 }
 
 // This is not included for the time being.
-// The first boolean parameter of trigger used to distinguish between the Trigger and the TriggerWith mode.
 //
 // // Stricter than Trigger, it does not pass *context.Uni as a first parameter to the hooks, not even if they have it as their first parameter.
 // func (e *Ev) TriggerWith(eventname string, params ...interface{}) {
@@ -155,11 +152,10 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 		} else {
 			inp := []reflect.Value{}
 			uni_t := reflect.TypeOf(e.uni)
-			// If the caller passed in *Uni explicitly, we dont have to trick with it passing it in implicitly.
-			if len(params) > 0 && reflect.TypeOf(params[0]) != uni_t {
-				if t.In(0) == uni_t {
-					inp = append(inp, reflect.ValueOf(e.uni))
-				}
+			caller_explicit := len(params) > 0 && reflect.TypeOf(params[0]) == uni_t
+			// We only trick with passing *Uni implicitly, if the caller did not specify it explicitly.
+			if !caller_explicit && t.In(0) == uni_t {
+				inp = append(inp, reflect.ValueOf(e.uni))
 			}
 			for _, param := range params {
 				inp = append(inp, reflect.ValueOf(param))

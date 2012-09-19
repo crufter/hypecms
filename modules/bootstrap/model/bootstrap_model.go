@@ -18,6 +18,7 @@ import(
 	"github.com/opesun/extract"
 	"github.com/opesun/numcon"
 	"github.com/opesun/hypecms/modules/admin/model"
+	"github.com/opesun/hypecms/model/basic"
 	"strings"
 )
 
@@ -40,6 +41,19 @@ func newSite(db *mgo.Database, sitename, db_pass string) error {
 		"db_password": db_pass,
 	}
 	return db.C("sites").Insert(s)
+}
+
+// Currently we wonly delete a site from the sites collection of the root database, for safety reasons.
+// The deletion will only take effect at next restart.
+func DeleteSite(db *mgo.Database, inp map[string][]string) error {
+	r := map[string]interface{}{
+		"sitename": "must",
+	}
+	dat, err := extract.New(r).Extract(inp)
+	if err != nil {
+		return err
+	}
+	return deleteSite(db, dat["sitename"].(string))
 }
 
 // Deletes a site.
@@ -75,8 +89,24 @@ type SiteInfo struct {
 	DbPassword	string
 }
 
+func AllSitenames(db *mgo.Database) ([]string, error) {
+	sinfos, err := allSites(db)
+	if err != nil {
+		return nil, err
+	}
+	sitenames := []string{}
+	for _, v := range sinfos {
+		sitenames = append(sitenames, v.Name)
+	}
+	return sitenames, nil
+}
+
+func SiteCount(db *mgo.Database) (int, error) {
+	return db.C("sites").Find(nil).Count()
+}
+
 // Returns all sitenames in database.
-func AllSites(db *mgo.Database) ([]SiteInfo, error) {
+func allSites(db *mgo.Database) ([]SiteInfo, error) {
 	var sites []interface{}
 	err := db.C("sites").Find(nil).All(&sites)
 	if err != nil {
@@ -187,7 +217,6 @@ func freePorts(max_tries, n int) ([]int, error) {
 	rand.Seed(time.Now().Unix())
 	portnums := map[int]struct{}{}
 	for i:=0;i<max_tries;i++{
-		fmt.Println("generating port", i)
 		num, err := generatePortnum()
 		if err == nil {
 			portnums[num] = struct{}{}
@@ -240,42 +269,70 @@ func newSiteRules() map[string]interface{} {
 	}
 }
 
-func igniteReadOps(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string) (string, error) {
+func defaultOpts(db *mgo.Database) (map[string]interface{}, error) {
+	// Dohh, a different collection for a single doc, really unmongoish, rewrite.
+	var res interface{}
+	err := db.C("default_opt").Find(nil).One(&res)
+	if err != nil {
+		return nil, err
+	}
+	return basic.Convert(res).(map[string]interface{}), nil
+}
+
+func igniteReadOps(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string) (map[string]interface{}, string, error) {
 	if session == nil {
-		return "", fmt.Errorf("This is not an admin instance.")
+		return nil, "", fmt.Errorf("This is not an admin instance.")
 	}
 	r := newSiteRules()
 	dat, err := extract.New(r).Extract(inp)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	// Need to check it here too, not just at admin_model.RegFirstAdmin!
 	if dat["password"].(string) != dat["password_again"].(string) {
-		return "", fmt.Errorf("Passwords do not match.")
+		return nil, "", fmt.Errorf("Passwords do not match.")
 	}
 	max_cap := numcon.IntP(boots_opt["max_cap"])
 	hasroom, err := hasRoom(db, max_cap)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if !hasroom {
-		return "", fmt.Errorf("Server is at full capacity.")
+		return nil, "", fmt.Errorf("Server is at full capacity.")
 	}
 	sitename := dat["sitename"].(string)
 	root_db := boots_opt["root_db"].(string)
 	if sitename == root_db || strings.HasPrefix(sitename, "www") {
-		fmt.Errorf("Sitename cant equal to root sitename or start with www.")
+		return nil, "", fmt.Errorf("Sitename cant equal to root sitename or start with www.")
 	}
-	return sitename, sitenameIsOk(db, sitename)
+	default_must := boots_opt["default_must"].(bool)
+	def_opts, err := defaultOpts(db)
+	if default_must && err != nil {
+		return nil, "", fmt.Errorf("Cant read default option document.")
+	}
+	return def_opts, sitename, sitenameIsOk(db, sitename)
 }
 
-func igniteWriteOps(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string, sitename string) error {
+func saveDefaultOpt(site_db *mgo.Database, def_opts map[string]interface{}) error {
+	if def_opts == nil {
+		return fmt.Errorf("Nothing to save.")
+	}
+	id := basic.CreateOptCopy(site_db)
+	return site_db.C("options").Update(m{"_id": id}, m{"$set": def_opts})
+}
+
+func igniteWriteOps(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string, def_opts map[string]interface{}, sitename string) error {
 	db_password := srand(20)
 	err := newSite(db, sitename, db_password)
 	if err != nil {
 		return err
 	}
 	site_db := session.DB(sitename)
+	default_must := boots_opt["default_must"].(bool)
+	err = saveDefaultOpt(site_db, def_opts)
+	if default_must && err != nil {
+		return err
+	}
 	err = site_db.AddUser(sitename, db_password, false)
 	if err != nil {
 		return err
@@ -316,11 +373,11 @@ func igniteCleanUp(session *mgo.Session, db *mgo.Database, sitename string) erro
 
 // This registers the site into the sites collection, creates a database for it, and registers an admin for it with the password coming
 // from user interface. Also writes the site into the proxy table and starts the http server for the new site.
-func Ignite(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string) (err error) {
+func Ignite(session *mgo.Session, db *mgo.Database, boots_opt map[string]interface{}, inp map[string][]string) (sitename string, err error) {
 	mut := new(sync.Mutex)
 	mut.Lock()
 	defer mut.Unlock()
-	sitename, err := igniteReadOps(session, db, boots_opt, inp)
+	def_opts, sitename, err := igniteReadOps(session, db, boots_opt, inp)
 	if err != nil {
 		return
 	}
@@ -337,13 +394,13 @@ func Ignite(session *mgo.Session, db *mgo.Database, boots_opt map[string]interfa
 			}
 		}
 	}()
-	err = igniteWriteOps(session, db, boots_opt, inp, sitename)
+	err = igniteWriteOps(session, db, boots_opt, inp, def_opts, sitename)
 	return
 }
 
 // Starts a process for each site in the sites collection.
 func StartAll(db *mgo.Database, boots_opt map[string]interface{}) error {
-	sinfos, err := AllSites(db)
+	sinfos, err := allSites(db)
 	if err != nil {
 		return err
 	}
@@ -376,11 +433,17 @@ func StartAll(db *mgo.Database, boots_opt map[string]interface{}) error {
 	return nil
 }
 
-func Install(db *mgo.Database, id bson.ObjectId) error {
+func Install(session *mgo.Session, db *mgo.Database, id bson.ObjectId) error {
+	if session == nil {
+		return fmt.Errorf("This is not an admin instance.")
+	}
 	bootstrap_options := m{
 	}
 	q := m{"_id": id}
 	upd := m{
+		"$addToSet": m{
+			"Hooks.BeforeDisplay": "bootstrap",
+		},
 		"$set": m{
 			"Modules.bootstrap": bootstrap_options,
 		},
@@ -391,6 +454,9 @@ func Install(db *mgo.Database, id bson.ObjectId) error {
 func Uninstall(db *mgo.Database, id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
+		"$pull": m{
+			"Hooks.BeforeDisplay": "bootstrap",
+		},
 		"$unset": m{
 			"Modules.bootstrap": 1,
 		},

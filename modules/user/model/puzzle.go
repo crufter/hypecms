@@ -1,10 +1,49 @@
 package user_model
 
-func Honeypot(inp map[string][]string, options map[string]interface{}) error {
-	return nil
+import (
+	"fmt"
+	"time"
+	"strconv"
+	"github.com/opesun/extract"
+)
+
+const(
+	not_impl = "Not implemented yet."
+	secret_salt = "xas_f9((!kcvm"
+)
+
+func SolveHoneypot(secret string, inp map[string][]string, puzzle_opts map[string]interface{}) error {
+	return fmt.Errorf(not_impl)
 }
 
-func Hashcash(inp map[string][]string, options map[string]interface{}) error {
+func SolveHashcash(secret string, inp map[string][]string, puzzle_opts map[string]interface{}) error {
+	return fmt.Errorf(not_impl)
+}
+
+func SolveTimer(secret string, inp map[string][]string, puzzle_opts map[string]interface{}) error {
+	min_diff, ok := puzzle_opts["min_diff"].(int)
+	if !ok {
+		min_diff = 10
+	}
+	current := int(time.Now().Unix())
+	r := map[string]interface{}{
+		"__t": "must",
+	}
+	dat, err := extract.New(r).Extract(inp)
+	if err != nil {
+		return err
+	}
+	decrypted_v, err := decryptStr([]byte(secret_salt + secret), dat["__t"].(string))
+	if err != nil {
+		return err
+	}
+	stamp, err := strconv.Atoi(decrypted_v)
+	if err != nil {
+		return err
+	}
+	if current - stamp < min_diff {
+		return fmt.Errorf("You sent the form too quickly, wait %v seconds please.", min_diff)
+	}
 	return nil
 }
 
@@ -28,4 +67,22 @@ func InterpretPuzzleGroup(puzzle_group []interface{}) (puzzles []string, can_fai
 		puzzles = append(puzzles, v.(string))
 	}
 	return
+}
+
+func ShowTimer(secret string, puzzle_opts map[string]interface{}) (string, error) {
+	stamp := int(time.Now().Unix())
+	encrypted_v, err := encryptStr([]byte(secret_salt + secret), strconv.Itoa(stamp))
+	if err != nil {
+		return "", err
+	}
+	// TODO: clear up this ugliness.
+	return `<input name="__t" type="hidden" value="`+encrypted_v+`" />`, nil
+}
+
+func ShowHashcash(secret string, puzzle_opts map[string]interface{}) (string, error) {
+	return "", fmt.Errorf(not_impl)
+}
+
+func ShowHoneypot(secret string, puzzle_opts map[string]interface{}) (string, error) {
+	return "", fmt.Errorf(not_impl)
 }

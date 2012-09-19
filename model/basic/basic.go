@@ -264,9 +264,17 @@ func Convert(x interface{}) interface{} {
 // Creates a copy of the most up to date document in collname (sorted by sortfield), and returns it's ObjectId for further updates.
 // Used in situations where we want to handle a series of documents as immutable values, like the the documents in the "options" collection.
 func CreateCopy(db *mgo.Database, collname, sortfield string) bson.ObjectId {
-	var v interface{}
-	db.C(collname).Find(nil).Sort(sortfield).Limit(1).One(&v)
-	ma := v.(bson.M)
+	var v []interface{}
+	err := db.C(collname).Find(nil).Sort(sortfield).Limit(1).All(&v)
+	if err != nil {		// Refactor this into return value.
+		panic(err)
+	}
+	var ma bson.M
+	if len(v) == 0 {
+		ma = bson.M{}
+	} else {
+		ma = v[0].(bson.M)
+	}
 	ma["_id"] = bson.NewObjectId()
 	ma["created"] = time.Now().Unix()
 	db.C(collname).Insert(ma)

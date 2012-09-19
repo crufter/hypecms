@@ -150,9 +150,10 @@ func runFrontHooks(uni *context.Uni) {
 	}
 }
 
-// This is real basic yet, it would be cool to include all elements of result.
-func appendParams(str string, action_name string, err error, cont map[string]interface{}) string {
-	p := strings.Split(str, "?")
+// This writes all necessary information after a background operation into the redirect url, and deletes
+// parts which were when a previous background op ran.
+func appendParams(url_str string, action_name string, err error, cont map[string]interface{}) string {
+	p := strings.Split(url_str, "?")
 	var inp string
 	if len(p) > 1 {
 		inp = p[1]
@@ -161,8 +162,15 @@ func appendParams(str string, action_name string, err error, cont map[string]int
 	}
 	v, parserr := url.ParseQuery(inp)
 	if parserr == nil {
-		for key, val := range cont { // This way we can include additional data in the get params, not only action name and errors.
-			v.Set(key, fmt.Sprint(val))
+		// Delete outdated information from url.
+		for i := range v {
+			if strings.HasPrefix(i, "-") {
+				v.Del(i)
+			}
+		}
+		// Write all data in cont into the url.
+		for key, val := range cont {
+			v.Set("-"+key, fmt.Sprint(val))
 		}
 		v.Del("error")
 		v.Del("ok") // See *1
@@ -184,7 +192,7 @@ func appendParams(str string, action_name string, err error, cont map[string]int
 }
 
 // After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
-func handleBacks(uni *context.Uni, err error, action_name string) {
+func backResponse(uni *context.Uni, err error, action_name string) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
 		fmt.Println("	", err)
@@ -203,6 +211,7 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 	} else {
 		cont = map[string]interface{}{}
 	}
+	redir = appendParams(redir, action_name, err, cont)
 	if is_json {
 		cont["redirect"] = redir
 		var v []byte
@@ -213,7 +222,6 @@ func handleBacks(uni *context.Uni, err error, action_name string) {
 		}
 		uni.Put(string(v))
 	} else {
-		redir = appendParams(redir, action_name, err, cont)
 		http.Redirect(uni.W, uni.Req, redir, 303)
 	}
 }
@@ -234,7 +242,7 @@ func runBacks(uni *context.Uni) (string, error) {
 		return action_name, err
 	}
 	if puzzle_err != nil {
-		return action_name, err
+		return action_name, puzzle_err
 	}
 	h := mod.GetHook(modname, "Back")
 	if h == nil {
@@ -251,7 +259,7 @@ func runBacks(uni *context.Uni) (string, error) {
 // Every background operation uses this hook.
 func runBackHooks(uni *context.Uni) {
 	action_name, err := runBacks(uni)
-	handleBacks(uni, err, action_name)
+	backResponse(uni, err, action_name)
 }
 
 func runAdminHooks(uni *context.Uni) {
@@ -266,7 +274,7 @@ func runAdminHooks(uni *context.Uni) {
 		} else {
 			err = fmt.Errorf(adminback_no_module)
 		}
-		handleBacks(uni, err, action_name)
+		backResponse(uni, err, action_name)
 	} else {
 		err = admin.AD(uni)
 		if err == nil {
@@ -299,7 +307,7 @@ func runD(uni *context.Uni) error {
 // Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
 func runDebug(uni *context.Uni) {
 	err := runD(uni)
-	handleBacks(uni, err, "debug")
+	backResponse(uni, err, "debug")
 }
 
 func buildUser(uni *context.Uni) error {
