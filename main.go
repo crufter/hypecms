@@ -423,7 +423,6 @@ func main() {
 			fmt.Println(r)
 		}
 	}()
-	fmt.Println(DB_USER, DB_ADM_MODE, DB_PASS, PORT_NUM)
 	dial := DB_ADDR
 	if len(DB_USER) != 0 || len(DB_PASS) != 0 {
 		if len(DB_USER) == 0 {
