@@ -164,7 +164,7 @@ func EncodePass(pass string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// Checks the username is still available (not taken already).
+// Returns true if the username is still available (eg: no one is registered with that name).
 func NameAvailable(db *mgo.Database, name string) (bool, error) {
 	var res []interface{}
 	q := bson.M{"slug": slugify.S(name)}

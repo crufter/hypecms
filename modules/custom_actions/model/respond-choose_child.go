@@ -11,7 +11,7 @@ import (
 
 // With this two actions, one can implement a QA site, similar to StackOverflow.
 
-// Checks if user_id is the author of the parent of the chosen document.
+// Returns an error if user_id is not the author of the parent of the chosen document.
 func IsAuthor(db *mgo.Database, coll, parent_fieldname string, user_id, chosen_doc_id bson.ObjectId) (bson.ObjectId, error) {
 	chosen_doc, err := patterns.FindEq(db, coll, "_id", chosen_doc_id)
 	if err != nil {

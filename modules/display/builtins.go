@@ -66,6 +66,32 @@ func html(s string) template.HTML {
 	return template.HTML(s)
 }
 
+func nonEmpty(a interface{}) bool {
+	if a == nil {
+		return false
+	}
+	switch t := a.(type) {
+	case string:
+		return t != ""
+	case bool:
+		return t != false
+	default:
+		return true
+	}
+	return true
+}
+
+// Returns the first argument which is not nil, false or empty string.
+// Returns false if none of the arguments matches that criteria.
+func fallback(a ...interface{}) interface{} {
+	for _, v := range a {
+		if nonEmpty(v) {
+			return v
+		}
+	}
+	return false
+}
+
 func formatFloat(f float64, prec int) string {
 	return strconv.FormatFloat(f, 'f', prec, 64)
 }
@@ -105,6 +131,7 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		},
 		"html": html,
 		"format_float": formatFloat,
+		"fallback": fallback,
 	}
 	return ret
 }

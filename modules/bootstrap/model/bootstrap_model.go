@@ -24,7 +24,7 @@ import(
 
 type m map[string]interface{}
 
-// Checks if the server is exceeded its capacity.
+// Returns false if the server exceeded its capacity.
 func hasRoom(db *mgo.Database, max_cap int) (bool, error) {
 	count, err := db.C("sites").Find(nil).Count()
 	if err != nil {
@@ -64,7 +64,7 @@ func deleteSite(db *mgo.Database, sitename string) error {
 	return db.C("sites").Remove(q)
 }
 
-// Checks if sitename is a valid subdomain.
+// Returns true if sitename is a valid subdomain.
 func validSitename(sitename string) bool {
 	re := regexp.MustCompile(`^[a-z\d]+(-[a-z\d]+)*$`)
 	return re.MatchString(sitename)
@@ -129,7 +129,7 @@ func allSites(db *mgo.Database) ([]SiteInfo, error) {
 	return sinfos, nil
 }
 
-// Checks if it is okay to start a new site with arg sitename.
+// Returns true if it is okay to start a new site with arg sitename.
 func sitenameIsOk(db *mgo.Database, sitename string) error {
 	if !validSitename(sitename) {
 		return fmt.Errorf("Sitename must be a valid subdomain.")

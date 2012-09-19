@@ -182,7 +182,6 @@ func GetModTPath(filename string) []string {
 	return sl
 }
 
-// Checks if the user is an admin or not.
 func NotAdmin(user interface{}) bool {
 	return Ulev(user) < 300
 }

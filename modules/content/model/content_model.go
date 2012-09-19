@@ -17,7 +17,7 @@ const (
 	not_impl = "Not implemented yet."
 )
 
-// Checks if one is entitled to modify other peoples content.
+// Returns true if one is entitled to modify the given content.
 func CanModifyContent(db *mgo.Database, inp map[string][]string, correction_level int, user_id bson.ObjectId, user_level int) error {
 	rule := map[string]interface{}{
 		"id":   "must",
