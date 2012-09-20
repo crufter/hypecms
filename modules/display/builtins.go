@@ -92,7 +92,17 @@ func fallback(a ...interface{}) interface{} {
 	return false
 }
 
-func formatFloat(f float64, prec int) string {
+func formatFloat(i interface{}, prec int) string {
+	// Quick hack, insert this into github.com/opesun/numcon...
+	var f float64
+	switch t := f.(type) {
+	case int:
+		f = float64(t)
+	case int64:
+		f = float64(t)
+	case float64:
+		f = float64(t)
+	}
 	return strconv.FormatFloat(f, 'f', prec, 64)
 }
 
