@@ -1,4 +1,4 @@
-![My image](http://img.dafont.com/preview.php?text=HypeCMS&ttf=days0&ext=1&size=58&psize=s&y=57)
+![My image](http://img.dafont.com/preview.php?text=hypeCMS&ttf=days0&ext=1&size=58&psize=s&y=57)
 
 A CMS written in Go, using MongoDB as a backend. (Work in progress, heavily.)
 

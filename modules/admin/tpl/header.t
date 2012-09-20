@@ -10,6 +10,7 @@
 	<a href="/admin/edit-config">Edit config</a>
 	<a href="/admin/install">Install modules</a>
 	<a href="/admin/uninstall">Uninstall modules</a>
+	<a href="/">Home</a>
 	<a href="/admin/b/logout">Logout</a>
 	<a TARGET="_blank" id="logo" href="http://www.github.com/opesun/hypecms">HypeCMS</a>
 </div>

@@ -83,6 +83,8 @@ func Back(uni *context.Uni, action string) error {
 		return Ignite(uni)
 	case "start-all":
 		return StartAll(uni)
+	case "delete-site":
+		return DeleteSite(uni)
 	default:
 		return fmt.Errorf("Unkown action %v.")
 	}

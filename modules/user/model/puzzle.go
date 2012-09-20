@@ -42,7 +42,7 @@ func SolveTimer(secret string, inp map[string][]string, puzzle_opts map[string]i
 		return err
 	}
 	if current - stamp < min_diff {
-		return fmt.Errorf("You sent the form too quickly, wait %v seconds please.", min_diff)
+		return fmt.Errorf("You submitted the form too quickly, wait %v seconds please.", min_diff)
 	}
 	return nil
 }

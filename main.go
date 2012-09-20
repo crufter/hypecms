@@ -1,4 +1,4 @@
-// HypeCMS is a CMS and/or framework for web applications, and more.
+// hypeCMS is a CMS and/or framework for web applications, and more.
 // For license, see the file named LICENSE.
 package main
 

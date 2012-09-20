@@ -84,7 +84,7 @@
 				<p class="bottom-left">Copyright &copy; 2011 <a href=
 				"http://keepitsimple-btemplates.blogspot.hu/" style="text-decoration: none;">Keep It Simple</a></p>
 		
-				<p class="bottom-right">Design based on a template of <a href="http://www.styleshout.com/" title=
+				<p class="bottom-right">Powered by <a href="http://hypecms.com/"><b>hypeCMS</b></a>. Design based on a template of <a href="http://www.styleshout.com/" title=
 				"Designer">Styleshout</a> | <a href="http://btemplates.com/" title=
 				"Templates Blogger">Blogger Templates</a> by <a href=
 				"http://blogandweb.com/">Blog and Web</a></p>
