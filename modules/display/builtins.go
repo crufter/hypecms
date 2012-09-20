@@ -95,7 +95,7 @@ func fallback(a ...interface{}) interface{} {
 func formatFloat(i interface{}, prec int) string {
 	// Quick hack, insert this into github.com/opesun/numcon...
 	var f float64
-	switch t := f.(type) {
+	switch t := i.(type) {
 	case int:
 		f = float64(t)
 	case int64:
