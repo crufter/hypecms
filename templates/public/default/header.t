@@ -18,7 +18,7 @@
 						<div class="widget Header" id="Header1">
 							<div id="header-inner">
 								<div class="titlewrapper">
-									<a href="/"><h1 class="title">HypeCMS</h1></a>
+									<a href="/"><h1 class="title">hypeCMS</h1></a>
 								</div>
 								<div class="descriptionwrapper">
 									<p class="description">

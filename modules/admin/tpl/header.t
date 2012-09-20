@@ -12,7 +12,7 @@
 	<a href="/admin/uninstall">Uninstall modules</a>
 	<a href="/">Home</a>
 	<a href="/admin/b/logout">Logout</a>
-	<a TARGET="_blank" id="logo" href="http://www.github.com/opesun/hypecms">HypeCMS</a>
+	<a TARGET="_blank" id="logo" href="http://www.github.com/opesun/hypecms">hypeCMS</a>
 </div>
 <br />
 <div id="content">

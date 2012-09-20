@@ -1,0 +1,96 @@
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 140%;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+.clearfix:after {
+	content: ".";
+	display: block;
+	clear: both;
+	visibility: hidden;
+	line-height: 0;
+	height: 0;
+}
+/* Headers */
+h1, h2, h3, h4 {
+font: bold 1em/1.5em Arial;
+color: #444;
+padding: 10px 15px 7px 15px;
+}
+h1 {font-size: 3.7em; font-weight: normal; letter-spacing: -2px;}
+h2 {font-size: 2.8em; font-weight: normal;}
+h3 {font-size: 2em; font-weight: normal; letter-spacing: -0.5px; padding-top: 15px}
+h4 {font-size: 1.3em;}
+
+body{background:#eee; font-family:Arial;}
+#fork_us_on_github{position:absolute; right:0px;}
+#gopher{position:fixed; bottom:0px;}
+@font-face{font-family:Days; src:url("Days.otf")}
+#logo{font-size:90px; font-family:Days;}
+	#logo a{text-decoration:none; color:#444;}
+	#logo a:visited{color:#444;}
+#under-logo{margin-left: 1em;}
+	#perc{float:left; font-size:2.5em;}
+	#bar{float:left; margin-left: 2em; width:500px; border: 1px solid #ccc;}
+#outer{width:960px; margin:0px auto;}
+#inner{float:left;}
+	.sub_logos{float:left; width:150px; height:150px; margin-left:2em;}
+#login-box{width:157px; margin:3em 0em 2em 1em; float:right;}
+.input-title{font: bold 1em/1.5em Arial;
+color: #444;
+padding: 10px 15px 7px 0px;
+}
+#success{width: 700px; margin-left: 1em; margin-top: 2em; display:none; color: green;}
+#error{width: 700px; margin-left: 1em; margin-top: 2em; display:none; color: red;}
+span.col{float:left; width:30%; margin-left:1em; padding-bottom:1em; /*border-bottom:1px solid #aaa;*/}
+span.init{font-size:200%}
+p{margin-left: 1em;}
+#footer{margin-top:5em; border-top:1px solid #aaa; height:50px;}
+.tooltip{
+   position: absolute;
+   top: 0;
+   left: 0;
+   z-index: 3;
+   display: none;
+}
+input{background: #fff; border: 1px solid #ccc;}
+input[type="submit"]{padding:0.5em;}
+input[type="submit"]:hover{cursor:pointer}
