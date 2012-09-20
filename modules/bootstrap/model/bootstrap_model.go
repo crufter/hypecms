@@ -245,13 +245,14 @@ func freePort(max_tries int) (int, error) {
 }
 
 // Starts the executable for sitename.
-func startExecInstance(exec_abs, sitename, db_password string, port_num int) error {
+func startExecInstance(sys_root, exec_abs, sitename, db_password string, port_num int) error {
 	port_arg := 	"-p=" + strconv.Itoa(port_num)
+	abs_path :=		"-abs_path=" + sys_root
 	db_name_arg := 	"-db_name=" + sitename
 	db_user_arg := 	"-db_user=" + sitename
 	db_pass_arg := 	"-db_pass=" + db_password
 	secret		:=	"-secret=" + db_password	// Think about this again.
-	cmd := exec.Command(exec_abs, port_arg, db_name_arg, db_user_arg, db_pass_arg, secret)
+	cmd := exec.Command(exec_abs, abs_path, port_arg, db_name_arg, db_user_arg, db_pass_arg, secret)
 	return cmd.Start()
 }
 
@@ -353,7 +354,8 @@ func igniteWriteOps(session *mgo.Session, db *mgo.Database, boots_opt map[string
 		return err
 	}
 	exec_abs := boots_opt["exec_abs"].(string)
-	err = startExecInstance(exec_abs, sitename, db_password, port_num)
+	sys_root := boots_opt["sys_root"].(string)
+	err = startExecInstance(sys_root, exec_abs, sitename, db_password, port_num)
 	return err
 }
 
@@ -424,8 +426,9 @@ func StartAll(db *mgo.Database, boots_opt map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	sys_root := boots_opt["sys_root"].(string)
 	for i, v := range sinfos {
-		err := startExecInstance(exec_abs, v.Name, v.DbPassword, port_nums[i])
+		err := startExecInstance(sys_root, exec_abs, v.Name, v.DbPassword, port_nums[i])
 		if err != nil {
 			fmt.Println(fmt.Sprintf("Failed to start %v.", v.Name))
 		}
