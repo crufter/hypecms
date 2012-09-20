@@ -34,7 +34,7 @@ func BeforeDisplay(uni *context.Uni) {
 	}
 	max_cap := numcon.IntP(opt["max_cap"])
 	ratio := float64(count)/float64(max_cap)
-	perc := ratio * 100
+	perc := float64(ratio * 100)
 	uni.Dat["capacity_percentage"] = perc
 }
 
