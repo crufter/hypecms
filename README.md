@@ -10,9 +10,9 @@ Installation
 =======
 - Install and start MongoDb
 - go get github.com/opesun/hypecms
-- Modify config values at the beginning of main.go if needed
+- Modify config values at the beginning of main.go if needed, or use command line arguments to overwrite them.
 - Clone github.com/opesun/hypecms-shared. Create a symbolic link in your file system named github.com/opesun/hypecms/shared which points to the cloned repo.
-Alternatively, copy all contents of the hypecms-shared repo into the "shared" named folder in hypecms.
+Alternatively, create a folder named "shared" in github.com/opesun/hypecms and copy all contents of github.com/opesun/hypecms-shared into it.
 
 Stuff already working
 =======
@@ -25,6 +25,7 @@ Stuff already working
 - Custom view editor: run any queries at any part of the page. The query builder generates excerpts, paging links etc.
 - Any file is displayed as is, you dont even have to use any dynamic features of the CMS, you can simply copy-paste html pages and they will be displayed as if they were
 dynamic content. Even in these html files, PHP-like require functionality is available.
+- Plugin system.
 
 Demo
 =======

@@ -342,6 +342,12 @@ func igniteWriteOps(session *mgo.Session, db *mgo.Database, boots_opt map[string
 	if err != nil {
 		return err
 	}
+	// Since everyone tried to login as sitename, we regin an admin here named sitename.
+	inp["name"] = []string{sitename}
+	err = admin_model.RegAdmin(site_db, inp)
+	if err != nil {
+		return err
+	}
 	port_num, err := freePort(10)
 	if err != nil {
 		return err

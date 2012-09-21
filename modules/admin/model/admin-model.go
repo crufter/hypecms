@@ -74,7 +74,7 @@ func regUser(db *mgo.Database, post map[string][]string, mode int) error {
 }
 
 // Registers a user, without fluff, only name and password.
-func RegUser(db *mgo.Database, ev ifaces.Event, post map[string][]string) error {
+func RegUser(db *mgo.Database, post map[string][]string) error {
 	return regUser(db, post, generic_user)
 }
 
@@ -83,7 +83,7 @@ func RegFirstAdmin(db *mgo.Database, post map[string][]string) error {
 	return regUser(db, post, first_admin)
 }
 
-func RegAdmin(db *mgo.Database, ev ifaces.Event, post map[string][]string) error {
+func RegAdmin(db *mgo.Database, post map[string][]string) error {
 	return regUser(db, post, admin_with_name)
 }
 

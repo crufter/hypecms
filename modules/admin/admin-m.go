@@ -38,14 +38,14 @@ func RegAdmin(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights")
 	}
-	return admin_model.RegAdmin(uni.Db, uni.Ev, uni.Req.Form)
+	return admin_model.RegAdmin(uni.Db, uni.Req.Form)
 }
 
 func RegUser(uni *context.Uni) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights")
 	}
-	return admin_model.RegUser(uni.Db, uni.Ev, uni.Req.Form)
+	return admin_model.RegUser(uni.Db, uni.Req.Form)
 }
 
 func Login(uni *context.Uni) error {
