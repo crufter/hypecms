@@ -28,7 +28,7 @@ dynamic content. Even in these html files, PHP-like require functionality is ava
 
 Demo
 =======
-Soon you can test drive your own instance at hypecms.com (will be highly experimental though).
+http://hypecms.com/
 
 Current status
 =======

@@ -5,6 +5,7 @@
 	<link rel="stylesheet" type="text/css" href="/template/style.css" />
 	<script src="/shared/jquery.min.1.7.js"></script>
 	<script src="/shared/anomal-RainbowVis-JS/rainbowvis.js"></script>
+	<title>hypeCMS</title>
 	<script>
 		$(function(){
 			var get = {};
@@ -64,7 +65,7 @@
 		<div id="login-box">
 			<form action="/b/bootstrap/ignite" method="post">
 				<span class="input-title">sitename:</span><br /><input title="yoo" type="text" title="Name of your site." name="sitename"><br /><br />
-				<span class="input-title">password:</span><br /><input type="password" title="Administrator password you will use to log in to your site." name="password"><br /><br />
+				<span class="input-title">admin password:</span><br /><input type="password" title="Administrator password you will use to log in to your site." name="password"><br /><br />
 				<span class="input-title">password again:</span><br /><input type="password" title="Password confirmation." name="password_again"><br /><br />
 				{{$p := show_puzzles "bootstrap" "ignite"}}
 				{{html $p}}

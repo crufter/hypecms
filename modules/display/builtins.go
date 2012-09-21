@@ -1,17 +1,19 @@
 package display
 
-// All functions which can be called from templates resides here.
+// All functions which can be called from templates reside here.
 
 import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
+	"github.com/opesun/numcon"
 	"html/template"
 	"reflect"
 	"strings"
 	"time"
 	"strconv"
+	"fmt"
 )
 
 func get(dat map[string]interface{}, s ...string) interface{} {
@@ -93,17 +95,20 @@ func fallback(a ...interface{}) interface{} {
 }
 
 func formatFloat(i interface{}, prec int) string {
-	// Quick hack, insert this into github.com/opesun/numcon...
-	var f float64
-	switch t := i.(type) {
-	case int:
-		f = float64(t)
-	case int64:
-		f = float64(t)
-	case float64:
-		f = float64(t)
+	f, err := numcon.Float64(i)
+	if err != nil {
+		return err.Error()
 	}
 	return strconv.FormatFloat(f, 'f', prec, 64)
+}
+
+// For debugging purposes.
+func typeOf(i interface{}) string {
+	return fmt.Sprint(reflect.TypeOf(i))
+}
+
+func sameKind(a, b interface{}) bool {
+	return reflect.ValueOf(a).Kind() == reflect.ValueOf(b).Kind()
 }
 
 // We must recreate this map each time because map write is not threadsafe.
@@ -142,6 +147,8 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"html": html,
 		"format_float": formatFloat,
 		"fallback": fallback,
+		"type_of":	typeOf,
+		"same_kind": sameKind,
 	}
 	return ret
 }
