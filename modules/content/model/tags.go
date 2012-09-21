@@ -138,6 +138,7 @@ func addToSet(db *mgo.Database, content_id bson.ObjectId, tag_ids []bson.ObjectI
 func stripEmpty(sl []string) []string {
 	ret := []string{}
 	for _, v := range sl {
+		v = strings.Trim(v, " ")
 		if len(v) > 0 {
 			ret = append(ret, v)
 		}

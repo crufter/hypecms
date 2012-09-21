@@ -1,5 +1,6 @@
 // Thin controller-like layer supporting main.go
 // Currently contains mostly authentication-related functions.
+// Overly complex currently, will be redesigned a bit.
 //
 // Currently user levels are:
 // 0: total stranger.

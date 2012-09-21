@@ -77,8 +77,8 @@
 			<h1>What is this about?</h1>
 			<span class="col">
 				HypeCMS is a fresh take on web application development. This 100% open source project aims to find the simplest way to be as expressive as possible.
-				Grew out of our frustration with other cmses and frameworks, Hype is stripped down. For comparison, when configured as a WordPress-like blog (as in this demo), the front
-				page costs you only 3 database queries at max (1 for the logged in user, 1 for site config,
+				Grew out of our frustration with other cmses and frameworks, Hype is stripped down. For comparison, when configured as a WordPress-like blog, the front
+				page costs you only 3 database queries at max (1 for the logged in user, 1 for the site configuration,
 			</span>
 			<span class="col">
 				1 for the contents), or even only 1 (0 query for not logged in users/if the users are turned off, 0 for site config because it is cached after first page load, 1 for queries).
