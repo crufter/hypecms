@@ -23,7 +23,7 @@ import (
 func displErr(uni *context.Uni) {
 	r := recover()
 	if r != nil {
-		uni.Put("There was an error executing the template. Probably a {{require ...}} remained in the template and the html/template module does not recognize unkown commands, it crashes only.")
+		uni.Put("There was an error executing the template.")
 		fmt.Println("problem with template: ", r)
 		debug.PrintStack()
 	}
@@ -135,7 +135,7 @@ func prepareAndExec(uni *context.Uni, file string) {
 	loc, _ := display_model.LoadLocTempl(file, langs_s, root, scut.GetTPath(opt, host), nil) // TODO: think about errors here.
 	dat["loc"] = merge(dat["loc"], loc)
 	funcMap := template.FuncMap(builtins(uni))
-	t, _ := template.New("template_name").Funcs(funcMap).Parse(string(file))
+	t, _ := template.New("tpl").Funcs(funcMap).Parse(string(file))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	t.Execute(w, dat) // TODO: watch for errors in execution.
 }

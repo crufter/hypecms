@@ -9,6 +9,7 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
 	"github.com/opesun/hypecms/api/modcheck"
+	"github.com/opesun/hypecms/api/shell"
 	"github.com/opesun/hypecms/model/main"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/admin"
@@ -214,6 +215,11 @@ func backResponse(uni *context.Uni, err error, action_name string) {
 	redir = appendParams(redir, action_name, err, cont)
 	if is_json {
 		cont["redirect"] = redir
+		if err == nil {
+			cont["ok"] = true
+		} else {
+			cont["error"] = err.Error()
+		}
 		var v []byte
 		if _, fmt := uni.Req.Form["fmt"]; fmt {
 			v, _ = json.MarshalIndent(cont, "", "    ")
@@ -318,6 +324,16 @@ func buildUser(uni *context.Uni) error {
 	return fmt.Errorf(no_user_module_build_hook)
 }
 
+func terminal(uni *context.Uni) {
+	shell.Terminal(uni)
+	display.D(uni)
+}
+
+func runCommands(uni *context.Uni) {
+	err := shell.FromWeb(uni)
+	backResponse(uni, err, "shell")
+}
+
 func runSite(uni *context.Uni) {
 	err := buildUser(uni)
 	if err != nil {
@@ -334,6 +350,10 @@ func runSite(uni *context.Uni) {
 	// Debug is VIP to allow debugging even with a messed up option document.
 	case "debug":
 		runDebug(uni)
+	case "run-commands":
+		runCommands(uni)
+	case "terminal":
+		terminal(uni)
 	default:
 		runFrontHooks(uni)
 	}
@@ -342,7 +362,8 @@ func runSite(uni *context.Uni) {
 // Just printing the stack trace to http response if a panic bubbles up all the way to top.
 func err() {
 	if r := recover(); r != nil {
-		fmt.Println(r)
+		fmt.Println("at main:", r)
+		fmt.Println(string(debug.Stack()))
 		Put(unfortunate_error)
 		Put(fmt.Sprint("\n", r, "\n\n"+string(debug.Stack())))
 	}
@@ -396,7 +417,7 @@ func getSite(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req 
 		}
 		return
 	}
-	req.ParseForm()
+	req.ParseForm()		// Should we handle the error return of this?
 	runSite(uni)
 }
 

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <script src="/shared/jquery.min.1.7.js"></script>

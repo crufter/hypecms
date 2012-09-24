@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
-	// "strings"
 )
 
 func Index(uni *context.Uni) error {

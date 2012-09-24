@@ -6,7 +6,7 @@ There was an error getting the modules: {{.err}}
 	<ul>
 	<h3>Choose a module to uninstall:</h3><br />
 	{{range .installed_modules}}
-		<li><a href="/admin/b/uninstall/{{.}}">{{.}}</a></li>
+		<li><a href="/admin/b/uninstall?module={{.}}">{{.}}</a></li>
 	{{end}}
 	</ul>
 {{end}}

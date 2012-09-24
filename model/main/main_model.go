@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"sync"
+	"time"
 )
 
 type m map[string]interface{}
@@ -60,19 +61,27 @@ func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]inte
 		ret = v.(map[string]interface{})
 		delete(ret, "_id")
 	} else {
-		var res interface{}
-		db.C("options").Find(nil).Sort("-created").Limit(1).One(&res)
-		if res == nil {
-			res = m{}
-			db.C("options").Insert(res)
+		var res []interface{}
+		err := db.C("options").Find(nil).Sort("-created").Limit(1).All(&res)
+		if err != nil {
+			return nil, "", err
 		}
-		enc, merr := json.Marshal(res)
+		var fresh_opt interface{}
+		if len(res) == 0 {
+			fresh_opt = m{}
+			db.C("options").Insert(m{"created":time.Now().UnixNano()})		// Intentionally skipping error here.
+		} else {
+			fresh_opt = res[0]
+		}
+		enc, merr := json.Marshal(fresh_opt)
 		if merr != nil {
 			return nil, "", fmt.Errorf(cant_encode_config)
 		}
 		str := string(enc)
 		ret_str = str
-		set(cache, host, str)
+		if cache_it {
+			set(cache, host, str)
+		}
 		var v interface{}
 		json.Unmarshal([]byte(str), &v)
 		if v == nil {

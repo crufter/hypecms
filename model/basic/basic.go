@@ -216,14 +216,12 @@ func InudOpt(db *mgo.Database, ev ifaces.Event, dat map[string]interface{}, coll
 		if root != "" {
 			dat["root"] = root
 		}
-		fmt.Println(dat)
 		upd := bson.M{"$set": dat}
 		err = db.C(coll).Update(q, upd)
 		if err != nil {
 			return err
 		}
 		if version {
-			// Dat must contain -parent
 			err = SaveVersion(db, coll, version_id, live_id, parent, root)
 		}
 	case "delete":

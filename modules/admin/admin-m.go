@@ -11,7 +11,7 @@ import (
 	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/routep"
+	"github.com/opesun/extract"
 	"labix.org/v2/mgo/bson"
 	"runtime/debug"
 	"strings"
@@ -89,14 +89,12 @@ func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
 		return fmt.Errorf("No rights to install or uninstall a module.")
 	}
-	ma, err := routep.Comp("/admin/b/"+mode+"/{modulename}", uni.P)
+	dat, err := extract.New(map[string]interface{}{"module":"must"}).Extract(uni.Req.Form)
 	if err != nil {
-		return fmt.Errorf("Bad url at " + mode)
+		return err
 	}
-	modn, has := ma["modulename"]
-	if !has {
-		return fmt.Errorf("No modulename at %v.", mode)
-	}
+	modn := dat["module"].(string)
+	uni.Dat["_cont"] = map[string]interface{}{"module":modn}
 	obj_id, ierr := admin_model.InstallB(uni.Db, uni.Ev, uni.Opt, modn, mode)
 	if ierr != nil {
 		return ierr
