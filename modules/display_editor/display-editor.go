@@ -1,4 +1,3 @@
-// Package skeleton implements a minimalistic but idiomatic plugin for HypeCMS.
 package display_editor
 
 import (
