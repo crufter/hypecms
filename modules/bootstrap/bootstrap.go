@@ -8,22 +8,12 @@ import (
 	"github.com/opesun/jsonp"
 	bm "github.com/opesun/hypecms/modules/bootstrap/model"
 	"labix.org/v2/mgo/bson"
-	"github.com/opesun/routep"
 	"strings"
 	"github.com/opesun/numcon"
 )
 
-var Hooks = map[string]interface{}{
-	// "Front":     	Front,
-	"BeforeDisplay": 	BeforeDisplay,
-	"Back":      		Back,
-	"Install":   		Install,
-	"Uninstall": 		Uninstall,
-	"Test":      		Test,
-	"AD":       		AD,
-}
-
-func BeforeDisplay(uni *context.Uni) {
+func (h *H) BeforeDisplay() {
+	uni := h.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
 		return
@@ -48,7 +38,8 @@ func BeforeDisplay(uni *context.Uni) {
 //	"root_db": "hypecms",
 //	"table_key": "proxy_table"
 // }
-func Ignite(uni *context.Uni) error {
+func (a *A) Ignite() error {
+	uni := a.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
 		return fmt.Errorf("Bootstrap module is not installd properly.")
@@ -62,7 +53,8 @@ func Ignite(uni *context.Uni) error {
 
 // This function should be used only when neither of the processes are running, eg.
 // when the server was restarted, or the forker process was killed, and all child processes died with it.
-func StartAll(uni *context.Uni) error {
+func (a *A) StartAll() error {
+	uni := a.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
 		return fmt.Errorf("Bootstrap module is not installd properly.")
@@ -73,26 +65,8 @@ func StartAll(uni *context.Uni) error {
 	return bm.StartAll(uni.Db, opt)
 }
 
-func DeleteSite(uni *context.Uni) error {
-	return bm.DeleteSite(uni.Db, uni.Req.Form)
-}
-
-func Back(uni *context.Uni, action string) error {
-	switch action {
-	case "ignite":
-		return Ignite(uni)
-	case "start-all":
-		return StartAll(uni)
-	case "delete-site":
-		return DeleteSite(uni)
-	default:
-		return fmt.Errorf("Unkown action %v.")
-	}
-	return fmt.Errorf("Should not reach this point.")
-}
-
-func Test(uni *context.Uni) error {
-	return fmt.Errorf("Not implemented yet.")
+func (a *A) DeleteSite() error {
+	return bm.DeleteSite(a.uni.Db, a.uni.Req.Form)
 }
 
 func filter(s []string, term string) []string {
@@ -108,7 +82,8 @@ func filter(s []string, term string) []string {
 	return ret
 }
 
-func Index(uni *context.Uni) error {
+func (v *V) Index() error {
+	uni := v.uni
 	not_admin := uni.Session == nil
 	if not_admin {
 		uni.Dat["not_admin"] = true
@@ -131,25 +106,34 @@ func Index(uni *context.Uni) error {
 	return nil
 }
 
-func AD(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/bootstrap/{sub}", uni.P)
-	if err != nil {
-		return err
-	}
-	sub := ma["sub"]
-	switch sub {
-	case "":
-		return Index(uni)
-	default:
-		return fmt.Errorf("Unkown view at bootstrap.")
-	}
-	return nil
+func (h *H) Install(id bson.ObjectId) error {
+	return bm.Install(h.uni.Session, h.uni.Db, id)
 }
 
-func Install(uni *context.Uni, id bson.ObjectId) error {
-	return bm.Install(uni.Session, uni.Db, id)
+func (h *H) Uninstall(id bson.ObjectId) error {
+	return bm.Uninstall(h.uni.Db, id)
 }
 
-func Uninstall(uni *context.Uni, id bson.ObjectId) error {
-	return bm.Uninstall(uni.Db, id)
+type A struct {
+	uni *context.Uni
+}
+
+func Actions(uni *context.Uni) *A {
+	return &A{uni}
+}
+
+type H struct {
+	uni *context.Uni
+}
+
+func Hooks(uni *context.Uni) *H {
+	return &H{uni}
+}
+
+type V struct {
+	uni *context.Uni
+}
+
+func Views(uni *context.Uni) *V {
+	return &V{uni}
 }

@@ -7,81 +7,50 @@ import (
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/model/scut"
 	te_model "github.com/opesun/hypecms/modules/template_editor/model"
-	"github.com/opesun/routep"
 	"io/ioutil"
 	"labix.org/v2/mgo/bson"
 	"path/filepath"
 	"strings"
 )
 
-// mod.GetHook accesses certain functions dynamically trough this.
-var Hooks = map[string]interface{}{
-	"Back":      Back,
-	"Install":   Install,
-	"Uninstall": Uninstall,
-	"Test":      Test,
-	"AD":        AD,
-}
-
-func NewFile(uni *context.Uni) error {
+func (a *A) NewFile() error {
+	uni := a.uni
 	return te_model.NewFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func SaveFile(uni *context.Uni) error {
+func (a *A) SaveFile() error {
+	uni := a.uni
 	return te_model.SaveFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func DeleteFile(uni *context.Uni) error {
+func (a *A) DeleteFile() error {
+	uni := a.uni
 	return te_model.DeleteFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func ForkPublic(uni *context.Uni) error {
+func (a *A) ForkPublic() error {
+	uni := a.uni
 	return te_model.ForkPublic(uni.Db, uni.Opt, uni.Root, uni.Req.Host)
 }
 
-func PublishPrivate(uni *context.Uni) error {
+func (a *A) PublishPrivate() error {
+	uni := a.uni
 	return te_model.PublishPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func DeletePrivate(uni *context.Uni) error {
+func (a *A) DeletePrivate() error {
+	uni := a.uni
 	return te_model.DeletePrivate(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func ForkPrivate(uni *context.Uni) error {
+func (a *A) ForkPrivate() error {
+	uni := a.uni
 	return te_model.ForkPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func SwitchToTemplate(uni *context.Uni) error {
+func (a *A) SwitchToTemplate() error {
+	uni := a.uni
 	return te_model.SwitchToTemplate(uni.Db, uni.Req.Form, uni.Root, uni.Req.Host)
-}
-
-// main.runBackHooks invokes this trough mod.GetHook.
-func Back(uni *context.Uni, action string) error {
-	if scut.NotAdmin(uni.Dat["_user"]) {
-		return fmt.Errorf("You have no rights to do that.")
-	}
-	var r error
-	switch action {
-	case "new_file":
-		r = NewFile(uni)
-	case "save_file":
-		r = SaveFile(uni)
-	case "delete_file":
-		r = DeleteFile(uni)
-	case "fork_public":
-		r = ForkPublic(uni)
-	case "publish_private":
-		r = PublishPrivate(uni)
-	case "delete_private":
-		r = DeletePrivate(uni)
-	case "fork_private":
-		r = ForkPrivate(uni)
-	case "switch_to_template":
-		r = SwitchToTemplate(uni)
-	default:
-		return fmt.Errorf("Unkown action at template_editor.")
-	}
-	return r
 }
 
 func threePath(host, typ, name string) (string, error) {
@@ -103,7 +72,13 @@ func canMod(typ string) bool {
 	return typ == "private"
 }
 
-func view(current bool, opt map[string]interface{}, root, host, typ, name, filepath_str string) map[string]interface{} {
+func (v *V) view(current bool, filepath_str string) map[string]interface{} {
+	uni := v.uni
+	opt := uni.Opt
+	root :=uni.Root
+	host := uni.Req.Host
+	typ := scut.TemplateType(uni.Opt)
+	name := scut.TemplateName(uni.Opt)
 	ret := map[string]interface{}{}
 	tpath, path_err := threePath(host, typ, name)
 	if path_err != nil {
@@ -148,8 +123,15 @@ func view(current bool, opt map[string]interface{}, root, host, typ, name, filep
 // type: tpl, private, public
 // file: path of file
 // name: name of template or module
-func View(uni *context.Uni, typ, name string) error {
-	uni.Dat["_points"] = []string{"template_editor/view"}
+func (v *V) View() error {
+	uni := v.uni
+	var typ, name string
+	if val, has := uni.Req.Form["type"]; has {
+		typ = val[0]
+	}
+	if val, has := uni.Req.Form["name"]; has {
+		name = val[0]
+	}
 	filepath_s, has := uni.Req.Form["file"]
 	if !has {
 		uni.Dat["error"] = "Can't find file parameter."
@@ -158,7 +140,7 @@ func View(uni *context.Uni, typ, name string) error {
 	no_typ := len(typ) == 0
 	no_name := len(name) == 0
 	if no_typ && no_name {
-		scut.Merge(uni.Dat, view(true, uni.Opt, uni.Root, uni.Req.Host, scut.TemplateType(uni.Opt), scut.TemplateName(uni.Opt), filepath_s[0]))
+		scut.Merge(uni.Dat, v.view(true, filepath_s[0]))
 		return nil
 	}
 	if no_typ {
@@ -169,18 +151,19 @@ func View(uni *context.Uni, typ, name string) error {
 		uni.Dat["error"] = "Got no template type."
 		return nil
 	}
-	scut.Merge(uni.Dat, view(false, uni.Opt, uni.Root, uni.Req.Host, typ, name, filepath_s[0]))
+	scut.Merge(uni.Dat, v.view(false, filepath_s[0]))
 	return nil
 }
 
-func Index(uni *context.Uni) error {
-	uni.Dat["_points"] = []string{"template_editor/index"}
+func (v *V) Index() error {
+	uni := v.uni
 	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
 	uni.Dat["can_modify"] = te_model.CanModifyTemplate(uni.Opt)
 	return nil
 }
 
-func search(uni *context.Uni, path string) error {
+func (v *V) search(path string) error {
+	uni := v.uni
 	fileinfos, read_err := ioutil.ReadDir(filepath.Join(uni.Root, path))
 	if read_err != nil {
 		uni.Dat["error"] = "Cant read path " + path
@@ -196,67 +179,62 @@ func search(uni *context.Uni, path string) error {
 }
 
 // Search amongst public templates.
-func SearchPublic(uni *context.Uni) error {
-	uni.Dat["_points"] = []string{"template_editor/search"}
+func (v *V) SearchPublic() error {
+	uni := v.uni
 	uni.Dat["is_public"] = true
 	path := filepath.Join("templates", "public")
-	search(uni, path)
+	v.search(path)
 	return nil
 }
 
 // Search amongst private templates.
-func SearchPrivate(uni *context.Uni) error {
-	uni.Dat["_points"] = []string{"template_editor/search"}
+func (v *V) SearchPrivate() error {
+	uni := v.uni
 	uni.Dat["is_private"] = true
 	path := filepath.Join("templates", "private", uni.Req.Host)
-	search(uni, path)
+	v.search(path)
 	return nil
 }
 
 // Search amongst modules.
-func SearchMod(uni *context.Uni) error {
-	uni.Dat["_points"] = []string{"template_editor/search"}
+func (v *V) SearchMod() error {
+	uni := v.uni
 	uni.Dat["is_mod"] = true
 	path := filepath.Join("modules")
-	search(uni, path)
+	v.search(path)
 	return nil
-}
-
-// admin.AD invokes this trough mod.GetHook.
-func AD(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/template_editor/{view}/{typ}/{name}", uni.P)
-	if err != nil {
-		return err
-	}
-	var r error
-	switch ma["view"] {
-	case "":
-		r = Index(uni)
-	case "view":
-		r = View(uni, ma["typ"], ma["name"])
-	case "search-public":
-		r = SearchPublic(uni)
-	case "search-private":
-		r = SearchPrivate(uni)
-	case "search-mod":
-		r = SearchMod(uni)
-	default:
-		return fmt.Errorf("Unkown view at template_editor admin.")
-	}
-	return r
 }
 
 // admin.Install invokes this trough mod.GetHook.
-func Install(uni *context.Uni, id bson.ObjectId) error {
-	return te_model.Install(uni.Db, id)
+func (h *H) Install(id bson.ObjectId) error {
+	return te_model.Install(h.uni.Db, id)
 }
 
 // Admin Install invokes this trough mod.GetHook.
-func Uninstall(uni *context.Uni, id bson.ObjectId) error {
-	return te_model.Uninstall(uni.Db, id)
+func (h *H) Uninstall(id bson.ObjectId) error {
+	return te_model.Uninstall(h.uni.Db, id)
 }
 
-// main.runDebug invokes this trough mod.GetHook.
-func Test(uni *context.Uni) error {
-	return nil
+type A struct {
+	uni *context.Uni
+}
+
+func Actions(uni *context.Uni) *A {
+	return &A{uni}
+}
+
+type H struct {
+	uni *context.Uni
+}
+
+func Hooks(uni *context.Uni) *H {
+	return &H{uni}
+}
+
+type V struct {
+	uni *context.Uni
+}
+
+func Views(uni *context.Uni) *V {
+	return &V{uni}
 }

@@ -169,7 +169,11 @@ func appendParams(url_str string, action_name string, err error, cont map[string
 		}
 		// Write all data in cont into the url.
 		for key, val := range cont {
-			v.Set("-"+key, fmt.Sprint(val))
+			if key[0] == '!' {
+				v.Set(key[1:], fmt.Sprint(val))
+			} else {
+				v.Set("-"+key, fmt.Sprint(val))
+			}
 		}
 		v.Del("error")
 		v.Del("ok") // See *1

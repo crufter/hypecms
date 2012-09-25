@@ -287,13 +287,17 @@ func (v *V) Config() error {
 	return nil
 }
 
-func (v *V) editContent(typ, id string, hasid bool) (interface{}, error) {
+func (v *V) editContent(typ, id string) (interface{}, error) {
 	uni := v.uni
+	hasid := len(id) > 0
 	uni.Dat["is_content"] = true
 	var indb interface{}
 	if hasid {
 		uni.Dat["op"] = "update"
-		uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb) // Ugly.
+		err := uni.Db.C("contents").Find(m{"_id": bson.ObjectIdHex(id)}).One(&indb) // Ugly.
+		if err != nil {
+			return nil, err
+		}
 		indb = basic.Convert(indb)
 		resolver.ResolveOne(uni.Db, indb, nil)
 		uni.Dat["content"] = indb
@@ -310,7 +314,8 @@ func (v *V) editContent(typ, id string, hasid bool) (interface{}, error) {
 	return context.Convert(indb), nil
 }
 
-func (v *V) editDraft(typ, id string, hasid bool) (interface{}, error) {
+func (v *V) editDraft(typ, id string) (interface{}, error) {
+	hasid := len(id) > 0
 	uni := v.uni
 	uni.Dat["is_draft"] = true
 	if hasid {
@@ -395,20 +400,18 @@ func (v *V) Edit() error {
 	uni.Dat["content_type"] = rtyp
 	uni.Dat["type"] = rtyp
 	var id string
-	var ok bool
 	if val, has := uni.Req.Form["id"]; has {
 		id = val[0]
-		ok = true
 	}
-	hasid := ok && len(id) > 0 // Corrigate routep.Comp because it sets a map key with an empty value...
+	hasid := len(id) > 0 // Corrigate routep.Comp because it sets a map key with an empty value...
 	var field_dat interface{}
 	var err error
 	subt := subType(typ)
 	switch subt {
 	case "content":
-		field_dat, err = v.editContent(typ, id, hasid)
+		field_dat, err = v.editContent(typ, id)
 	case "draft":
-		field_dat, err = v.editDraft(rtyp, id, hasid)
+		field_dat, err = v.editDraft(rtyp, id)
 	case "version":
 		if !hasid {
 			return fmt.Errorf("Version must have id.")

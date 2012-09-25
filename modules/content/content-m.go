@@ -86,19 +86,19 @@ func (a *A) saveDraft() error {
 	// Handle redirect.
 	cont := map[string]interface{}{}
 	if err == nil { 		// Go to the fresh draft if we succeeded to save it.
-		cont["type"] = typ+"_draft"
-		cont["id"] = draft_id.Hex()
+		cont["!type"] = typ+"_draft"
+		cont["!id"] = draft_id.Hex()
 	} else { // Go back to the previous draft if we couldn't save the new one, or to the insert page if we tried to save a parentless draft.
 		draft_id, has_draft_id := uni.Req.Form[content_model.Parent_draft_field]
 		if has_draft_id && len(draft_id[0]) > 0 {
-			cont["type"] = typ+"_draft"
-			cont["id"] = draft_id[0]
+			cont["!type"] = typ+"_draft"
+			cont["!id"] = draft_id[0]
 		} else if id, has_id := uni.Req.Form["id"]; has_id {
-			cont["type"] = typ
-			cont["id"] = id[0]
+			cont["!type"] = typ
+			cont["!id"] = id[0]
 		} else {
-			cont["type"] = typ
-			cont["id"] = ""
+			cont["!type"] = typ
+			cont["!id"] = ""
 		}
 	}
 	uni.Dat["_cont"] = cont
@@ -123,8 +123,8 @@ func (a *A) insert() error {
 	}
 	// Handling redirect.
 	uni.Dat["_cont"] = map[string]interface{}{
-		"typ": typ,
-		"id": id.Hex(),
+		"!type": typ,
+		"!id": id.Hex(),
 	}
 	return nil
 }
@@ -152,9 +152,18 @@ func (a *A) update() error {
 	if err != nil {
 		return err
 	}
-	// We must set redirect because it can come from draft edit too.
-	uni.Dat["_cont"] = map[string]interface{}{
-		"type": typ,
+	draft_id, has_draft_id := uni.Req.Form[content_model.Parent_draft_field]
+	content_id := uni.Req.Form["id"][0]
+	if has_draft_id && len(draft_id[0]) > 0 {	// Coming from draft.
+		// We must set redirect because it can come from draft edit too.
+		uni.Dat["_cont"] = map[string]interface{}{
+			"!type": 	typ,
+			"!id":		content_id,
+		}
+	} else {
+		uni.Dat["_cont"] = map[string]interface{}{
+			"!type": typ,
+		}
 	}
 	return nil
 }
