@@ -5,6 +5,7 @@ import(
 	"github.com/opesun/extract"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/hypecms/model/scut"
 	"net/http"
 	"net/url"
@@ -192,6 +193,10 @@ func sil(a interface{}) error {
 	return nil
 }
 
+func names(a interfaces.Caller, what, modname string) []string {
+	return a.Names(what, modname)
+}
+
 // The way the documentation is provided may become subject to change, because it's ugly as hell.
 func builtins(uni *context.Uni) map[string]interface{} {
 	d := map[string]interface{}{
@@ -202,6 +207,9 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"concat":		"Concatenates an arbitrary number of strings.",
 		"musth":		`Abr. of "must have". Panics if the map 'b' has no field named 'a'.`,
 		"sil":			`Silences the output of another function.\nExample usage:\ninstall "content" | sil`,
+		"actions":		"Returns the name of all actions of a module. Module may be uninstalled.",
+		"views":		"Returns the name of all views of a module. Module may be uninstalled.",
+		"hooks":		"Returns the name of all hooks of a module. Module may be uninstalled.",
 	}
 	f := map[string]interface{}{ 
 		"do": func(a, b, c string) map[string]interface{} {
@@ -217,6 +225,15 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"concat": concat,
 		"musth": musth,
 		"sil": sil,
+		"actions": func(a string) []string {
+			return names(uni.Caller, "actions", a)
+		},
+		"views": func(a string) []string {
+			return names(uni.Caller, "views", a)
+		},
+		"hooks": func(a string) []string {
+			return names(uni.Caller, "hooks", a)
+		},
 	}
 	d["commands"] = "Returns a list of all command names."
 	d["help"] = "Displays the help for a given command."
