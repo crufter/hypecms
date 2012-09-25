@@ -8,7 +8,7 @@
 		<input type="submit">
 	</form>
 	{{range .point_names}}
-		<a class="delete" href="/b/display_editor/delete?name={{.}}">-</a> <a href="/admin/display_editor/edit/{{.}}">{{.}}</a><br />
+		<a class="delete" href="/b/display_editor/delete?name={{.}}">-</a> <a href="/admin/display_editor/edit?point={{.}}">{{.}}</a><br />
 	{{else}}
 		Nothing matches your search criteria.
 	{{end}}

@@ -1,33 +1,83 @@
 // This package gets around the lack of dynamic code loading in Go.
-// There may be a better solution then putting every exported (in terms of the cms) function into a map.
 package mod
 
-// See
-var Modules = map[string]map[string]interface{}{
+import(
+	"github.com/opesun/hypecms/api/context"
+	"reflect"
+	"strings"
+)
+
+// Note: when
+type dyn struct{
+	Actions, Hooks, Views interface{}
 }
 
-func get(a interface{}, method string, map_only bool) interface{} {
-	if map_only {
-		return a
-	}
-	return a.(map[string]interface{})[method]
+var modules = map[string]dyn{
 }
 
-// Previously it was a big switch directly accessing the module Hooks,
-// now its less efficient since it uses the Modules map, but this construct allows you to drop in files.
-func getHook(modname string, method string, map_only bool) interface{} {
-	modhooks, has := Modules[modname]
+type Call struct{
+	uni *context.Uni
+}
+
+func NewCall(uni *context.Uni) *Call {
+	return &Call{uni}
+}
+
+func constr(what, module string) reflect.Value {
+	what = strings.Title(what) // omg
+	d, has := modules[module]
 	if !has {
-		return nil
+		return reflect.Value{} // fmt.Errorf("mod: No such module.")
 	}
-	return get(modhooks, method, map_only)
+	// Seperatated for better readability.
+	return reflect.ValueOf(d).FieldByName(what)		// When members of dyn were private they were not accessible.
 }
 
-func GetHook(modname string, method string) interface{} {
-	return getHook(modname, method, false)
+func (c *Call) method(what, module, fname string) reflect.Value {
+	constructor_i := constr(what, module)
+	empty := reflect.Value{}
+	if constructor_i == empty {
+		return reflect.Value{}
+	}
+	constructor := reflect.ValueOf(constructor_i.Interface())
+	constr_ret := constructor.Call([]reflect.Value{reflect.ValueOf(c.uni)})
+	return constr_ret[0].MethodByName(fname)
 }
 
-// This is here for testing purposes only.
-func GetHookMap(modname string) interface{} {
-	return getHook(modname, "", true)
+// Maybe should return an error.
+func (c *Call) Call(what, module, fname string, ret_reciever interface{}, params ...interface{}) {
+	method := c.method(what, module, fname)
+	empty := reflect.Value{}
+	if method == empty {
+		return
+	}
+	subj_in := []reflect.Value{}
+	for _, v := range params {
+		subj_in = append(subj_in, reflect.ValueOf(v))
+	}
+	subj_out := method.Call(subj_in)
+	if ret_reciever != nil {
+		reflect.ValueOf(ret_reciever).Call(subj_out)
+	}
+	return // nil
 }
+
+func (c *Call) Has(what, module, fname string) bool {
+	method := c.method(what, module, fname)
+	empty := reflect.Value{}
+	if method == empty {
+		return false
+	}
+	return method.Kind() == reflect.Func
+}
+
+// Method names
+func (c *Call) Names(what, module string) []string {
+	return []string{}
+}
+
+// Mathes signature
+func (c *Call) Matches(what, module, fname string, i interface{}) bool  {
+	return true
+}
+

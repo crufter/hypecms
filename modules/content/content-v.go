@@ -18,16 +18,8 @@ import (
 
 type m map[string]interface{}
 
-func userEdit(uni *context.Uni, urimap map[string]string) error {
-	ed_err := Edit(uni, urimap)
-	if ed_err != nil {
-		return ed_err
-	}
-	uni.Dat["_points"] = []string{"edit-content"} // Must contain require content/edit-form.t to work well.
-	return nil
-}
-
-func tagView(uni *context.Uni, urimap map[string]string) (error, bool) {
+func (v *V) tagView(urimap map[string]string) (error, bool) {
+	uni := v.uni
 	fieldname := "slug" // This should not be hardcoded.
 	specific := len(urimap) == 2
 	var search_value string
@@ -62,7 +54,8 @@ func tagView(uni *context.Uni, urimap map[string]string) (error, bool) {
 	return nil, true
 }
 
-func tagSearch(uni *context.Uni) error {
+func (v *V) tagSearch() error {
+	uni := v.uni
 	var name_search string
 	search, has := uni.Req.Form["search"]
 	if has {
@@ -85,7 +78,8 @@ func tagSearch(uni *context.Uni) error {
 	return nil
 }
 
-func contentView(uni *context.Uni, content_map map[string]string) (error, bool) {
+func (v *V) contentView(content_map map[string]string) (error, bool) {
+	uni := v.uni
 	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !ok {
 		return fmt.Errorf("No content types."), false
@@ -114,7 +108,8 @@ func contentView(uni *context.Uni, content_map map[string]string) (error, bool) 
 	return nil, true
 }
 
-func contentSearch(uni *context.Uni) error {
+func (v *V) contentSearch() error {
+	uni := v.uni
 	q := map[string]interface{}{}
 	search_sl, has := uni.Req.Form["search"]
 	var search_term string
@@ -142,50 +137,43 @@ func contentSearch(uni *context.Uni) error {
 	return nil
 }
 
-func Front(uni *context.Uni, hijacked *bool) error {
-	edit_map, edit_err := routep.Comp("/content/edit/{type}/{id}", uni.P)
-	if edit_err == nil {
-		*hijacked = true
-		return userEdit(uni, edit_map)
-	}
+// Kinda special view.
+func (v *V) Front() (bool, error) {
+	uni := v.uni
 	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
 	if tag_err == nil {
-		*hijacked = true
-		err, hijack := tagView(uni, tag_map)
+		err, hijack := v.tagView(tag_map)
 		if err != nil {
-			return err
+			return true, err
 		}
 		if hijack {
-			*hijacked = true
-			return nil
+			return true, nil
 		}
 	}
 	_, tag_search_err := routep.Comp("/tag-search", uni.P)
 	if tag_search_err == nil {
-		*hijacked = true
-		return tagSearch(uni)
+		return true, v.tagSearch()
 	}
 	_, content_search_err := routep.Comp("/content-search", uni.P)
 	if content_search_err == nil {
-		*hijacked = true
-		return contentSearch(uni)
+		return true, v.contentSearch()
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {
-		err, hijack := contentView(uni, content_map)
+		err, hijack := v.contentView(content_map)
 		if err != nil {
-			return err
+			return true, err
 		}
 		if hijack {
-			*hijacked = true
-			return nil
+			return true, nil
 		}
 	}
-	return nil
+	return false, nil
 }
 
-func getSidebar(uni *context.Uni) []string {
+func (v *V) getSidebar() []string {
+	uni := v.uni
 	menu := []string{}
 	types, has := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !has {
@@ -197,8 +185,8 @@ func getSidebar(uni *context.Uni) []string {
 	return menu
 }
 
-func Index(uni *context.Uni) error {
-	var v []interface{}
+func (v *V) Index() error {
+	uni := v.uni
 	visible_types := []string{}
 	types, has := jsonp.GetM(uni.Opt, "Modules.content.types")
 	if !has {
@@ -214,35 +202,30 @@ func Index(uni *context.Uni) error {
 		uni.Dat["search"] = search_sl[0]
 	}
 	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P+"?"+uni.Req.URL.RawQuery, 10)
-	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
+	var res []interface{}
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&res)
 	uni.Dat["paging"] = paging_inf
-	v = basic.Convert(v).([]interface{})
-	content_model.HaveUpToDateDrafts(uni.Db, v)
-	uni.Dat["latest"] = v
+	res = basic.Convert(res).([]interface{})
+	content_model.HaveUpToDateDrafts(uni.Db, res)
+	uni.Dat["latest"] = res
 	uni.Dat["_points"] = []string{"content/index"}
 	return nil
 }
 
 // This functionality is almost the same as the tagSearch on the outside :S
-func ListTags(uni *context.Uni) error {
-	var v []interface{}
-	uni.Db.C("tags").Find(nil).All(&v)
-	uni.Dat["latest"] = v
+func (v *V) Tags() error {
+	uni := v.uni
+	var res []interface{}
+	uni.Db.C("tags").Find(nil).All(&res)
+	uni.Dat["latest"] = res
 	uni.Dat["_points"] = []string{"content/tags"}
 	return nil
 }
 
-// Almost the same as contentSearc as outside :S
-func List(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/content/list/{type}", uni.Req.URL.Path)
-	if err != nil {
-		return fmt.Errorf("Bad url at list.")
-	}
-	typ, has := ma["type"]
-	if !has {
-		return fmt.Errorf("Can not extract typ at list.")
-	}
-	var v []interface{}
+// Lists contents of a givn type.
+func (v *V) Type() error {
+	uni := v.uni
+	typ := uni.Req.Form["type"][0]
 	q := m{"type": typ}
 	search_sl, has := uni.Req.Form["search"]
 	if has && len(search_sl[0]) > 0 {
@@ -250,21 +233,18 @@ func List(uni *context.Uni) error {
 		uni.Dat["search"] = search_sl[0]
 	}
 	paging_inf := display_model.DoPaging(uni.Db, "contents", q, "page", map[string][]string(uni.Req.Form), uni.P+"?"+uni.Req.URL.RawQuery, 10)
-	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&v)
+	var res []interface{}
+	uni.Db.C("contents").Find(q).Sort("-created").Skip(paging_inf.Skip).Limit(10).All(&res)
 	uni.Dat["paging"] = paging_inf
-	v = basic.Convert(v).([]interface{})
-	content_model.HaveUpToDateDrafts(uni.Db, v)
+	res = basic.Convert(res).([]interface{})
+	content_model.HaveUpToDateDrafts(uni.Db, res)
 	uni.Dat["type"] = typ
-	uni.Dat["latest"] = v
-	uni.Dat["_points"] = []string{"content/list"}
+	uni.Dat["latest"] = res
 	return nil
 }
 
-func ListComments(uni *context.Uni) error {
-	_, err := routep.Comp("/admin/content/list-comments", uni.Req.URL.Path)
-	if err != nil {
-		return fmt.Errorf("Bad url at ListComments.")
-	}
+func (v *V) Comments() error {
+	uni := v.uni
 	query := map[string]interface{}{
 		"so": "-created",
 		"c":  "comments",
@@ -277,20 +257,13 @@ func ListComments(uni *context.Uni) error {
 	cl := display_model.RunQuery(uni.Db, "comment_list", query, uni.Req.Form, pnq)
 	uni.Dat["comment_list"] = cl["comment_list"]
 	uni.Dat["comment_list_navi"] = cl["comment_list_navi"]
-	uni.Dat["_points"] = []string{"content/list_comments"}
 	return nil
 }
 
 // Both everyone and personal.
-func TypeConfig(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/content/type-config/{type}", uni.Req.URL.Path)
-	if err != nil {
-		return fmt.Errorf("Bad url at type config.")
-	}
-	typ, has := ma["type"]
-	if !has {
-		return fmt.Errorf("Can not extract typ at type config.")
-	}
+func (v *V) TypeConfig() error {
+	uni := v.uni
+	typ := uni.Req.Form["type"][0]
 	op, ok := jsonp.Get(uni.Opt, "Modules.content.types."+typ)
 	if !ok {
 		return fmt.Errorf("Can not find content type " + typ + " in options.")
@@ -298,24 +271,24 @@ func TypeConfig(uni *context.Uni) error {
 	uni.Dat["type"] = typ
 	uni.Dat["type_options"], _ = json.MarshalIndent(op, "", "    ")
 	uni.Dat["op"] = op
-	user_type_op, has := jsonp.Get(uni.Dat["_user"], "content_options."+typ)
+	user_type_op, _ := jsonp.Get(uni.Dat["_user"], "content_options."+typ)
 	uni.Dat["user_type_op"] = user_type_op
-	uni.Dat["_points"] = []string{"content/type-config"}
 	return nil
 }
 
-func Config(uni *context.Uni) error {
+func (v *V) Config() error {
+	uni := v.uni
 	op, _ := jsonp.Get(uni.Opt, "Modules.content")
-	v, err := json.MarshalIndent(op, "", "    ")
+	marsh, err := json.MarshalIndent(op, "", "    ")
 	if err != nil {
 		return fmt.Errorf("Can't marshal content options.")
 	}
-	uni.Dat["content_options"] = string(v)
-	uni.Dat["_points"] = []string{"content/config"}
+	uni.Dat["content_options"] = string(marsh)
 	return nil
 }
 
-func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, error) {
+func (v *V) editContent(typ, id string, hasid bool) (interface{}, error) {
+	uni := v.uni
 	uni.Dat["is_content"] = true
 	var indb interface{}
 	if hasid {
@@ -337,7 +310,8 @@ func EditContent(uni *context.Uni, typ, id string, hasid bool) (interface{}, err
 	return context.Convert(indb), nil
 }
 
-func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error) {
+func (v *V) editDraft(typ, id string, hasid bool) (interface{}, error) {
+	uni := v.uni
 	uni.Dat["is_draft"] = true
 	if hasid {
 		built, err := content_model.BuildDraft(uni.Db, typ, id)
@@ -371,7 +345,8 @@ func EditDraft(uni *context.Uni, typ, id string, hasid bool) (interface{}, error
 }
 
 // You don't actually edit anything on a past version...
-func EditVersion(uni *context.Uni, typ, id string) (interface{}, error) {
+func (v *V) editVersion(typ, id string) (interface{}, error) {
+	uni := v.uni
 	uni.Dat["is_version"] = true
 	version_id := patterns.ToIdWithCare(id)
 	version, err := content_model.FindVersion(uni.Db, version_id)
@@ -409,34 +384,36 @@ func subType(typ string) string {
 
 // Called from both admin and outside editing.
 // ma containts type and id members extracted out of the url.
-func Edit(uni *context.Uni, ma map[string]string) error {
-	typ, hast := ma["type"]
+func (v *V) Edit() error {
+	uni := v.uni
+	typ := uni.Req.Form["type"][0]
 	rtyp := realType(typ)
-	if !hast {
-		return fmt.Errorf("Can't extract type at edit.")
-	}
 	rules, hasr := jsonp.GetM(uni.Opt, "Modules.content.types."+rtyp+".rules")
 	if !hasr {
 		return fmt.Errorf("Can't find rules of " + rtyp)
 	}
 	uni.Dat["content_type"] = rtyp
 	uni.Dat["type"] = rtyp
-	id, ok := ma["id"]
+	var id string
+	var ok bool
+	if val, has := uni.Req.Form["id"]; has {
+		id = val[0]
+		ok = true
+	}
 	hasid := ok && len(id) > 0 // Corrigate routep.Comp because it sets a map key with an empty value...
 	var field_dat interface{}
 	var err error
 	subt := subType(typ)
 	switch subt {
 	case "content":
-		field_dat, err = EditContent(uni, typ, id, hasid)
+		field_dat, err = v.editContent(typ, id, hasid)
 	case "draft":
-		fmt.Println(rtyp, id, hasid)
-		field_dat, err = EditDraft(uni, rtyp, id, hasid)
+		field_dat, err = v.editDraft(rtyp, id, hasid)
 	case "version":
 		if !hasid {
 			return fmt.Errorf("Version must have id.")
 		}
-		field_dat, err = EditVersion(uni, rtyp, id)
+		field_dat, err = v.editVersion(rtyp, id)
 	default:
 		panic(fmt.Sprintf("Unkown content subtype: %v.", subt))
 	}
@@ -451,41 +428,14 @@ func Edit(uni *context.Uni, ma map[string]string) error {
 	return nil
 }
 
-// Admin edit
-func AEdit(uni *context.Uni) error {
-	ma, err := routep.Comp("/admin/content/edit/{type}/{id}", uni.Req.URL.Path)
-	if err != nil {
-		return fmt.Errorf("Bad url at edit.")
-	}
-	ed_err := Edit(uni, ma)
-	if ed_err != nil {
-		return ed_err
-	}
-	uni.Dat["_points"] = []string{"content/edit"}
-	return nil
+func (v *V) AdminInit() {
+	v.uni.Dat["content_menu"] = v.getSidebar()
 }
 
-func AD(uni *context.Uni) error {
-	var err error
-	m, _ := routep.Comp("/admin/content/{view}", uni.Req.URL.Path)
-	uni.Dat["content_menu"] = getSidebar(uni)
-	switch m["view"] {
-	case "":
-		err = Index(uni)
-	case "config":
-		err = Config(uni)
-	case "type-config":
-		err = TypeConfig(uni)
-	case "edit":
-		err = AEdit(uni)
-	case "list":
-		err = List(uni)
-	case "tags":
-		err = ListTags(uni)
-	case "list-comments":
-		err = ListComments(uni)
-	default:
-		err = fmt.Errorf("Unkown content view.")
-	}
-	return err
+type V struct {
+	uni *context.Uni
+}
+
+func Views(uni *context.Uni) *V {
+	return &V{uni}
 }

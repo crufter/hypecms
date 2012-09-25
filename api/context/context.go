@@ -3,6 +3,7 @@ package context
 
 import (
 	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/interfaces"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
 	"net/http"
@@ -26,7 +27,7 @@ type Uni struct {
 	Put     	func(...interface{})   		// Just a convenience function to allow fast output to http response.
 	Root    	string                 		// Absolute path of the application.
 	Ev      	*Ev
-	GetHook 	func(string, string) interface{}
+	Caller 		interfaces.Caller
 }
 
 // Set only once.
@@ -61,37 +62,17 @@ type Ev struct {
 	uni    *Uni
 }
 
-// Return all hooks (modulename + hook function) subscribed to a path.
-func all(e *Ev, path string) []struct{Func interface{}; Modname string} {
+// Return all hooks modules subscribed to a path.
+func all(e *Ev, path string) []string {
 	modnames, ok := jsonp.GetS(e.uni.Opt, "Hooks." + path)
-	if !ok { return nil }
-	hooks := []struct{Func interface{}; Modname string}{}
+	if !ok {
+		return nil
+	}
+	ret := []string{}
 	for _, v := range modnames {
-		modname := v.(string)
-		h := e.uni.GetHook(modname, hooknameize(path))
-		hooks = append(hooks, struct{Func interface{}; Modname string}{h, modname})
+		ret = append(ret, v.(string))
 	}
-	return hooks
-}
-
-// Return the name of the modules subscribed to a path.
-func allNames(e *Ev, path string) []string {
-	names := []string{}
-	a := all(e, path)
-	for _, v := range a {
-		names = append(names, v.Modname)
-	}
-	return names
-}
-
-// Return all functions subscribed to a path.
-func allFuncs(e *Ev, path string) []interface{} {
-	funcs := []interface{}{}
-	a := all(e, path)
-	for _, v := range a {
-		funcs = append(funcs, v.Func)
-	}
-	return funcs
+	return ret
 }
 
 // Trigger calls hooks subscribed to eventname, passes *Uni as a first parameter if the given hook needs it (eg *context.Uni
@@ -116,13 +97,6 @@ func (e *Ev) Iterate(eventname string, stopfunc interface{}, params ...interface
 	e.trigger(eventname, stopfunc, params...)
 }
 
-// This is not included for the time being.
-//
-// // Stricter than Trigger, it does not pass *context.Uni as a first parameter to the hooks, not even if they have it as their first parameter.
-// func (e *Ev) TriggerWith(eventname string, params ...interface{}) {
-// 	trigger(true, eventname, params...)
-// }
-
 func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface{}) {
 	subscribed := all(e, eventname)
 	hookname := hooknameize(eventname)
@@ -140,34 +114,22 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 		}
 		stopfunc_numin = s.NumIn()
 	}
-	for _, hook := range subscribed {
-		v := reflect.ValueOf(hook.Func)
-		if v.Kind() != reflect.Func {
-			panic(fmt.Sprintf("Hook %v of %v is not a function.", hookname, hook.Modname))
+	for _, modname := range subscribed {
+		hook_outp := []reflect.Value{}
+		if !e.uni.Caller.Has("hooks", modname, hookname) {
+			continue
 		}
-		t := reflect.TypeOf(hook.Func)
-		var ret []reflect.Value
-		if t.NumIn() == 0 {
-			ret = v.Call(nil)
-		} else {
-			inp := []reflect.Value{}
-			uni_t := reflect.TypeOf(e.uni)
-			caller_explicit := len(params) > 0 && reflect.TypeOf(params[0]) == uni_t
-			// We only trick with passing *Uni implicitly, if the caller did not specify it explicitly.
-			if !caller_explicit && t.In(0) == uni_t {
-				inp = append(inp, reflect.ValueOf(e.uni))
+		e.uni.Caller.Call("hooks", modname, hookname, func(i ...interface{}) {
+			for _, v := range i {
+				hook_outp = append(hook_outp, reflect.ValueOf(v))
 			}
-			for _, param := range params {
-				inp = append(inp, reflect.ValueOf(param))
-			}
-			ret = v.Call(inp)
-		}
+		}, params...)
 		if stopfunc != nil {
-			if stopfunc_numin != len(ret) {
-				panic(fmt.Sprintf("The number of return values of Hook %v of %v differs from the number of arguments of stopfunc.", hookname, hook.Modname))	// This sentence...
+			if stopfunc_numin != len(hook_outp) {
+				panic(fmt.Sprintf("The number of return values of Hook %v of %v differs from the number of arguments of stopfunc.", hookname, modname))	// This sentence...
 			}
 			stopf := reflect.ValueOf(stopfunc)
-			stopf_ret := stopf.Call(ret)
+			stopf_ret := stopf.Call(hook_outp)
 			if stopf_ret[0].Interface().(bool) == true {
 				break
 			}

@@ -8,14 +8,12 @@ import (
 	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/api/mod"
-	"github.com/opesun/hypecms/api/modcheck"
 	"github.com/opesun/hypecms/api/shell"
 	"github.com/opesun/hypecms/model/main"
 	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/admin"
 	"github.com/opesun/hypecms/modules/display"
 	"github.com/opesun/hypecms/modules/user"
-	"github.com/opesun/jsonp"
 	"io"
 	"io/ioutil"
 	"labix.org/v2/mgo"
@@ -27,14 +25,14 @@ import (
 )
 
 const (
-	unfortunate_error         = "An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	unexported_front          = "Module %v does not export Front hook."
-	unexported_back           = "Module %v does not export Back hook."
-	no_user_module_build_hook = "User module does not export build hook."
-	no_module_at_back         = "Tried to run a back hook, but no module was specified."
-	no_action                 = "No action specified when accessing module %v."
-	adminback_no_module       = "No module specified when accessing admin back."
-	cant_test                 = "Can't test module because it is not even installed: %v."
+	unfortunate_error         = "main: An unfortunate error has happened. We are deeply sorry for the inconvenience."
+	unexported_front          = "main: Module %v does not export Front hook."
+	unexported_back           = "main: Module %v does not export Back hook."
+	no_user_module_build_hook = "main: User module does not export build hook."
+	no_module_at_back         = "main: Tried to run a back hook, but no module was specified."
+	no_action                 = "main: No action specified when accessing module %v."
+	adminback_no_module       = "main: No module specified when accessing admin back."
+	cant_test                 = "main: Can't test module because it is not even installed: %v."
 )
 
 // See handleFlags methods about these vars and their uses.
@@ -108,21 +106,21 @@ func loadConfFromFile() {
 }
 
 func handleConfigVars() {
-	flag.StringVar(&ABS_PATH, "abs_path", "c:/gowork/src/github.com/opesun/hypecms", "absolute path")
-	flag.StringVar(&CONF_FN, "conf_fn", "config.json", "config filename")
+	flag.StringVar(	&ABS_PATH, 		"abs_path", 	"c:/gowork/src/github.com/opesun/hypecms", "absolute path")
+	flag.StringVar(	&CONF_FN, 		"conf_fn", 		"config.json", 		"config filename")
 	// Everything else we can try to load from file.
 	loadConfFromFile()
-	flag.BoolVar(&DB_ADM_MODE, "db_adm_mode", false, "connect to database as an admin")
-	flag.StringVar(&DB_USER, "db_user", "", "database username")
-	flag.StringVar(&DB_PASS, "db_pass", "", "database password")
-	flag.StringVar(&DB_ADDR, "db_addr", "127.0.0.1:27017", "database address")
-	flag.BoolVar(&DEBUG, "debug", true, "debug mode")
-	flag.StringVar(&DB_NAME, "db_name", "hypecms", "db name to connect to")
-	flag.StringVar(&PORT_NUM, "p", "80", "port to listen on")
-	flag.StringVar(&ADDR, "addr", "", "address to start http server")
-	flag.BoolVar(&OPT_CACHE, "opt_cache", false, "cache option document")
-	flag.BoolVar(&SERVE_FILES, "serve_files", true, "serve files from Go or not")
-	flag.StringVar(&SECRET, "secret", "pLsCh4nG3Th1$.AlSoThisShouldbeatLeast16bytes", "secret characters used for encryption and the like")
+	flag.BoolVar(	&DB_ADM_MODE, 	"db_adm_mode", 	false, 				"connect to database as an admin")
+	flag.StringVar(	&DB_USER, 		"db_user", 		"", 				"database username")
+	flag.StringVar(	&DB_PASS, 		"db_pass", 		"", 				"database password")
+	flag.StringVar(	&DB_ADDR, 		"db_addr", 		"127.0.0.1:27017", 	"database address")
+	flag.BoolVar(	&DEBUG, 		"debug", 		true, 				"debug mode")
+	flag.StringVar(	&DB_NAME, 		"db_name", 		"hypecms", 			"db name to connect to")
+	flag.StringVar(	&PORT_NUM, 		"p", 			"80", 				"port to listen on")
+	flag.StringVar(	&ADDR, 			"addr", 		"", 				"address to start http server")
+	flag.BoolVar(	&OPT_CACHE, 	"opt_cache", 	false, 				"cache option document")
+	flag.BoolVar(	&SERVE_FILES, 	"serve_files", 	true, 				"serve files from Go or not")
+	flag.StringVar(	&SECRET, 		"secret", 		"pLsCh4nG3Th1$.AlSoThisShouldbeatLeast16bytes", "secret characters used for encryption and the like")
 	flag.Parse()
 }
 
@@ -133,7 +131,7 @@ type m map[string]interface{}
 
 // All front hooks must have the signature of func(*context.Uni, *bool) error
 // All views are going to use this hook.
-func runFrontHooks(uni *context.Uni) {
+func execFrontViews(uni *context.Uni) {
 	var err error
 	hijacked := false
 	i := func(er error) bool {
@@ -193,7 +191,7 @@ func appendParams(url_str string, action_name string, err error, cont map[string
 }
 
 // After running a background operation this either redirects with data in url paramters or prints out the json encoded result.
-func backResponse(uni *context.Uni, err error, action_name string) {
+func actionResponse(uni *context.Uni, err error, action_name string) {
 	if DEBUG {
 		fmt.Println(uni.Req.Referer())
 		fmt.Println("	", err)
@@ -233,7 +231,7 @@ func backResponse(uni *context.Uni, err error, action_name string) {
 }
 
 // All back hooks must have the signature of func(*context.Uni, string) error
-func runBacks(uni *context.Uni) (string, error) {
+func runAction(uni *context.Uni) (string, error) {
 	l := len(uni.Paths)
 	if l < 3 {
 		return "", fmt.Errorf(no_module_at_back)
@@ -250,25 +248,27 @@ func runBacks(uni *context.Uni) (string, error) {
 	if puzzle_err != nil {
 		return action_name, puzzle_err
 	}
-	h := mod.GetHook(modname, "Back")
-	if h == nil {
+	sanitized_aname := strings.Title(action_name)
+	if !uni.Caller.Has("actions", modname, sanitized_aname) {
 		return action_name, fmt.Errorf(unexported_back, modname)
 	}
-	hook, ok := h.(func(*context.Uni, string) error)
-	if !ok {
-		return action_name, fmt.Errorf("Back hooks of %v has bad signature.", modname)
+	if !uni.Caller.Matches("actions", modname, sanitized_aname, func() error {return nil}) {
+		return action_name, fmt.Errorf("Action %v of %v has bad signature.", action_name, modname)
 	}
-	err = hook(uni, action_name)
+	ret_rec := func(e error){
+		err = e
+	}
+	uni.Caller.Call("actions", modname, sanitized_aname, ret_rec)
 	return action_name, err
 }
 
 // Every background operation uses this hook.
-func runBackHooks(uni *context.Uni) {
-	action_name, err := runBacks(uni)
-	backResponse(uni, err, action_name)
+func execAction(uni *context.Uni) {
+	action_name, err := runAction(uni)
+	actionResponse(uni, err, action_name)
 }
 
-func runAdminHooks(uni *context.Uni) {
+func execAdmin(uni *context.Uni) {
 	l := len(uni.Paths)
 	var err error
 	if l > 2 && uni.Paths[2] == "b" {
@@ -280,7 +280,7 @@ func runAdminHooks(uni *context.Uni) {
 		} else {
 			err = fmt.Errorf(adminback_no_module)
 		}
-		backResponse(uni, err, action_name)
+		actionResponse(uni, err, action_name)
 	} else {
 		err = admin.AD(uni)
 		if err == nil {
@@ -291,37 +291,17 @@ func runAdminHooks(uni *context.Uni) {
 	}
 }
 
-func runD(uni *context.Uni) error {
-	if len(uni.Paths) < 3 {
-		return fmt.Errorf("No module specified to test.")
-	}
-	modname := uni.Paths[2]
-	if _, installed := jsonp.Get(uni.Opt, "Modules."+modname); !installed {
-		return fmt.Errorf(cant_test, modname)
-	}
-	h := mod.GetHook(modname, "Test")
-	if h == nil {
-		return fmt.Errorf("Module %v does not export Test hook.", modname)
-	}
-	hook, ok := h.(func(*context.Uni) error)
-	if !ok {
-		return fmt.Errorf("Test hook of %v has bad signature.", modname)
-	}
-	return hook(uni)
-}
-
-// Usage: /debug/{modulename} runs the test of the given module which compares the current option document to the "standard one" expected by the given module.
-func runDebug(uni *context.Uni) {
-	err := runD(uni)
-	backResponse(uni, err, "debug")
-}
-
 func buildUser(uni *context.Uni) error {
-	h := mod.GetHook("user", "BuildUser")
-	if h != nil {
-		return h.(func(*context.Uni) error)(uni)
+	// Why is this a hook? Get rid of it.
+	if !uni.Caller.Has("hooks", "user", "BuildUser") {
+		return fmt.Errorf(no_user_module_build_hook)
 	}
-	return fmt.Errorf(no_user_module_build_hook)
+	var err error
+	ret_rec := func(e error) {
+		e = err
+	}
+	uni.Caller.Call("hooks", "user", "BuildUser", ret_rec)
+	return err
 }
 
 func terminal(uni *context.Uni) {
@@ -329,9 +309,9 @@ func terminal(uni *context.Uni) {
 	display.D(uni)
 }
 
-func runCommands(uni *context.Uni) {
+func execCommands(uni *context.Uni) {
 	err := shell.FromWeb(uni)
-	backResponse(uni, err, "shell")
+	actionResponse(uni, err, "shell")
 }
 
 func runSite(uni *context.Uni) {
@@ -343,19 +323,16 @@ func runSite(uni *context.Uni) {
 	switch uni.Paths[1] {
 	// Back hooks are put behind "/b/" to avoid eating up the namespace.
 	case "b":
-		runBackHooks(uni)
+		execAction(uni)
 	// Admin is a VIP module, to allow bootstrapping a site even if the option document is empty.
 	case "admin":
-		runAdminHooks(uni)
-	// Debug is VIP to allow debugging even with a messed up option document.
-	case "debug":
-		runDebug(uni)
+		execAdmin(uni)
 	case "run-commands":
-		runCommands(uni)
+		execCommands(uni)
 	case "terminal":
 		terminal(uni)
 	default:
-		runFrontHooks(uni)
+		execFrontViews(uni)
 	}
 }
 
@@ -384,8 +361,8 @@ func getSite(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req 
 		Root:    ABS_PATH,
 		P:       req.URL.Path,
 		Paths:   strings.Split(req.URL.Path, "/"),
-		GetHook: mod.GetHook,
 	}
+	uni.Caller = mod.NewCall(uni)
 	// Not sure if not giving the db session to nonadmin installations increases security, but hey, one can never be too cautious, they dont need it anyway.
 	if DB_ADM_MODE {
 		uni.Session = session
@@ -436,9 +413,9 @@ func serveTemplateFile(w http.ResponseWriter, req *http.Request, uni *context.Un
 func main() {
 	fmt.Println("Server has started.")
 	handleConfigVars()
-	if DEBUG {
-		modcheck.Check()
-	}
+	//if DEBUG {
+	//	modcheck.Check()
+	//}
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)

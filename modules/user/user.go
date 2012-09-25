@@ -4,18 +4,11 @@
 package user
 
 import (
-	"fmt"
 	"github.com/opesun/hypecms/api/context"
 	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
 	"net/http"
 )
-
-var Hooks = map[string]interface{}{
-	"BuildUser": BuildUser,
-	"Back":      Back,
-	"Test":      Test,
-}
 
 // Recover from wrong ObjectId like panics. Unset the cookie.
 func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) {
@@ -29,8 +22,25 @@ func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) 
 	dat["_user"] = user_model.EmptyUser()
 }
 
+type H struct {
+	uni *context.Uni
+}
+
+func Hooks(uni *context.Uni) *H {
+	return &H{uni}
+}
+
+type A struct {
+	uni *context.Uni
+}
+
+func Actions(uni *context.Uni) *A {
+	return &A{uni}
+}
+
 // If there were some random database query errors or something we go on with an empty user.
-func BuildUser(uni *context.Uni) (err error) {
+func (h *H) BuildUser() (err error) {
+	uni := h.uni
 	defer unsetCookie(uni.W, uni.Dat, &err)
 	var user_id_str string
 	c, err := uni.Req.Cookie("user")
@@ -51,54 +61,27 @@ func BuildUser(uni *context.Uni) (err error) {
 	return
 }
 
-func Register(uni *context.Uni) error {
-	inp := uni.Req.Form
-	rules, _ := jsonp.GetM(uni.Opt, "Modules.user.rules") // RegisterUser will be fine with nil.
-	_, err := user_model.RegisterUser(uni.Db, uni.Ev, rules, inp)
+func (a *A) Register() error {
+	inp := a.uni.Req.Form
+	rules, _ := jsonp.GetM(a.uni.Opt, "Modules.user.rules") // RegisterUser will be fine with nil.
+	_, err := user_model.RegisterUser(a.uni.Db, a.uni.Ev, rules, inp)
 	return err
 }
 
-func Login(uni *context.Uni) error {
+func (a *A) Login() error {
 	// Maybe there could be a check here to not log in somebody who is already logged in.
-	inp := uni.Req.Form
-	if _, id, err := user_model.FindLogin(uni.Db, inp); err == nil {
-		block_key := []byte(uni.Secret())
-		return user_model.Login(uni.W, id, block_key)
+	inp := a.uni.Req.Form
+	if _, id, err := user_model.FindLogin(a.uni.Db, inp); err == nil {
+		block_key := []byte(a.uni.Secret())
+		return user_model.Login(a.uni.W, id, block_key)
 	} else {
 		return err
 	}
 	return nil
 }
 
-func Logout(uni *context.Uni) error {
+func (a *A) Logout() error {
 	c := &http.Cookie{Name: "user", Value: "", Path: "/"}
-	http.SetCookie(uni.W, c)
+	http.SetCookie(a.uni.W, c)
 	return nil
-}
-
-func TestRaw(opt map[string]interface{}) map[string]interface{} {
-	msg := make(map[string]interface{})
-	// _, has := jsonp.Get(opt, "BuildUser")
-	// msg["BuildUser"] = has
-	has := jsonp.HasVal(opt, "Hooks.Back", "user")
-	msg["Back"] = has
-	return msg
-}
-
-func Test(uni *context.Uni) error {
-	uni.Dat["_cont"] = TestRaw(uni.Opt)
-	return nil
-}
-
-func Back(uni *context.Uni, action string) error {
-	var err error
-	switch action {
-	case "login":
-		err = Login(uni)
-	case "logout":
-	case "register":
-	default:
-		err = fmt.Errorf("Unkown action at user module.")
-	}
-	return err
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/extract"
-	"labix.org/v2/mgo/bson"
+	//"labix.org/v2/mgo/bson"
 	"runtime/debug"
 	"strings"
 )
@@ -49,11 +49,11 @@ func RegUser(uni *context.Uni) error {
 }
 
 func Login(uni *context.Uni) error {
-	return user.Login(uni)
+	return user.Actions(uni).Login()
 }
 
 func Logout(uni *context.Uni) error {
-	return user.Logout(uni)
+	return user.Actions(uni).Logout()
 }
 
 func requireLev(usr interface{}, lev int) bool {
@@ -83,7 +83,7 @@ func SaveConfig(uni *context.Uni) error {
 	return nil
 }
 
-// Install and Uninstall hooks all have the same signature: func(*context.Uni, bson.ObjectId) error
+// Install and Uninstall hooks all have the same signature: func (a *A)(bson.ObjectId) error
 // InstallB handles both installing and uninstalling.
 func InstallB(uni *context.Uni, mode string) error {
 	if !requireLev(uni.Dat["_user"], 300) {
@@ -99,15 +99,18 @@ func InstallB(uni *context.Uni, mode string) error {
 	if ierr != nil {
 		return ierr
 	}
-	h := uni.GetHook(modn, strings.Title(mode))
-	if h == nil {
-		return fmt.Errorf("Module %v does not export the Hook %v.", modn, mode)
+	if !uni.Caller.Has("hooks", modn, strings.Title(mode)) {
+		return fmt.Errorf("Module %v does not export the Hook %v.", modn, mode) 
 	}
-	hook, ok := h.(func(*context.Uni, bson.ObjectId) error)
-	if !ok {
-		return fmt.Errorf("%v hook of module %v has bad signature.", mode, modn)
+	//hook, ok := h.(func(*context.Uni, bson.ObjectId) error)
+	//if !ok {
+	//	return fmt.Errorf("%v hook of module %v has bad signature.", mode, modn)
+	//}
+	ret_rec := func(e error){
+		err = e
 	}
-	return hook(uni, obj_id)
+	uni.Caller.Call("hooks", modn, strings.Title(mode), ret_rec, obj_id)
+	return err
 }
 
 func AB(uni *context.Uni, action string) error {

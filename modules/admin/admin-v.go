@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func Index(uni *context.Uni) error {
@@ -60,7 +61,7 @@ func Install(uni *context.Uni) error {
 	if err == nil {
 		modules := []string{}
 		for _, v := range dirs {
-			if v.IsDir() && !alreadyInstalled(uni.Opt, v.Name()) && uni.GetHook(v.Name(), "Install") != nil {	// TODO: this is slow.
+			if v.IsDir() && !alreadyInstalled(uni.Opt, v.Name()) && uni.Caller.Has("hooks", v.Name(), "Install") {	// TODO: this is slow.
 				modules = append(modules, nameize(v.Name()))
 			}
 		}
@@ -95,6 +96,12 @@ func Uninstall(uni *context.Uni) error {
 	return nil
 }
 
+func Viewnameize(viewname string) string {
+	viewname = strings.Replace(viewname, "-", " ", -1)
+	viewname = strings.Title(viewname)
+	return strings.Replace(viewname, " ", "", -1)
+}
+
 func AD(uni *context.Uni) error {
 	defer adErr(uni)
 	var err error
@@ -110,10 +117,7 @@ func AD(uni *context.Uni) error {
 	if cerr != nil { // It should be always nil anyway.
 		return fmt.Errorf("Control is routed to Admin display, but it does not like the url structure.")
 	}
-	modname, ok := m["modname"]
-	if !ok {
-		modname = ""
-	}
+	modname, _ := m["modname"]
 	switch modname {
 	case "":
 		err = Index(uni)
@@ -126,17 +130,24 @@ func AD(uni *context.Uni) error {
 	default:
 		_, installed := jsonp.Get(uni.Opt, "Modules."+modname)
 		if !installed {
-			fmt.Errorf("There is no module named ", modname, " installed.")
+			err = fmt.Errorf("There is no module named ", modname, " installed.")
 		}
-		h := uni.GetHook(modname, "AD")
-		if h == nil {
-			return fmt.Errorf("Module ", modname, " does not export hook AD.")
+		var viewname string
+		if len(uni.Paths) < 4 {
+			viewname = "index"
+		} else {
+			viewname = uni.Paths[3]
 		}
-		hook, ok := h.(func(*context.Uni) error)
-		if !ok {
-			return fmt.Errorf("Hook AD of module %v has bad signature.", modname)
+		uni.Caller.Call("views", modname, "AdminInit", nil)
+		sanitized_viewname := Viewnameize(viewname)
+		if !uni.Caller.Has("views", modname, sanitized_viewname) {
+			err = fmt.Errorf("Module %v has no view named %v.", modname, sanitized_viewname)
 		}
-		err = hook(uni)
+		ret_rec := func(e error) {
+			err = e
+		}
+		uni.Dat["_points"] = []string{modname+"/"+viewname}
+		uni.Caller.Call("views", modname, sanitized_viewname, ret_rec)
 	}
 	return err
 }

@@ -5,60 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/scut"
 	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
-	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
 	"sort"
 	"strings"
 )
 
-var Hooks = map[string]interface{}{
-	"Back":      Back,
-	"Install":   Install,
-	"Uninstall": Uninstall,
-	"Test":      Test,
-	"AD":        AD,
-}
-
 type m map[string]interface{}
 
-func New(uni *context.Uni) error {
-	return display_editor_model.New(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+func (a *A) New() error {
+	return display_editor_model.New(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func Save(uni *context.Uni) error {
-	return display_editor_model.Save(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+func (a *A) Save() error {
+	return display_editor_model.Save(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func Delete(uni *context.Uni) error {
-	return display_editor_model.Delete(uni.Db, uni.Ev, map[string][]string(uni.Req.Form))
+func (a *A) Delete() error {
+	return display_editor_model.Delete(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func Back(uni *context.Uni, action string) error {
-	if scut.NotAdmin(uni.Dat["_user"]) {
-		return fmt.Errorf("You have no rights to do that.")
-	}
-	var err error
-	switch action {
-	case "new":
-		err = New(uni)
-	case "save":
-		err = Save(uni)
-	case "delete":
-		err = Delete(uni)
-	default:
-		return fmt.Errorf("Unkown display_editor action.")
-	}
-	return err
-}
-
-func Test(uni *context.Uni) error {
-	return nil
-}
-
-func Search(uni *context.Uni) error {
+func (v *V) Index() error {
+	uni := v.uni
 	var search string
 	if s, hass := uni.Req.Form["point-name"]; hass {
 		search = s[0]
@@ -84,11 +53,13 @@ func Search(uni *context.Uni) error {
 	sort.Strings(ps)
 	uni.Dat["point_names"] = ps
 	uni.Dat["search"] = search
-	uni.Dat["_points"] = []string{"display_editor/search"}
+	uni.Dat["_points"] = []string{"display_editor/index"}
 	return nil
 }
 
-func Edit(uni *context.Uni, point_name string) error {
+func (v *V) Edit() error {
+	uni := v.uni
+	point_name := uni.Req.Form["point"][0]
 	point, ok := jsonp.GetM(uni.Opt, "Display-points."+point_name)
 	if !ok {
 		return fmt.Errorf("Can't find point named ", point_name)
@@ -111,34 +82,39 @@ func Edit(uni *context.Uni, point_name string) error {
 	return nil
 }
 
-func Help(uni *context.Uni, point_name string) error {
-	uni.Dat["_points"] = []string{"display_editor/help"}
+func (v *V) Help() error {
+	v.uni.Dat["_points"] = []string{"display_editor/help"}
 	return nil
 }
 
-func AD(uni *context.Uni) error {
-	m, cerr := routep.Comp("/admin/display_editor/{view}/{param}", uni.P)
-	if cerr != nil {
-		return fmt.Errorf("Bad url at display editor AD.")
-	}
-	var err error
-	switch m["view"] {
-	case "":
-		err = Search(uni)
-	case "edit":
-		err = Edit(uni, m["param"])
-	case "help":
-		err = Help(uni, m["param"])
-	default:
-		err = fmt.Errorf("Unkown view at display_editor admin: ", m["view"])
-	}
-	return err
+func (h *H) Install(id bson.ObjectId) error {
+	return display_editor_model.Install(h.uni.Db, id)
 }
 
-func Install(uni *context.Uni, id bson.ObjectId) error {
-	return display_editor_model.Install(uni.Db, id)
+func (h *H) Uninstall(id bson.ObjectId) error {
+	return display_editor_model.Uninstall(h.uni.Db, id)
 }
 
-func Uninstall(uni *context.Uni, id bson.ObjectId) error {
-	return display_editor_model.Uninstall(uni.Db, id)
+type A struct {
+	uni *context.Uni
+}
+
+func Actions(uni *context.Uni) *A {
+	return &A{uni}
+}
+
+type V struct {
+	uni *context.Uni
+}
+
+func Views(uni *context.Uni) *V {
+	return &V{uni}
+}
+
+type H struct {
+	uni *context.Uni
+}
+
+func Hooks(uni *context.Uni) *H {
+	return &H{uni}
 }
