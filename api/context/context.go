@@ -119,11 +119,19 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 		if !e.uni.Caller.Has("hooks", modname, hookname) {
 			continue
 		}
-		e.uni.Caller.Call("hooks", modname, hookname, func(i ...interface{}) {
-			for _, v := range i {
-				hook_outp = append(hook_outp, reflect.ValueOf(v))
+		var ret_rec interface{}
+		if stopfunc != nil {
+			ret_rec = func(i ...interface{}) {
+				for i, v := range i {
+					if v == nil {
+						hook_outp = append(hook_outp, reflect.Zero(reflect.TypeOf(stopfunc).In(i)))
+					} else {
+						hook_outp = append(hook_outp, reflect.ValueOf(v))
+					}
+				}
 			}
-		}, params...)
+		}
+		e.uni.Caller.Call("hooks", modname, hookname, ret_rec, params...)
 		if stopfunc != nil {
 			if stopfunc_numin != len(hook_outp) {
 				panic(fmt.Sprintf("The number of return values of Hook %v of %v differs from the number of arguments of stopfunc.", hookname, modname))	// This sentence...

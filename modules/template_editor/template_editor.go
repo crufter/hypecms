@@ -184,6 +184,7 @@ func (v *V) SearchPublic() error {
 	uni.Dat["is_public"] = true
 	path := filepath.Join("templates", "public")
 	v.search(path)
+	uni.Dat["_points"] = []string{"template_editor/search"}
 	return nil
 }
 
@@ -193,6 +194,7 @@ func (v *V) SearchPrivate() error {
 	uni.Dat["is_private"] = true
 	path := filepath.Join("templates", "private", uni.Req.Host)
 	v.search(path)
+	uni.Dat["_points"] = []string{"template_editor/search"}
 	return nil
 }
 
@@ -202,6 +204,7 @@ func (v *V) SearchMod() error {
 	uni.Dat["is_mod"] = true
 	path := filepath.Join("modules")
 	v.search(path)
+	uni.Dat["_points"] = []string{"template_editor/search"}
 	return nil
 }
 

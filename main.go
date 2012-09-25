@@ -26,13 +26,12 @@ import (
 
 const (
 	unfortunate_error         = "main: An unfortunate error has happened. We are deeply sorry for the inconvenience."
-	unexported_front          = "main: Module %v does not export Front hook."
-	unexported_back           = "main: Module %v does not export Back hook."
-	no_user_module_build_hook = "main: User module does not export build hook."
-	no_module_at_back         = "main: Tried to run a back hook, but no module was specified."
+	unexported_front          = "main: Module %v does not export Front view."
+	unexported_action         = "main: Module %v does not export action %v."
+	no_user_module_build_hook = "main: User module does not export BuildUser hook."
+	no_module_at_action       = "main: Tried to execute action, but no module was specified."
 	no_action                 = "main: No action specified when accessing module %v."
-	adminback_no_module       = "main: No module specified when accessing admin back."
-	cant_test                 = "main: Can't test module because it is not even installed: %v."
+	no_admin_action		      = "main: No admin action specified."
 )
 
 // See handleFlags methods about these vars and their uses.
@@ -133,15 +132,14 @@ type m map[string]interface{}
 // All views are going to use this hook.
 func execFrontViews(uni *context.Uni) {
 	var err error
-	hijacked := false
-	i := func(er error) bool {
+	i := func(hijacked bool, er error) bool {
 		if er != nil {
 			err = er
 			return true
 		}
 		return hijacked
 	}
-	uni.Ev.Iterate("Front", i, &hijacked)
+	uni.Ev.Iterate("Front", i)
 	if err == nil {
 		display.D(uni)
 	} else {
@@ -234,11 +232,18 @@ func actionResponse(uni *context.Uni, err error, action_name string) {
 	}
 }
 
+func sanitizeActionname(a string) string {
+	a = strings.Replace(a, "-", " ", -1)
+	a = strings.Replace(a, "_", " ", -1)
+	a = strings.Title(a)
+	return strings.Replace(a, " ", "", -1)
+}
+
 // All back hooks must have the signature of func(*context.Uni, string) error
 func runAction(uni *context.Uni) (string, error) {
 	l := len(uni.Paths)
 	if l < 3 {
-		return "", fmt.Errorf(no_module_at_back)
+		return "", fmt.Errorf(no_module_at_action)
 	}
 	modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
 	if l < 4 {
@@ -252,9 +257,9 @@ func runAction(uni *context.Uni) (string, error) {
 	if puzzle_err != nil {
 		return action_name, puzzle_err
 	}
-	sanitized_aname := strings.Title(action_name)
+	sanitized_aname := sanitizeActionname(action_name)
 	if !uni.Caller.Has("actions", modname, sanitized_aname) {
-		return action_name, fmt.Errorf(unexported_back, modname)
+		return action_name, fmt.Errorf(unexported_action, modname)
 	}
 	if !uni.Caller.Matches("actions", modname, sanitized_aname, func() error {return nil}) {
 		return action_name, fmt.Errorf("Action %v of %v has bad signature.", action_name, modname)
@@ -282,7 +287,7 @@ func execAdmin(uni *context.Uni) {
 			uni.Dat["_action"] = action_name
 			err = admin.AB(uni, action_name)
 		} else {
-			err = fmt.Errorf(adminback_no_module)
+			err = fmt.Errorf(no_admin_action)
 		}
 		actionResponse(uni, err, action_name)
 	} else {

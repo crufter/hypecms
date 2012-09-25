@@ -18,8 +18,8 @@ import (
 
 type m map[string]interface{}
 
-func (v *V) tagView(urimap map[string]string) (error, bool) {
-	uni := v.uni
+func (h *H) tagView(urimap map[string]string) (error, bool) {
+	uni := h.uni
 	fieldname := "slug" // This should not be hardcoded.
 	specific := len(urimap) == 2
 	var search_value string
@@ -54,8 +54,8 @@ func (v *V) tagView(urimap map[string]string) (error, bool) {
 	return nil, true
 }
 
-func (v *V) tagSearch() error {
-	uni := v.uni
+func (h *H) tagSearch() error {
+	uni := h.uni
 	var name_search string
 	search, has := uni.Req.Form["search"]
 	if has {
@@ -78,8 +78,8 @@ func (v *V) tagSearch() error {
 	return nil
 }
 
-func (v *V) contentView(content_map map[string]string) (error, bool) {
-	uni := v.uni
+func (h *H) contentView(content_map map[string]string) (error, bool) {
+	uni := h.uni
 	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !ok {
 		return fmt.Errorf("No content types."), false
@@ -108,8 +108,8 @@ func (v *V) contentView(content_map map[string]string) (error, bool) {
 	return nil, true
 }
 
-func (v *V) contentSearch() error {
-	uni := v.uni
+func (h *H) contentSearch() error {
+	uni := h.uni
 	q := map[string]interface{}{}
 	search_sl, has := uni.Req.Form["search"]
 	var search_term string
@@ -137,13 +137,12 @@ func (v *V) contentSearch() error {
 	return nil
 }
 
-// Kinda special view.
-func (v *V) Front() (bool, error) {
-	uni := v.uni
+func (h *H) Front() (bool, error) {
+	uni := h.uni
 	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
 	if tag_err == nil {
-		err, hijack := v.tagView(tag_map)
+		err, hijack := h.tagView(tag_map)
 		if err != nil {
 			return true, err
 		}
@@ -153,15 +152,15 @@ func (v *V) Front() (bool, error) {
 	}
 	_, tag_search_err := routep.Comp("/tag-search", uni.P)
 	if tag_search_err == nil {
-		return true, v.tagSearch()
+		return true, h.tagSearch()
 	}
 	_, content_search_err := routep.Comp("/content-search", uni.P)
 	if content_search_err == nil {
-		return true, v.contentSearch()
+		return true, h.contentSearch()
 	}
 	content_map, content_err := routep.Comp("/{slug}", uni.P)
 	if content_err == nil && len(content_map["slug"]) > 0 {
-		err, hijack := v.contentView(content_map)
+		err, hijack := h.contentView(content_map)
 		if err != nil {
 			return true, err
 		}

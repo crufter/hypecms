@@ -10,25 +10,16 @@ import (
 // Create a type only to spare ourselves from typing map[string]interface{} every time.
 type m map[string]interface{}
 
-type V struct {
-	uni *context.Uni
-}
-
 type H struct {
 	uni *context.Uni
 }
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
-}
-
 func Hooks(uni *context.Uni) *H {
 	return &H{uni}
 }
 
-func (v *V) Front() (bool, error) {
+func (h *H) Front() (bool, error) {
 	var hijacked bool
-	if _, err := routep.Comp("/skeleton", v.uni.P); err == nil {
+	if _, err := routep.Comp("/skeleton", h.uni.P); err == nil {
 		hijacked = true                                    	// This stops the main front loop from executing any further modules.
 	}
 	return hijacked, nil
