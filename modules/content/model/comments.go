@@ -3,8 +3,8 @@ package content_model
 import (
 	"fmt"
 	"github.com/opesun/extract"
-	ifaces "github.com/opesun/hypecms/interfaces"
-	"github.com/opesun/hypecms/model/basic"
+	ifaces "github.com/opesun/hypecms/frame/interfaces"
+	"github.com/opesun/hypecms/frame/misc/basic"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"time"

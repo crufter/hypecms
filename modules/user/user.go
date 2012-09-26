@@ -4,7 +4,7 @@
 package user
 
 import (
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
 	"net/http"

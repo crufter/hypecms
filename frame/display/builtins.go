@@ -3,8 +3,8 @@ package display
 // All functions which can be called from templates reside here.
 
 import (
-	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/frame/context"
+	"github.com/opesun/hypecms/frame/misc/scut"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/numcon"

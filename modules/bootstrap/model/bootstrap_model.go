@@ -18,7 +18,7 @@ import(
 	"github.com/opesun/extract"
 	"github.com/opesun/numcon"
 	"github.com/opesun/hypecms/modules/admin/model"
-	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/frame/misc/basic"
 	"strings"
 )
 

@@ -4,7 +4,7 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/jsonp"
 	bm "github.com/opesun/hypecms/modules/bootstrap/model"
 	"labix.org/v2/mgo/bson"

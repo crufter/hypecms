@@ -1,5 +1,5 @@
-// This package contains helper functions which run at the top level of the system - at main.go
-package main_model
+// This package contains functions used at the top level of the system - at main.go
+package top
 
 import (
 	"encoding/json"
@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 )
-
-type m map[string]interface{}
 
 const (
 	cached_opt_inv     = "The cached options string is not a valid JSON." // TODO: Maybe we should try to recover from here.
@@ -47,7 +45,7 @@ var cache = make(map[string]string)
 //
 // The data is also stored in the cache as a string to provide its immutability.
 // (One pageload this way can't mess up the option document for the next.)
-func HandleConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, string, error) {
+func queryConfig(db *mgo.Database, host string, cache_it bool) (map[string]interface{}, string, error) {
 	host = "anything" // See *1
 	ret := map[string]interface{}{}
 	var ret_str string

@@ -3,7 +3,7 @@ package display_editor
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/modules/display_editor/model"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"

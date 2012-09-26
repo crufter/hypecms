@@ -2,7 +2,7 @@
 package example
 
 import (
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/routep"
 	"labix.org/v2/mgo/bson"
 )

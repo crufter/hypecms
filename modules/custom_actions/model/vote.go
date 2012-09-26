@@ -3,7 +3,7 @@ package custom_actions_model
 import (
 	"fmt"
 	"github.com/opesun/extract"
-	"github.com/opesun/hypecms/model/patterns"
+	"github.com/opesun/hypecms/frame/misc/patterns"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"

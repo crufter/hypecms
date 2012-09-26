@@ -4,8 +4,8 @@ package template_editor
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/frame/context"
+	"github.com/opesun/hypecms/frame/misc/scut"
 	te_model "github.com/opesun/hypecms/modules/template_editor/model"
 	"io/ioutil"
 	"labix.org/v2/mgo/bson"

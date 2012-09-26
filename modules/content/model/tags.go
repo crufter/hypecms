@@ -2,8 +2,8 @@ package content_model
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/model/basic"
-	"github.com/opesun/hypecms/model/patterns"
+	"github.com/opesun/hypecms/frame/misc/basic"
+	"github.com/opesun/hypecms/frame/misc/patterns"
 	"github.com/opesun/slugify"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"

@@ -3,7 +3,7 @@ package basic
 
 import (
 	"fmt"
-	ifaces "github.com/opesun/hypecms/interfaces"
+	ifaces "github.com/opesun/hypecms/frame/interfaces"
 	"github.com/opesun/slugify"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"

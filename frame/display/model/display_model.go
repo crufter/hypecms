@@ -2,7 +2,7 @@ package display_model
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/frame/misc/basic"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/paging"
 	"github.com/opesun/resolver"

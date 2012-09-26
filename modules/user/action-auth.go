@@ -14,8 +14,8 @@ package user
 
 import(
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/scut"
+	"github.com/opesun/hypecms/frame/context"
+	"github.com/opesun/hypecms/frame/misc/scut"
 	"github.com/opesun/hypecms/modules/user/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/numcon"

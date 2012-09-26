@@ -4,7 +4,7 @@ package patterns
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/model/basic"
+	"github.com/opesun/hypecms/frame/misc/basic"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )

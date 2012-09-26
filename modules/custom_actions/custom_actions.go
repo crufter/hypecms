@@ -2,7 +2,7 @@ package custom_actions
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	ca_model "github.com/opesun/hypecms/modules/custom_actions/model"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo/bson"

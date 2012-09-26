@@ -1,75 +1,46 @@
 // This package implements basic admin functionality.
 // - Admin login, or even register if the site has no admin.
 // - Installation/uninstallation of modules.
-// - Editing of the currently used options document (available under uni.Opts)
+// - Editing of the currently used options document.
 // - A view containing links to installed modules.
 package admin
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
+	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/hypecms/modules/user"
-	"github.com/opesun/jsonp"
 	"github.com/opesun/extract"
-	//"labix.org/v2/mgo/bson"
-	"runtime/debug"
 	"strings"
 )
 
-type m map[string]interface{}
-
-func adErr(uni *context.Uni) {
-	if r := recover(); r != nil {
-		uni.Put("There was an error running the admin module.\n", r)
-		debug.PrintStack()
-	}
-}
-
 // Registering yourself as admin is possible if the site has no admin yet.
-func RegFirstAdmin(uni *context.Uni) error {
+func (a *A) RegFirstAdmin() error {
+	uni := a.uni
 	if admin_model.SiteHasAdmin(uni.Db) {
-		return fmt.Errorf("site already has an admin.")
+		return fmt.Errorf("Site already has an admin.")
 	}
-	return admin_model.RegFirstAdmin(uni.Db, map[string][]string(uni.Req.Form))
+	return admin_model.RegFirstAdmin(uni.Db, uni.Req.Form)
 }
 
-func RegAdmin(uni *context.Uni) error {
-	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights")
-	}
-	return admin_model.RegAdmin(uni.Db, uni.Req.Form)
+func (a *A) RegAdmin() error {
+	return admin_model.RegAdmin(a.uni.Db, a.uni.Req.Form)
 }
 
-func RegUser(uni *context.Uni) error {
-	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights")
-	}
-	return admin_model.RegUser(uni.Db, uni.Req.Form)
+func (a *A) RegUser() error {
+	return admin_model.RegUser(a.uni.Db, a.uni.Req.Form)
 }
 
-func Login(uni *context.Uni) error {
-	return user.Actions(uni).Login()
+func (a *A) Login() error {
+	return user.Actions(a.uni).Login()
 }
 
-func Logout(uni *context.Uni) error {
-	return user.Actions(uni).Logout()
+func (a *A) Logout() error {
+	return user.Actions(a.uni).Logout()
 }
 
-func requireLev(usr interface{}, lev int) bool {
-	if val, ok := jsonp.GetI(usr, "level"); ok {
-		if val >= lev {
-			return true
-		}
-		return false
-	}
-	return false
-}
-
-func SaveConfig(uni *context.Uni) error {
-	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights to save config.")
-	}
+func (a *A) SaveConfig() error {
+	uni := a.uni
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
 		if len(jsonenc) == 1 {
@@ -83,12 +54,8 @@ func SaveConfig(uni *context.Uni) error {
 	return nil
 }
 
-// Install and Uninstall hooks all have the same signature: func (a *A)(bson.ObjectId) error
-// InstallB handles both installing and uninstalling.
-func InstallB(uni *context.Uni, mode string) error {
-	if !requireLev(uni.Dat["_user"], 300) {
-		return fmt.Errorf("No rights to install or uninstall a module.")
-	}
+func (a *A) install(mode string) error {
+	uni := a.uni
 	dat, err := extract.New(map[string]interface{}{"module":"must"}).Extract(uni.Req.Form)
 	if err != nil {
 		return err
@@ -102,36 +69,26 @@ func InstallB(uni *context.Uni, mode string) error {
 	if !uni.Caller.Has("hooks", modn, strings.Title(mode)) {
 		return fmt.Errorf("Module %v does not export the Hook %v.", modn, mode) 
 	}
-	//hook, ok := h.(func(*context.Uni, bson.ObjectId) error)
-	//if !ok {
-	//	return fmt.Errorf("%v hook of module %v has bad signature.", mode, modn)
-	//}
 	ret_rec := func(e error){
 		err = e
 	}
+	// Install and Uninstall hooks all have the same signature: func (a *A)(bson.ObjectId) error
 	uni.Caller.Call("hooks", modn, strings.Title(mode), ret_rec, obj_id)
 	return err
 }
 
-func AB(uni *context.Uni, action string) error {
-	var r error
-	switch action {
-	case "regfirstadmin":
-		r = RegFirstAdmin(uni)
-	case "reguser":
-		r = RegUser(uni)
-	case "adminlogin":
-		r = Login(uni)
-	case "logout":
-		r = Logout(uni)
-	case "save-config":
-		r = SaveConfig(uni)
-	case "install":
-		r = InstallB(uni, "install")
-	case "uninstall":
-		r = InstallB(uni, "uninstall")
-	default:
-		return fmt.Errorf("Unknown admin action.")
-	}
-	return r
+func (a *A) Install() error {
+	return a.install("install")
+}
+
+func (a *A) Uninstall() error {
+	return a.install("uninstall")
+}
+
+type A struct{
+	uni *context.Uni
+}
+
+func Actions(uni *context.Uni) *A {
+	return &A{uni}
 }

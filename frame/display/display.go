@@ -8,9 +8,9 @@ package display
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/opesun/hypecms/api/context"
-	"github.com/opesun/hypecms/model/scut"
-	"github.com/opesun/hypecms/modules/display/model"
+	"github.com/opesun/hypecms/frame/context"
+	"github.com/opesun/hypecms/frame/misc/scut"
+	"github.com/opesun/hypecms/frame/display/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/require"
 	"github.com/russross/blackfriday"
