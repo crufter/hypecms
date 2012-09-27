@@ -10,12 +10,12 @@ import (
 // Create a type only to spare ourselves from typing map[string]interface{} every time.
 type m map[string]interface{}
 
-func (v *V) ExampleAnything(i int) error {
+func (v *C) ExampleAnything(i int) error {
 	v.uni.Dat["example_value"] = i
 	return nil
 }
 
-func (h *H) Front() (bool, error) {
+func (h *C) Front() (bool, error) {
 	var hijacked bool
 	if _, err := routep.Comp("/example", h.uni.P); err == nil {
 		hijacked = true                                    	// This stops the main front loop from executing any further modules.
@@ -23,7 +23,7 @@ func (h *H) Front() (bool, error) {
 	return hijacked, nil
 }
 
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	example_options := m{
 		"example": "any value",
 	}
@@ -39,7 +39,7 @@ func (h *H) Install(id bson.ObjectId) error {
 	return h.uni.Db.C("options").Update(q, upd)
 }
 
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
 		"$pull": m{
@@ -52,18 +52,10 @@ func (h *H) Uninstall(id bson.ObjectId) error {
 	return h.uni.Db.C("options").Update(q, upd)
 }
 
-type H struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
-}
-
-type V struct {
-	uni *context.Uni
-}
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
+func (c *C) Hooks(uni *context.Uni) {
+	c.uni = uni
 }

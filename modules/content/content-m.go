@@ -13,21 +13,21 @@ import (
 
 const not_impl = "Not implemented yet."
 
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	return content_model.Install(h.uni.Db, id)
 }
 
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	return content_model.Uninstall(h.uni.Db, id)
 }
 
 // 
-func (a *A) SaveConfig() error {
+func (a *C) SaveConfig() error {
 	// id := scut.CreateOptCopy(uni.Db)
 	return fmt.Errorf(not_impl)
 }
 
-func (a *A) allowsContent(op string) (bson.ObjectId, string, error) {
+func (a *C) allowsContent(op string) (bson.ObjectId, string, error) {
 	uni := a.uni
 	var typ string
 	if op == "insert" {
@@ -62,7 +62,7 @@ func (a *A) allowsContent(op string) (bson.ObjectId, string, error) {
 }
 
 // We never update drafts, they are immutable.
-func (a *A) saveDraft() error {
+func (a *C) saveDraft() error {
 	uni := a.uni
 	post := uni.Req.Form
 	typ_s, has_typ := post["type"]
@@ -107,7 +107,7 @@ func (a *A) saveDraft() error {
 
 // Insert content.
 // TODO: Move Ins, Upd, Del to other package since they can be used with all modules similar to content.
-func (a *A) insert() error {
+func (a *C) insert() error {
 	uni := a.uni
 	uid, typ, prep_err := a.allowsContent("insert")
 	if prep_err != nil {
@@ -129,7 +129,7 @@ func (a *A) insert() error {
 	return nil
 }
 
-func (a *A) Insert() error {
+func (a *C) Insert() error {
 	if _, is_draft := a.uni.Req.Form["draft"]; is_draft {
 		return a.saveDraft()
 	}
@@ -138,7 +138,7 @@ func (a *A) Insert() error {
 
 // Update content.
 // TODO: Consider separating the shared processes of Insert/Update (type and rule checking, extracting)
-func (a *A) update() error {
+func (a *C) update() error {
 	uni := a.uni
 	uid, typ, prep_err := a.allowsContent("insert")
 	if prep_err != nil {
@@ -168,7 +168,7 @@ func (a *A) update() error {
 	return nil
 }
 
-func (a *A) Update() error {
+func (a *C) Update() error {
 	if _, is_draft := a.uni.Req.Form["draft"]; is_draft {
 		return a.saveDraft()
 	}
@@ -176,7 +176,7 @@ func (a *A) Update() error {
 }
 
 // Delete content.
-func (a *A) Delete() error {
+func (a *C) Delete() error {
 	uni := a.uni
 	uid, _, prep_err := a.allowsContent("insert")
 	if prep_err != nil {
@@ -191,7 +191,7 @@ func (a *A) Delete() error {
 
 // Return values: content type, general (fatal) error, puzzle error
 // Puzzle error is returned to support the decision of wether to put the comment into a moderation queue.
-func (a *A) allowsComment(op string) (string, error, error) {
+func (a *C) allowsComment(op string) (string, error, error) {
 	uni := a.uni
 	inp := uni.Req.Form
 	user_level := scut.Ulev(uni.Dat["_user"])
@@ -222,7 +222,7 @@ func (a *A) allowsComment(op string) (string, error, error) {
 	return typ, err, puzzle_err
 }
 
-func (a *A) InsertComment() error {
+func (a *C) InsertComment() error {
 	uni := a.uni
 	typ, allow_err, puzzle_err := a.allowsComment("insert")
 	if allow_err != nil {
@@ -247,7 +247,7 @@ func (a *A) InsertComment() error {
 	return content_model.InsertComment(uni.Db, uni.Ev, comment_rule, inp, user_id, typ, moderate_first)
 }
 
-func (a *A) UpdateComment() error {
+func (a *C) UpdateComment() error {
 	uni := a.uni
 	typ, allow_err, _ := a.allowsComment("update")
 	if allow_err != nil {
@@ -265,7 +265,7 @@ func (a *A) UpdateComment() error {
 	return content_model.UpdateComment(uni.Db, uni.Ev, comment_rule, inp, uid.(bson.ObjectId))
 }
 
-func (a *A) DeleteComment() error {
+func (a *C) DeleteComment() error {
 	uni := a.uni
 	_, allow_err, _ := a.allowsComment("delete")
 	if allow_err != nil {
@@ -278,11 +278,11 @@ func (a *A) DeleteComment() error {
 	return content_model.DeleteComment(uni.Db, uni.Ev, uni.Req.Form, uid.(bson.ObjectId))
 }
 
-func (a *A) MoveToFinal() error {
+func (a *C) MoveToFinal() error {
 	return nil
 }
 
-func (a *A) PullTags() error {
+func (a *C) PullTags() error {
 	uni := a.uni
 	_, err, _ := a.allowsComment("update")
 	if err != nil {
@@ -294,7 +294,7 @@ func (a *A) PullTags() error {
 
 }
 
-func (a *A) DeleteTag() error {
+func (a *C) DeleteTag() error {
 	uni := a.uni
 	if scut.Ulev(uni.Dat["_user"]) < 300 {
 		return fmt.Errorf("Only an admin can delete a tag.")
@@ -303,7 +303,7 @@ func (a *A) DeleteTag() error {
 	return content_model.DeleteTag(uni.Db, tag_id)
 }
 
-func (a *A) SaveTypeConfig() error {
+func (a *C) SaveTypeConfig() error {
 	uni := a.uni
 	// id := scut.CreateOptCopy(uni.Db)
 	return fmt.Errorf(not_impl)
@@ -311,7 +311,7 @@ func (a *A) SaveTypeConfig() error {
 }
 
 // TODO: Ugly name.
-func (a *A) SavePersonalTypeConfig() error {
+func (a *C) SavePersonalTypeConfig() error {
 	uni := a.uni
 	return fmt.Errorf(not_impl) // Temp.
 	user_id_i, has := jsonp.Get(uni.Dat, "_user._id")
@@ -322,18 +322,10 @@ func (a *A) SavePersonalTypeConfig() error {
 	return content_model.SavePersonalTypeConfig(uni.Db, uni.Req.Form, user_id)
 }
 
-type A struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

@@ -13,19 +13,19 @@ import (
 
 type m map[string]interface{}
 
-func (a *A) New() error {
+func (a *C) New() error {
 	return display_editor_model.New(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func (a *A) Save() error {
+func (a *C) Save() error {
 	return display_editor_model.Save(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func (a *A) Delete() error {
+func (a *C) Delete() error {
 	return display_editor_model.Delete(a.uni.Db, a.uni.Ev, a.uni.Req.Form)
 }
 
-func (v *V) Index() error {
+func (v *C) Index() error {
 	uni := v.uni
 	var search string
 	if s, hass := uni.Req.Form["point-name"]; hass {
@@ -56,7 +56,7 @@ func (v *V) Index() error {
 	return nil
 }
 
-func (v *V) Edit() error {
+func (v *C) Edit() error {
 	uni := v.uni
 	point_name := uni.Req.Form["point"][0]
 	point, ok := jsonp.GetM(uni.Opt, "Display-points."+point_name)
@@ -81,39 +81,23 @@ func (v *V) Edit() error {
 	return nil
 }
 
-func (v *V) Help() error {
+func (v *C) Help() error {
 	v.uni.Dat["_points"] = []string{"display_editor/help"}
 	return nil
 }
 
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	return display_editor_model.Install(h.uni.Db, id)
 }
 
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	return display_editor_model.Uninstall(h.uni.Db, id)
 }
 
-type A struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
-type V struct {
-	uni *context.Uni
-}
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
-}
-
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/opesun/numcon"
 )
 
-func (h *H) BeforeDisplay() {
+func (h *C) BeforeDisplay() {
 	uni := h.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
@@ -38,7 +38,7 @@ func (h *H) BeforeDisplay() {
 //	"root_db": "hypecms",
 //	"table_key": "proxy_table"
 // }
-func (a *A) Ignite() error {
+func (a *C) Ignite() error {
 	uni := a.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
@@ -53,7 +53,7 @@ func (a *A) Ignite() error {
 
 // This function should be used only when neither of the processes are running, eg.
 // when the server was restarted, or the forker process was killed, and all child processes died with it.
-func (a *A) StartAll() error {
+func (a *C) StartAll() error {
 	uni := a.uni
 	opt, has := jsonp.GetM(uni.Opt, "Modules.bootstrap")
 	if !has {
@@ -65,7 +65,7 @@ func (a *A) StartAll() error {
 	return bm.StartAll(uni.Db, opt)
 }
 
-func (a *A) DeleteSite() error {
+func (a *C) DeleteSite() error {
 	return bm.DeleteSite(a.uni.Db, a.uni.Req.Form)
 }
 
@@ -82,7 +82,7 @@ func filter(s []string, term string) []string {
 	return ret
 }
 
-func (v *V) Index() error {
+func (v *C) Index() error {
 	uni := v.uni
 	not_admin := uni.Session == nil
 	if not_admin {
@@ -106,34 +106,18 @@ func (v *V) Index() error {
 	return nil
 }
 
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	return bm.Install(h.uni.Session, h.uni.Db, id)
 }
 
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	return bm.Uninstall(h.uni.Db, id)
 }
 
-type A struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
-}
-
-type V struct {
-	uni *context.Uni
-}
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

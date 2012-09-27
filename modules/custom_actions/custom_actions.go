@@ -10,7 +10,7 @@ import (
 
 type m map[string]interface{}
 
-func (a *A) Execute() error {
+func (a *C) Execute() error {
 	uni := a.uni
 	action_name := uni.Req.Form["action"][0]
 	action, has := jsonp.GetM(uni.Opt, "Modules.custom_actions.actions."+action_name)
@@ -35,7 +35,7 @@ func (a *A) Execute() error {
 }
 
 
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	custom_action_options := m{}
 	q := m{"_id": id}
 	upd := m{
@@ -46,7 +46,7 @@ func (h *H) Install(id bson.ObjectId) error {
 	return h.uni.Db.C("options").Update(q, upd)
 }
 
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	q := m{"_id": id}
 	upd := m{
 		"$unset": m{
@@ -56,18 +56,10 @@ func (h *H) Uninstall(id bson.ObjectId) error {
 	return h.uni.Db.C("options").Update(q, upd)
 }
 
-type A struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

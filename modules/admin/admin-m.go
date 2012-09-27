@@ -7,7 +7,6 @@ package admin
 
 import (
 	"fmt"
-	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/modules/admin/model"
 	"github.com/opesun/hypecms/modules/user"
 	"github.com/opesun/extract"
@@ -15,7 +14,7 @@ import (
 )
 
 // Registering yourself as admin is possible if the site has no admin yet.
-func (a *A) RegFirstAdmin() error {
+func (a *C) RegFirstAdmin() error {
 	uni := a.uni
 	if admin_model.SiteHasAdmin(uni.Db) {
 		return fmt.Errorf("Site already has an admin.")
@@ -23,23 +22,27 @@ func (a *A) RegFirstAdmin() error {
 	return admin_model.RegFirstAdmin(uni.Db, uni.Req.Form)
 }
 
-func (a *A) RegAdmin() error {
+func (a *C) RegAdmin() error {
 	return admin_model.RegAdmin(a.uni.Db, a.uni.Req.Form)
 }
 
-func (a *A) RegUser() error {
+func (a *C) RegUser() error {
 	return admin_model.RegUser(a.uni.Db, a.uni.Req.Form)
 }
 
-func (a *A) Login() error {
-	return user.Actions(a.uni).Login()
+func (a *C) Login() error {
+	u := &user.C{}
+	u.Init(a.uni)
+	return u.Login()
 }
 
-func (a *A) Logout() error {
-	return user.Actions(a.uni).Logout()
+func (a *C) Logout() error {
+	u := &user.C{}
+	u.Init(a.uni)
+	return u.Logout()
 }
 
-func (a *A) SaveConfig() error {
+func (a *C) SaveConfig() error {
 	uni := a.uni
 	jsonenc, ok := uni.Req.Form["option"]
 	if ok {
@@ -54,7 +57,7 @@ func (a *A) SaveConfig() error {
 	return nil
 }
 
-func (a *A) install(mode string) error {
+func (a *C) install(mode string) error {
 	uni := a.uni
 	dat, err := extract.New(map[string]interface{}{"module":"must"}).Extract(uni.Req.Form)
 	if err != nil {
@@ -66,29 +69,21 @@ func (a *A) install(mode string) error {
 	if ierr != nil {
 		return ierr
 	}
-	if !uni.Caller.Has("hooks", modn, strings.Title(mode)) {
+	if !uni.Caller.Has(modn, strings.Title(mode)) {
 		return fmt.Errorf("Module %v does not export the Hook %v.", modn, mode) 
 	}
 	ret_rec := func(e error){
 		err = e
 	}
 	// Install and Uninstall hooks all have the same signature: func (a *A)(bson.ObjectId) error
-	uni.Caller.Call("hooks", modn, strings.Title(mode), ret_rec, obj_id)
+	uni.Caller.Call(modn, strings.Title(mode), ret_rec, obj_id)
 	return err
 }
 
-func (a *A) Install() error {
+func (a *C) Install() error {
 	return a.install("install")
 }
 
-func (a *A) Uninstall() error {
+func (a *C) Uninstall() error {
 	return a.install("uninstall")
-}
-
-type A struct{
-	uni *context.Uni
-}
-
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
 }

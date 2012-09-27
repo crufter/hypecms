@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-func (v *V) Index() error {
+func (v *C) Index() error {
 	uni := v.uni
 	adm := map[string]interface{}{}
 	if v, ok := uni.Opt["Modules"]; ok {
@@ -30,7 +30,7 @@ func (v *V) Index() error {
 	return nil
 }
 
-func (v *V) EditConfig() error {
+func (v *C) EditConfig() error {
 	uni := v.uni
 	uni.Dat["_points"] = []string{"admin/edit-config"}
 	adm := map[string]interface{}{}
@@ -51,7 +51,7 @@ func alreadyInstalled(opt map[string]interface{}, modname string) bool {
 }
 
 // TODO: Highlight already installed packages.
-func (v *V) Install() error {
+func (v *C) Installables() error {
 	uni := v.uni
 	uni.Dat["_points"] = []string{"admin/install"}
 	adm := map[string]interface{}{}
@@ -59,7 +59,7 @@ func (v *V) Install() error {
 	if err == nil {
 		modules := []string{}
 		for _, val := range dirs {
-			if val.IsDir() && !alreadyInstalled(uni.Opt, val.Name()) && uni.Caller.Has("hooks", val.Name(), "Install") {	// TODO: this is slow.
+			if val.IsDir() && !alreadyInstalled(uni.Opt, val.Name()) && uni.Caller.Has(val.Name(), "Install") {	// TODO: this is slow.
 				modules = append(modules, nameize(val.Name()))
 			}
 		}
@@ -80,7 +80,7 @@ func nameize(s string) string {
 	return s
 }
 
-func (v *V) Uninstall() error {
+func (v *C) Uninstallables() error {
 	uni := v.uni
 	installed_mods := []string{}
 	modules, has := uni.Opt["Modules"]
@@ -95,10 +95,10 @@ func (v *V) Uninstall() error {
 	return nil
 }
 
-type V struct{
+type C struct{
 	uni *context.Uni
 }
 
-func Views(uni *context.Uni) *V {
-	return &V{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

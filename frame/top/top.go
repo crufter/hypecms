@@ -118,16 +118,16 @@ func (t *Top) runAction() (string, error) {
 		return action_name, puzzle_err
 	}
 	sanitized_aname := sanitize(action_name)
-	if !uni.Caller.Has("actions", modname, sanitized_aname) {
+	if !uni.Caller.Has(modname, sanitized_aname) {
 		return action_name, fmt.Errorf(unexported_action, modname)
 	}
-	if !uni.Caller.Matches("actions", modname, sanitized_aname, func() error {return nil}) {
+	if !uni.Caller.Matches(modname, sanitized_aname, func() error {return nil}) {
 		return action_name, fmt.Errorf("Action %v of %v has bad signature.", action_name, modname)
 	}
 	ret_rec := func(e error){
 		err = e
 	}
-	uni.Caller.Call("actions", modname, sanitized_aname, ret_rec)
+	uni.Caller.Call(modname, sanitized_aname, ret_rec)
 	return action_name, err
 }
 
@@ -147,7 +147,7 @@ func (t *Top) adminAction() {
 			ret_rec := func(e error) {
 				err = e
 			}
-			err = uni.Caller.Call("actions", "admin", sanitize(action_name), ret_rec)
+			err = uni.Caller.Call("admin", sanitize(action_name), ret_rec)
 		}
 	} else {
 		err = fmt.Errorf(no_admin_action)
@@ -172,11 +172,11 @@ func (t *Top) adminView() {
 		e = err
 	}
 	sane_view := sanitize(view)
-	if uni.Caller.Has("views", "admin", sane_view) {
+	if uni.Caller.Has("admin", sane_view) {
 		if view == "index" {
 			uni.Dat["_points"] = []string{"admin/index"}
 		}
-		uni.Caller.Call("views", "admin", sane_view, ret_rec)
+		uni.Caller.Call("admin", sane_view, ret_rec)
 	} else {
 		modname := view
 		if l > 3 {
@@ -185,13 +185,13 @@ func (t *Top) adminView() {
 			view = "index"
 		}
 		sane_view = sanitize(view)
-		uni.Caller.Call("views", modname, "AdminInit", nil)
-		if uni.Caller.Has("views", modname, "Admin"+sane_view) {
+		uni.Caller.Call(modname, "AdminInit", nil)
+		if uni.Caller.Has(modname, "Admin"+sane_view) {
 			uni.Dat["_points"] = []string{modname+"/admin-"+view}
-			uni.Caller.Call("views", modname, "Admin"+sane_view, ret_rec)
+			uni.Caller.Call(modname, "Admin"+sane_view, ret_rec)
 		} else {
 			uni.Dat["_points"] = []string{modname+"/"+view}
-			uni.Caller.Call("views", modname, sane_view, ret_rec)
+			uni.Caller.Call(modname, sane_view, ret_rec)
 		}
 	}
 	if err == nil {
@@ -213,14 +213,14 @@ func (t *Top) routeAdmin() {
 
 func (t *Top) buildUser() error {
 	// Why is this a hook? Get rid of it.
-	if !t.uni.Caller.Has("hooks", "user", "BuildUser") {
+	if !t.uni.Caller.Has("user", "BuildUser") {
 		return fmt.Errorf(no_user_module_build_hook)
 	}
 	var err error
 	ret_rec := func(e error) {
 		e = err
 	}
-	t.uni.Caller.Call("hooks", "user", "BuildUser", ret_rec)
+	t.uni.Caller.Call("user", "BuildUser", ret_rec)
 	return err
 }
 

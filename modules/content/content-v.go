@@ -18,7 +18,7 @@ import (
 
 type m map[string]interface{}
 
-func (h *H) tagView(urimap map[string]string) (error, bool) {
+func (h *C) tagView(urimap map[string]string) (error, bool) {
 	uni := h.uni
 	fieldname := "slug" // This should not be hardcoded.
 	specific := len(urimap) == 2
@@ -54,7 +54,7 @@ func (h *H) tagView(urimap map[string]string) (error, bool) {
 	return nil, true
 }
 
-func (h *H) tagSearch() error {
+func (h *C) tagSearch() error {
 	uni := h.uni
 	var name_search string
 	search, has := uni.Req.Form["search"]
@@ -78,7 +78,7 @@ func (h *H) tagSearch() error {
 	return nil
 }
 
-func (h *H) contentView(content_map map[string]string) (error, bool) {
+func (h *C) contentView(content_map map[string]string) (error, bool) {
 	uni := h.uni
 	types, ok := jsonp.Get(uni.Opt, "Modules.content.types")
 	if !ok {
@@ -108,7 +108,7 @@ func (h *H) contentView(content_map map[string]string) (error, bool) {
 	return nil, true
 }
 
-func (h *H) contentSearch() error {
+func (h *C) contentSearch() error {
 	uni := h.uni
 	q := map[string]interface{}{}
 	search_sl, has := uni.Req.Form["search"]
@@ -137,7 +137,7 @@ func (h *H) contentSearch() error {
 	return nil
 }
 
-func (h *H) Front() (bool, error) {
+func (h *C) Front() (bool, error) {
 	uni := h.uni
 	tag_map, tag_err := routep.Comp("/tag/{first}/{second}", uni.P)
 	// Tag view: list contents in that category.
@@ -171,7 +171,7 @@ func (h *H) Front() (bool, error) {
 	return false, nil
 }
 
-func (v *V) getSidebar() []string {
+func (v *C) getSidebar() []string {
 	uni := v.uni
 	menu := []string{}
 	types, has := jsonp.Get(uni.Opt, "Modules.content.types")
@@ -184,7 +184,7 @@ func (v *V) getSidebar() []string {
 	return menu
 }
 
-func (v *V) Index() error {
+func (v *C) Index() error {
 	uni := v.uni
 	visible_types := []string{}
 	types, has := jsonp.GetM(uni.Opt, "Modules.content.types")
@@ -212,7 +212,7 @@ func (v *V) Index() error {
 }
 
 // This functionality is almost the same as the tagSearch on the outside :S
-func (v *V) Tags() error {
+func (v *C) Tags() error {
 	uni := v.uni
 	var res []interface{}
 	uni.Db.C("tags").Find(nil).All(&res)
@@ -222,7 +222,7 @@ func (v *V) Tags() error {
 }
 
 // Lists contents of a givn type.
-func (v *V) Type() error {
+func (v *C) Type() error {
 	uni := v.uni
 	typ := uni.Req.Form["type"][0]
 	q := m{"type": typ}
@@ -242,7 +242,7 @@ func (v *V) Type() error {
 	return nil
 }
 
-func (v *V) Comments() error {
+func (v *C) Comments() error {
 	uni := v.uni
 	query := map[string]interface{}{
 		"so": "-created",
@@ -260,7 +260,7 @@ func (v *V) Comments() error {
 }
 
 // Both everyone and personal.
-func (v *V) TypeConfig() error {
+func (v *C) TypeConfig() error {
 	uni := v.uni
 	typ := uni.Req.Form["type"][0]
 	op, ok := jsonp.Get(uni.Opt, "Modules.content.types."+typ)
@@ -275,7 +275,7 @@ func (v *V) TypeConfig() error {
 	return nil
 }
 
-func (v *V) Config() error {
+func (v *C) Config() error {
 	uni := v.uni
 	op, _ := jsonp.Get(uni.Opt, "Modules.content")
 	marsh, err := json.MarshalIndent(op, "", "    ")
@@ -286,7 +286,7 @@ func (v *V) Config() error {
 	return nil
 }
 
-func (v *V) editContent(typ, id string) (interface{}, error) {
+func (v *C) editContent(typ, id string) (interface{}, error) {
 	uni := v.uni
 	hasid := len(id) > 0
 	uni.Dat["is_content"] = true
@@ -313,7 +313,7 @@ func (v *V) editContent(typ, id string) (interface{}, error) {
 	return context.Convert(indb), nil
 }
 
-func (v *V) editDraft(typ, id string) (interface{}, error) {
+func (v *C) editDraft(typ, id string) (interface{}, error) {
 	hasid := len(id) > 0
 	uni := v.uni
 	uni.Dat["is_draft"] = true
@@ -349,7 +349,7 @@ func (v *V) editDraft(typ, id string) (interface{}, error) {
 }
 
 // You don't actually edit anything on a past version...
-func (v *V) editVersion(typ, id string) (interface{}, error) {
+func (v *C) editVersion(typ, id string) (interface{}, error) {
 	uni := v.uni
 	uni.Dat["is_version"] = true
 	version_id := patterns.ToIdWithCare(id)
@@ -388,7 +388,7 @@ func subType(typ string) string {
 
 // Called from both admin and outside editing.
 // ma containts type and id members extracted out of the url.
-func (v *V) Edit() error {
+func (v *C) Edit() error {
 	uni := v.uni
 	typ := uni.Req.Form["type"][0]
 	rtyp := realType(typ)
@@ -428,16 +428,4 @@ func (v *V) Edit() error {
 	}
 	uni.Dat["fields"] = fields
 	return nil
-}
-
-func (v *V) AdminInit() {
-	v.uni.Dat["content_menu"] = v.getSidebar()
-}
-
-type V struct {
-	uni *context.Uni
-}
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
 }

@@ -22,24 +22,8 @@ func unsetCookie(w http.ResponseWriter, dat map[string]interface{}, err *error) 
 	dat["_user"] = user_model.EmptyUser()
 }
 
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
-}
-
-type A struct {
-	uni *context.Uni
-}
-
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
 // If there were some random database query errors or something we go on with an empty user.
-func (h *H) BuildUser() (err error) {
+func (h *C) BuildUser() (err error) {
 	uni := h.uni
 	defer unsetCookie(uni.W, uni.Dat, &err)
 	var user_id_str string
@@ -61,14 +45,14 @@ func (h *H) BuildUser() (err error) {
 	return
 }
 
-func (a *A) Register() error {
+func (a *C) Register() error {
 	inp := a.uni.Req.Form
 	rules, _ := jsonp.GetM(a.uni.Opt, "Modules.user.rules") // RegisterUser will be fine with nil.
 	_, err := user_model.RegisterUser(a.uni.Db, a.uni.Ev, rules, inp)
 	return err
 }
 
-func (a *A) Login() error {
+func (a *C) Login() error {
 	// Maybe there could be a check here to not log in somebody who is already logged in.
 	inp := a.uni.Req.Form
 	if _, id, err := user_model.FindLogin(a.uni.Db, inp); err == nil {
@@ -80,8 +64,16 @@ func (a *A) Login() error {
 	return nil
 }
 
-func (a *A) Logout() error {
+func (a *C) Logout() error {
 	c := &http.Cookie{Name: "user", Value: "", Path: "/"}
 	http.SetCookie(a.uni.W, c)
 	return nil
+}
+
+type C struct {
+	uni *context.Uni
+}
+
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

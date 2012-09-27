@@ -13,42 +13,42 @@ import (
 	"strings"
 )
 
-func (a *A) NewFile() error {
+func (a *C) NewFile() error {
 	uni := a.uni
 	return te_model.NewFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) SaveFile() error {
+func (a *C) SaveFile() error {
 	uni := a.uni
 	return te_model.SaveFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) DeleteFile() error {
+func (a *C) DeleteFile() error {
 	uni := a.uni
 	return te_model.DeleteFile(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) ForkPublic() error {
+func (a *C) ForkPublic() error {
 	uni := a.uni
 	return te_model.ForkPublic(uni.Db, uni.Opt, uni.Root, uni.Req.Host)
 }
 
-func (a *A) PublishPrivate() error {
+func (a *C) PublishPrivate() error {
 	uni := a.uni
 	return te_model.PublishPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) DeletePrivate() error {
+func (a *C) DeletePrivate() error {
 	uni := a.uni
 	return te_model.DeletePrivate(uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) ForkPrivate() error {
+func (a *C) ForkPrivate() error {
 	uni := a.uni
 	return te_model.ForkPrivate(uni.Db, uni.Opt, uni.Req.Form, uni.Root, uni.Req.Host)
 }
 
-func (a *A) SwitchToTemplate() error {
+func (a *C) SwitchToTemplate() error {
 	uni := a.uni
 	return te_model.SwitchToTemplate(uni.Db, uni.Req.Form, uni.Root, uni.Req.Host)
 }
@@ -72,7 +72,7 @@ func canMod(typ string) bool {
 	return typ == "private"
 }
 
-func (v *V) view(current bool, filepath_str string) map[string]interface{} {
+func (v *C) view(current bool, filepath_str string) map[string]interface{} {
 	uni := v.uni
 	opt := uni.Opt
 	root :=uni.Root
@@ -123,7 +123,7 @@ func (v *V) view(current bool, filepath_str string) map[string]interface{} {
 // type: tpl, private, public
 // file: path of file
 // name: name of template or module
-func (v *V) View() error {
+func (v *C) View() error {
 	uni := v.uni
 	var typ, name string
 	if val, has := uni.Req.Form["type"]; has {
@@ -155,14 +155,14 @@ func (v *V) View() error {
 	return nil
 }
 
-func (v *V) Index() error {
+func (v *C) Index() error {
 	uni := v.uni
 	uni.Dat["template_name"] = scut.TemplateName(uni.Opt)
 	uni.Dat["can_modify"] = te_model.CanModifyTemplate(uni.Opt)
 	return nil
 }
 
-func (v *V) search(path string) error {
+func (v *C) search(path string) error {
 	uni := v.uni
 	fileinfos, read_err := ioutil.ReadDir(filepath.Join(uni.Root, path))
 	if read_err != nil {
@@ -179,7 +179,7 @@ func (v *V) search(path string) error {
 }
 
 // Search amongst public templates.
-func (v *V) SearchPublic() error {
+func (v *C) SearchPublic() error {
 	uni := v.uni
 	uni.Dat["is_public"] = true
 	path := filepath.Join("templates", "public")
@@ -189,7 +189,7 @@ func (v *V) SearchPublic() error {
 }
 
 // Search amongst private templates.
-func (v *V) SearchPrivate() error {
+func (v *C) SearchPrivate() error {
 	uni := v.uni
 	uni.Dat["is_private"] = true
 	path := filepath.Join("templates", "private", uni.Req.Host)
@@ -199,7 +199,7 @@ func (v *V) SearchPrivate() error {
 }
 
 // Search amongst modules.
-func (v *V) SearchMod() error {
+func (v *C) SearchMod() error {
 	uni := v.uni
 	uni.Dat["is_mod"] = true
 	path := filepath.Join("modules")
@@ -209,35 +209,19 @@ func (v *V) SearchMod() error {
 }
 
 // admin.Install invokes this trough mod.GetHook.
-func (h *H) Install(id bson.ObjectId) error {
+func (h *C) Install(id bson.ObjectId) error {
 	return te_model.Install(h.uni.Db, id)
 }
 
 // Admin Install invokes this trough mod.GetHook.
-func (h *H) Uninstall(id bson.ObjectId) error {
+func (h *C) Uninstall(id bson.ObjectId) error {
 	return te_model.Uninstall(h.uni.Db, id)
 }
 
-type A struct {
+type C struct {
 	uni *context.Uni
 }
 
-func Actions(uni *context.Uni) *A {
-	return &A{uni}
-}
-
-type H struct {
-	uni *context.Uni
-}
-
-func Hooks(uni *context.Uni) *H {
-	return &H{uni}
-}
-
-type V struct {
-	uni *context.Uni
-}
-
-func Views(uni *context.Uni) *V {
-	return &V{uni}
+func (c *C) Init(uni *context.Uni) {
+	c.uni = uni
 }

@@ -8,10 +8,10 @@ type Event interface {
 }
 
 type Caller interface {
-	Call(string, string, string, interface{}, ...interface{}) error
-	Names(string, string) []string
-	Matches(string, string, string, interface{}) bool
-	Has(string, string, string) bool
-	Inputs(string, string, string) []reflect.Type
-	Outputs(string, string, string) []reflect.Type
+	Call(string, string, interface{}, ...interface{}) error
+	Names(string) []string
+	Matches(string, string, interface{}) bool
+	Has(string, string) bool
+	Inputs(string, string) []reflect.Type
+	Outputs(string, string) []reflect.Type
 }

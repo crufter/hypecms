@@ -193,8 +193,8 @@ func sil(a interface{}) error {
 	return nil
 }
 
-func names(a interfaces.Caller, what, modname string) []string {
-	return a.Names(what, modname)
+func names(a interfaces.Caller, modname string) []string {
+	return a.Names(modname)
 }
 
 // The way the documentation is provided may become subject to change, because it's ugly as hell.
@@ -225,14 +225,8 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"concat": concat,
 		"musth": musth,
 		"sil": sil,
-		"actions": func(a string) []string {
-			return names(uni.Caller, "actions", a)
-		},
-		"views": func(a string) []string {
-			return names(uni.Caller, "views", a)
-		},
-		"hooks": func(a string) []string {
-			return names(uni.Caller, "hooks", a)
+		"exported": func(a string) []string {
+			return names(uni.Caller, a)
 		},
 	}
 	d["commands"] = "Returns a list of all command names."
