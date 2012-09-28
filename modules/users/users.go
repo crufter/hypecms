@@ -1,11 +1,11 @@
 // Package user implements basic user functionality.
 // - Registration, deletion, update, login, logout of users.
 // - Building the user itself (if logged in), and putting it to uni.Dat["_user"].
-package user
+package users
 
 import (
 	"github.com/opesun/hypecms/frame/context"
-	"github.com/opesun/hypecms/modules/user/model"
+	"github.com/opesun/hypecms/modules/users/model"
 	"github.com/opesun/jsonp"
 	"net/http"
 )

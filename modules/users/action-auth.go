@@ -10,13 +10,13 @@
 // Above this, user levels are not well defined yet:
 // 200: moderator-like entity
 // 300: admin, full rights.
-package user
+package users
 
 import(
 	"fmt"
 	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/frame/misc/scut"
-	"github.com/opesun/hypecms/modules/user/model"
+	"github.com/opesun/hypecms/modules/users/model"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/numcon"
 )

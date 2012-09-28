@@ -35,7 +35,15 @@ func emptyInstance(module string) reflect.Value {
 	return reflect.New(d)
 }
 
+func (c *Call) Exists(module string) bool {
+	_, has := mods[module]
+	return has
+}
+
 func method(inst reflect.Value, fname string) reflect.Value {
+	if inst == empty {
+		return empty
+	}
 	return inst.MethodByName(fname)
 }
 

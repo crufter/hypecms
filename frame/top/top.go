@@ -7,7 +7,9 @@ import(
 	"github.com/opesun/hypecms/frame/mod"
 	"github.com/opesun/hypecms/frame/misc/scut"
 	"github.com/opesun/hypecms/frame/display"
-	"github.com/opesun/hypecms/modules/user"
+	//"github.com/opesun/hypecms/frame/filter"
+	iface "github.com/opesun/hypecms/frame/interfaces"
+	"github.com/opesun/hypecms/modules/users"
 	"net/http"
 	"fmt"
 	"io"
@@ -15,7 +17,9 @@ import(
 	"labix.org/v2/mgo"
 	"encoding/json"
 	"strings"
+	"net/url"
 	"runtime/debug"
+	"strconv"
 )
 
 type m map[string]interface{}
@@ -110,7 +114,7 @@ func (t *Top) runAction() (string, error) {
 		return "", fmt.Errorf(no_action, modname)
 	}
 	action_name := uni.Paths[3]
-	err, puzzle_err := user.OkayToDoAction(uni, modname, action_name)
+	err, puzzle_err := users.OkayToDoAction(uni, modname, action_name)
 	if err != nil {
 		return action_name, err
 	}
@@ -136,91 +140,16 @@ func (t *Top) execAction() {
 	t.actionResponse(err, action_name)
 }
 
-func (t *Top) adminAction() {
-	uni := t.uni
-	l := len(uni.Paths)
-	var err error
-	var action_name string
-	if l > 3 {
-		action_name = uni.Paths[3]
-		if scut.IsAdmin(uni.Dat["_user"]) || action_name == "login" || action_name == "regfirstadmin" {
-			ret_rec := func(e error) {
-				err = e
-			}
-			err = uni.Caller.Call("admin", sanitize(action_name), ret_rec)
-		}
-	} else {
-		err = fmt.Errorf(no_admin_action)
-	}
-	t.actionResponse(err, action_name)
-}
-
-func (t *Top) adminView() {
-	uni := t.uni
-	l := len(uni.Paths)
-	var err error
-	if !scut.IsAdmin(uni.Dat["_user"]) {
-		err = fmt.Errorf("Not allowed.")
-	}
-	var view string
-	if l > 2 {
-		view = uni.Paths[2]
-	} else {
-		view = "index"
-	}
-	ret_rec := func(e error) {
-		e = err
-	}
-	sane_view := sanitize(view)
-	if uni.Caller.Has("admin", sane_view) {
-		if view == "index" {
-			uni.Dat["_points"] = []string{"admin/index"}
-		}
-		uni.Caller.Call("admin", sane_view, ret_rec)
-	} else {
-		modname := view
-		if l > 3 {
-			view = uni.Paths[3]
-		} else {
-			view = "index"
-		}
-		sane_view = sanitize(view)
-		uni.Caller.Call(modname, "AdminInit", nil)
-		if uni.Caller.Has(modname, "Admin"+sane_view) {
-			uni.Dat["_points"] = []string{modname+"/admin-"+view}
-			uni.Caller.Call(modname, "Admin"+sane_view, ret_rec)
-		} else {
-			uni.Dat["_points"] = []string{modname+"/"+view}
-			uni.Caller.Call(modname, sane_view, ret_rec)
-		}
-	}
-	if err == nil {
-		display.D(uni)
-	} else {
-		display.DErr(uni, err)
-	}
-}
-
-func (t *Top) routeAdmin() {
-	uni := t.uni
-	l := len(uni.Paths)
-	if l > 2 && uni.Paths[2] == "b" {
-		t.adminAction()
-	} else {
-		t.adminView()
-	}
-}
-
 func (t *Top) buildUser() error {
 	// Why is this a hook? Get rid of it.
-	if !t.uni.Caller.Has("user", "BuildUser") {
+	if !t.uni.Caller.Has("users", "BuildUser") {
 		return fmt.Errorf(no_user_module_build_hook)
 	}
 	var err error
 	ret_rec := func(e error) {
 		e = err
 	}
-	t.uni.Caller.Call("user", "BuildUser", ret_rec)
+	t.uni.Caller.Call("users", "BuildUser", ret_rec)
 	return err
 }
 
@@ -249,24 +178,119 @@ type Top struct{
 	config 	*config.Config
 }
 
+
+type Route struct {
+	checked			int
+	Words			[]string
+	Queries			[]url.Values
+}
+
+func (r *Route) Get() string {
+	r.checked++
+	return r.Words[len(r.Words)-r.checked]
+}
+
+func (r *Route) Got() int {
+	return r.checked
+}
+
+func (r *Route) DropOne() {
+	r.Words = r.Words[:len(r.Words)-1]
+	r.Queries = r.Queries[:len(r.Queries)-1]
+}
+
+func (r *Route) HasMorePair() bool {
+	return len(r.Words)>=2+r.checked
+}
+
+func sortParams(q url.Values) map[int]url.Values {
+	sorted := map[int]url.Values{}
+	for i, v := range q {
+		num, err := strconv.Atoi(string(i[0]))
+		nummed := false
+		if err == nil {
+			nummed = true
+		} else {
+			num = 0
+		}
+		if nummed {
+			i = i[1:]
+		}
+		if _, has := sorted[num]; !has {
+			sorted[num] = url.Values{}
+		}
+		for _, x := range v {
+			sorted[num].Add(i, x)
+		}
+	}
+	return sorted
+}
+
+// New		Post
+// Edit		Put							
+func InterpretRoute(p string, q url.Values) (*Route, error) {
+	ps := strings.Split(p, "/")
+	r := &Route{}
+	r.Queries = []url.Values{}
+	r.Words = []string{}
+	if len(ps) < 1 {
+		return r, fmt.Errorf("Wtf.")
+	}
+	ps = ps[1:]		// First one is empty string.
+	sorted := sortParams(q)
+	skipped := 0
+	for i:=0;i<len(ps);i++ {
+		v := ps[i]
+		r.Words = append(r.Words, v)
+		r.Queries = append(r.Queries, url.Values{})
+		qi := len(r.Words)-1
+		if len(ps) > i+1 {	// We are not at the end.
+			next := ps[i+1]
+			if next[1] == '-' && next[0] == v[0] {	// Id query in url., eg /users/u-fxARrttgFd34xdv7
+				skipped++
+				r.Queries[qi].Add("id", strings.Split(next, "-")[1])
+				i++
+				continue
+			}
+		}
+		r.Queries[qi] = sorted[qi-skipped]
+	}
+	return r, nil
+}
+
+type Sentence struct{
+	Noun, Verb, Redundant string
+}
+
+func Translate(r *Route, a iface.Caller, opt map[string]interface{}) *Sentence {
+	s := &Sentence{}
+	if len(r.Words) == 1 {
+		s.Noun = r.Words[0]
+		s.Verb = "Get"
+		return s
+	}
+	instable := r.Get()
+	must_be_noun := r.Get()
+	if a.Exists(instable) {
+		s.Verb = "Get"
+	} else if a.Has(must_be_noun, instable) {
+		s.Verb = instable
+	} else {
+		s.Redundant = instable
+		r.DropOne()
+		s.Verb = "Get"
+	}
+	if !a.Exists(must_be_noun) {
+		panic("Noun %v does not exist.")
+	}
+	s.Noun = must_be_noun
+	return s
+}
+
 func (t *Top) Route() {
 	uni := t.uni
-	first_p := uni.Paths[1]
-	last_p := uni.Paths[len(uni.Paths)-1]
-	if t.config.ServeFiles && strings.Index(last_p, ".") != -1 {
-		has_sfx := strings.HasSuffix(last_p, ".go")
-		if first_p == "template" || first_p == "tpl" && !has_sfx {
-			t.serveTemplateFile()
-		} else if !has_sfx {
-			if uni.Paths[1] == "shared" {
-				http.ServeFile(uni.W, uni.Req, filepath.Join(t.config.AbsPath, uni.Req.URL.Path))
-			} else {
-				http.ServeFile(uni.W, uni.Req, filepath.Join(t.config.AbsPath, "uploads", uni.Req.Host, uni.Req.URL.Path))
-			}
-		} else {
-			uni.Put("Don't do that.")
-		}
-		return
+	if t.config.ServeFiles && strings.Index(uni.Paths[len(uni.Paths)-1], ".") != -1 {
+		t.serveFile()
 	}
 	t.uni.Req.ParseForm()		// Should we handle the error return of this?
 	err := t.buildUser()
@@ -274,20 +298,14 @@ func (t *Top) Route() {
 		display.DErr(uni, err)
 		return
 	}
-	switch uni.Paths[1] {
-	// Back hooks are put behind "/b/" to avoid eating up the namespace.
-	case "b":
-		t.execAction()
-	// Admin is a VIP module, to allow bootstrapping a site even if the option document is empty.
-	case "admin":
-		t.routeAdmin()
-	case "run-commands":
-		t.execCommands()
-	case "terminal":
-		t.terminal()
-	default:
-		t.execFrontHooks()
+	r, err := InterpretRoute(uni.P, t.uni.Req.Form)
+	if err != nil {
+		Put(err.Error())
+		return
 	}
+	sen := Translate(r, uni.Caller, uni.Opt)
+	fmt.Println("--r", r)
+	fmt.Println("-----sent", sen)
 }
 
 func New(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req *http.Request, config *config.Config) *Top {
@@ -326,6 +344,24 @@ func New(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req *htt
 // Since we don't include the template name into the url, only "template", we have to extract the template name from the opt here.
 // Example: xyz.com/template/style.css
 //			xyz.com/tpl/admin/style.css
+func (t *Top) serveFile() {
+	uni := t.uni
+	first_p := uni.Paths[1]
+	last_p := uni.Paths[len(uni.Paths)-1]
+	has_sfx := strings.HasSuffix(last_p, ".go")
+	if first_p == "template" || first_p == "tpl" && !has_sfx {
+		t.serveTemplateFile()
+	} else if !has_sfx {
+		if uni.Paths[1] == "shared" {
+			http.ServeFile(uni.W, uni.Req, filepath.Join(t.config.AbsPath, uni.Req.URL.Path))
+		} else {
+			http.ServeFile(uni.W, uni.Req, filepath.Join(t.config.AbsPath, "uploads", uni.Req.Host, uni.Req.URL.Path))
+		}
+	} else {
+		uni.Put("Don't do that.")
+	}
+}
+
 func (t *Top) serveTemplateFile() {
 	uni := t.uni
 	if uni.Paths[1] == "template" {

@@ -5,7 +5,7 @@ package display
 import (
 	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/frame/misc/scut"
-	"github.com/opesun/hypecms/modules/user"
+	"github.com/opesun/hypecms/modules/users"
 	"github.com/opesun/jsonp"
 	"github.com/opesun/numcon"
 	"html/template"
@@ -57,7 +57,7 @@ func eq(a, b interface{}) bool {
 }
 
 func showPuzzles(uni *context.Uni, mod_name, action_name string) string {
-	str, err := user.ShowPuzzlesPath(uni, mod_name, action_name)
+	str, err := users.ShowPuzzlesPath(uni, mod_name, action_name)
 	if err != nil {
 		return err.Error()
 	}
