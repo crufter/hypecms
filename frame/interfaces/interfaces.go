@@ -10,14 +10,27 @@ type Event interface {
 	Iterate(eventname string, stopfunc interface{}, params ...interface{})
 }
 
-type Caller interface {
-	Call(string, string, interface{}, ...interface{}) error
-	Names(string) []string
-	Matches(string, string, interface{}) bool
-	Has(string, string) bool
-	Exists(string) bool
-	Inputs(string, string) []reflect.Type
-	Outputs(string, string) []reflect.Type
+type Method interface {
+	Call(interface{}, ...interface{}) error
+	Matches(interface{}) bool
+	InputTypes() []reflect.Type
+	OutputTypes() []reflect.Type
+}
+
+type Instance interface {
+	HasMethod(string) bool
+	MethodNames() []string
+	Method(string) Method
+}
+
+type Module interface {
+	Instance() Instance
+	Exists() bool
+}
+
+type Speaker interface {
+	IsNoun(string) bool
+	NounHasVerb(string, string) bool
 }
 
 type Filter interface {

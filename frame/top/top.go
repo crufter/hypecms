@@ -3,13 +3,14 @@ package top
 import(
 	"github.com/opesun/hypecms/frame/context"
 	"github.com/opesun/hypecms/frame/config"
-	"github.com/opesun/hypecms/frame/shell"
+	//"github.com/opesun/hypecms/frame/shell"
 	"github.com/opesun/hypecms/frame/mod"
 	"github.com/opesun/hypecms/frame/misc/scut"
 	"github.com/opesun/hypecms/frame/display"
-	//"github.com/opesun/hypecms/frame/filter"
-	iface "github.com/opesun/hypecms/frame/interfaces"
-	"github.com/opesun/hypecms/modules/users"
+	"github.com/opesun/hypecms/frame/lang"
+	"github.com/opesun/hypecms/frame/lang/speaker"
+	"github.com/opesun/hypecms/frame/filter"
+	//iface "github.com/opesun/hypecms/frame/interfaces"
 	"net/http"
 	"fmt"
 	"io"
@@ -17,9 +18,7 @@ import(
 	"labix.org/v2/mgo"
 	"encoding/json"
 	"strings"
-	"net/url"
 	"runtime/debug"
-	"strconv"
 )
 
 type m map[string]interface{}
@@ -103,64 +102,15 @@ func sanitize(a string) string {
 	return strings.Replace(a, " ", "", -1)
 }
 
-func (t *Top) runAction() (string, error) {
-	uni := t.uni
-	l := len(uni.Paths)
-	if l < 3 {
-		return "", fmt.Errorf(no_module_at_action)
-	}
-	modname := uni.Paths[2] // TODO: Routing based on Paths won't work if the site is installed to subfolder or something.
-	if l < 4 {
-		return "", fmt.Errorf(no_action, modname)
-	}
-	action_name := uni.Paths[3]
-	err, puzzle_err := users.OkayToDoAction(uni, modname, action_name)
-	if err != nil {
-		return action_name, err
-	}
-	if puzzle_err != nil {
-		return action_name, puzzle_err
-	}
-	sanitized_aname := sanitize(action_name)
-	if !uni.Caller.Has(modname, sanitized_aname) {
-		return action_name, fmt.Errorf(unexported_action, modname)
-	}
-	if !uni.Caller.Matches(modname, sanitized_aname, func() error {return nil}) {
-		return action_name, fmt.Errorf("Action %v of %v has bad signature.", action_name, modname)
-	}
-	ret_rec := func(e error){
-		err = e
-	}
-	uni.Caller.Call(modname, sanitized_aname, ret_rec)
-	return action_name, err
-}
-
-func (t *Top) execAction() {
-	action_name, err := t.runAction()
-	t.actionResponse(err, action_name)
-}
-
 func (t *Top) buildUser() error {
-	// Why is this a hook? Get rid of it.
-	if !t.uni.Caller.Has("users", "BuildUser") {
-		return fmt.Errorf(no_user_module_build_hook)
-	}
 	var err error
 	ret_rec := func(e error) {
 		e = err
 	}
-	t.uni.Caller.Call("users", "BuildUser", ret_rec)
+	ins := t.uni.NewModule("users").Instance()
+	ins.Method("Init").Call(nil, t.uni)
+	ins.Method("BuildUser").Call(ret_rec)
 	return err
-}
-
-func (t *Top) terminal() {
-	shell.Terminal(t.uni)
-	display.D(t.uni)
-}
-
-func (t *Top) execCommands() {
-	err := shell.FromWeb(t.uni)
-	t.actionResponse(err, "shell")
 }
 
 // Just printing the stack trace to http response if a panic bubbles up all the way to top.
@@ -178,119 +128,19 @@ type Top struct{
 	config 	*config.Config
 }
 
-
-type Route struct {
-	checked			int
-	Words			[]string
-	Queries			[]url.Values
-}
-
-func (r *Route) Get() string {
-	r.checked++
-	return r.Words[len(r.Words)-r.checked]
-}
-
-func (r *Route) Got() int {
-	return r.checked
-}
-
-func (r *Route) DropOne() {
-	r.Words = r.Words[:len(r.Words)-1]
-	r.Queries = r.Queries[:len(r.Queries)-1]
-}
-
-func (r *Route) HasMorePair() bool {
-	return len(r.Words)>=2+r.checked
-}
-
-func sortParams(q url.Values) map[int]url.Values {
-	sorted := map[int]url.Values{}
-	for i, v := range q {
-		num, err := strconv.Atoi(string(i[0]))
-		nummed := false
-		if err == nil {
-			nummed = true
-		} else {
-			num = 0
-		}
-		if nummed {
-			i = i[1:]
-		}
-		if _, has := sorted[num]; !has {
-			sorted[num] = url.Values{}
-		}
-		for _, x := range v {
-			sorted[num].Add(i, x)
-		}
+func hasVerb(a string, b string) bool {
+	mo := mod.NewModule(a)
+	if !mo.Exists() {
+		return false
 	}
-	return sorted
-}
-
-// New		Post
-// Edit		Put							
-func InterpretRoute(p string, q url.Values) (*Route, error) {
-	ps := strings.Split(p, "/")
-	r := &Route{}
-	r.Queries = []url.Values{}
-	r.Words = []string{}
-	if len(ps) < 1 {
-		return r, fmt.Errorf("Wtf.")
-	}
-	ps = ps[1:]		// First one is empty string.
-	sorted := sortParams(q)
-	skipped := 0
-	for i:=0;i<len(ps);i++ {
-		v := ps[i]
-		r.Words = append(r.Words, v)
-		r.Queries = append(r.Queries, url.Values{})
-		qi := len(r.Words)-1
-		if len(ps) > i+1 {	// We are not at the end.
-			next := ps[i+1]
-			if next[1] == '-' && next[0] == v[0] {	// Id query in url., eg /users/u-fxARrttgFd34xdv7
-				skipped++
-				r.Queries[qi].Add("id", strings.Split(next, "-")[1])
-				i++
-				continue
-			}
-		}
-		r.Queries[qi] = sorted[qi-skipped]
-	}
-	return r, nil
-}
-
-type Sentence struct{
-	Noun, Verb, Redundant string
-}
-
-func Translate(r *Route, a iface.Caller, opt map[string]interface{}) *Sentence {
-	s := &Sentence{}
-	if len(r.Words) == 1 {
-		s.Noun = r.Words[0]
-		s.Verb = "Get"
-		return s
-	}
-	instable := r.Get()
-	must_be_noun := r.Get()
-	if a.Exists(instable) {
-		s.Verb = "Get"
-	} else if a.Has(must_be_noun, instable) {
-		s.Verb = instable
-	} else {
-		s.Redundant = instable
-		r.DropOne()
-		s.Verb = "Get"
-	}
-	if !a.Exists(must_be_noun) {
-		panic("Noun %v does not exist.")
-	}
-	s.Noun = must_be_noun
-	return s
+	return mo.Instance().HasMethod(b)
 }
 
 func (t *Top) Route() {
 	uni := t.uni
 	if t.config.ServeFiles && strings.Index(uni.Paths[len(uni.Paths)-1], ".") != -1 {
 		t.serveFile()
+		return
 	}
 	t.uni.Req.ParseForm()		// Should we handle the error return of this?
 	err := t.buildUser()
@@ -298,14 +148,58 @@ func (t *Top) Route() {
 		display.DErr(uni, err)
 		return
 	}
-	r, err := InterpretRoute(uni.P, t.uni.Req.Form)
+	r, err := lang.InterpretRoute(uni.P, t.uni.Req.Form)
 	if err != nil {
 		Put(err.Error())
 		return
 	}
-	sen := Translate(r, uni.Caller, uni.Opt)
-	fmt.Println("--r", r)
-	fmt.Println("-----sent", sen)
+	filters := []*filter.Filter{}
+	var data map[string]interface{}
+	view := uni.Req.Method == "GET"
+	for i, v := range r.Words {
+		if len(r.Words) == i+1 && !view {	// Last one.
+			data = filter.ToData(r.Queries[i])
+		} else {
+			filters = append(filters, filter.New(uni.Db, v, filter.ToQuery(r.Queries[i])))
+		}
+	}
+	nouns := map[string]interface{}{}
+	if val, has := uni.Opt["nouns"]; has {
+		nouns = val.(map[string]interface{})
+	}
+	fmt.Println("opt:", uni.Opt)
+	speak := speaker.New(hasVerb, nouns)
+	s := lang.Translate(r, speak)
+	loc := speak.VerbLocation(s.Noun, s.Verb)
+	f, err := filter.Reduce(filters...)
+	if err != nil {
+		panic(err)
+	}
+	if view {
+		uni.Dat["_points"] = []string{loc+"/"+s.Verb}
+	}
+	ins := mod.NewModule(loc).Instance()
+	ins.Method("Init").Call(nil, t.uni)
+	if view {
+		var res []interface{}
+		ret_rec := func(result []interface{}, e error) {
+			fmt.Println("rezz", result)
+			res = result
+			e = err
+		}
+		ins.Method(s.Verb).Call(ret_rec, f)
+		uni.Dat[s.Noun] = res
+		if err != nil {
+			display.DErr(uni, err)
+		}
+		display.D(uni)
+	} else {
+		ret_rec := func(e error) {
+			e = err
+		}
+		ins.Method(s.Verb).Call(ret_rec, f, data)
+		t.actionResponse(err, s.Verb)
+	}
 }
 
 func New(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req *http.Request, config *config.Config) *Top {
@@ -322,8 +216,8 @@ func New(session *mgo.Session, db *mgo.Database, w http.ResponseWriter, req *htt
 		Root:    config.AbsPath,
 		P:       req.URL.Path,
 		Paths:   strings.Split(req.URL.Path, "/"),
+		NewModule:	mod.NewModule,
 	}
-	uni.Caller = mod.NewCall(uni)
 	// Not sure if not giving the db session to nonadmin installations increases security, but hey, one can never be too cautious, they dont need it anyway.
 	if config.DBAdmMode {
 		uni.Session = session

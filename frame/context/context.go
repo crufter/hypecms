@@ -3,7 +3,7 @@ package context
 
 import (
 	"github.com/opesun/hypecms/frame/misc/basic"
-	"github.com/opesun/hypecms/frame/interfaces"
+	iface "github.com/opesun/hypecms/frame/interfaces"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
 	"net/http"
@@ -27,7 +27,7 @@ type Uni struct {
 	Put     	func(...interface{})   		// Just a convenience function to allow fast output to http response.
 	Root    	string                 		// Absolute path of the application.
 	Ev      	*Ev
-	Caller 		interfaces.Caller
+	NewModule	func(string) iface.Module
 }
 
 // Set only once.
@@ -116,7 +116,12 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 	}
 	for _, modname := range subscribed {
 		hook_outp := []reflect.Value{}
-		if !e.uni.Caller.Has(modname, hookname) {
+		mo := e.uni.NewModule(modname)
+		if !mo.Exists() {
+			continue
+		}
+		ins := mo.Instance()
+		if !ins.HasMethod(hookname) {
 			continue
 		}
 		var ret_rec interface{}
@@ -131,7 +136,8 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 				}
 			}
 		}
-		e.uni.Caller.Call(modname, hookname, ret_rec, params...)
+		ins.Method("Init").Call(nil, e.uni)
+		ins.Method(hookname).Call(ret_rec, params...)
 		if stopfunc != nil {
 			if stopfunc_numin != len(hook_outp) {
 				panic(fmt.Sprintf("The number of return values of Hook %v of %v differs from the number of arguments of stopfunc.", hookname, modname))	// This sentence...

@@ -2,10 +2,9 @@
 package mod
 
 import(
-	"github.com/opesun/hypecms/frame/context"
+	iface "github.com/opesun/hypecms/frame/interfaces"
 	"reflect"
 	"unicode"
-	"fmt"
 	"unicode/utf8"
 )
 
@@ -19,71 +18,31 @@ func (s store) register(modname string, a interface{}) {
 
 var mods = store{}
 
-type Call struct{
-	uni *context.Uni
+type Module struct {
+	name string
 }
 
-func NewCall(uni *context.Uni) *Call {
-	return &Call{uni}
+func NewModule(s string) iface.Module {
+	return &Module{s}
 }
 
-func emptyInstance(module string) reflect.Value {
-	d, has := mods[module]
-	if !has {
-		return empty
-	}
-	return reflect.New(d)
-}
-
-func (c *Call) Exists(module string) bool {
-	_, has := mods[module]
+func (m *Module) Exists() bool {
+	_, has := mods[m.name]
 	return has
 }
 
-func method(inst reflect.Value, fname string) reflect.Value {
-	if inst == empty {
-		return empty
-	}
-	return inst.MethodByName(fname)
+func (m *Module) Instance() iface.Instance {
+	return Instance(reflect.New(mods[m.name]))
 }
 
-func (c *Call) init(empty_inst reflect.Value) {
-	initfunc := method(empty_inst, "Init")
-	initfunc.Call([]reflect.Value{reflect.ValueOf(c.uni)})	// Check for error maybe?
+type Instance reflect.Value
+
+func (i Instance) HasMethod(fname string) bool {
+	return reflect.Value(i).MethodByName(fname).Kind() == reflect.Func
 }
 
-// Maybe should return an error.
-func (c *Call) Call(module, fname string, ret_reciever interface{}, params ...interface{}) error {
-	e_inst := emptyInstance(module)
-	c.init(e_inst)
-	meth := method(e_inst, fname)	// Hehehe.
-	if meth == empty {
-		return fmt.Errorf("mod: Can't find method.")
-	}
-	subj_in := []reflect.Value{}
-	for _, v := range params {
-		subj_in = append(subj_in, reflect.ValueOf(v))
-	}
-	subj_out := meth.Call(subj_in)
-	if ret_reciever != nil {
-		reflect.ValueOf(ret_reciever).Call(subj_out)
-	}
-	return nil
-}
-
-func (c *Call) Has(module, fname string) bool {
-	e_inst := emptyInstance(module)
-	meth := method(e_inst, fname)
-	if meth == empty {
-		return false
-	}
-	return meth.Kind() == reflect.Func
-}
-
-// Method names
-func (c *Call) Names(module string) []string {
-	inst := emptyInstance(module)
-	t := reflect.TypeOf(inst.Interface())
+func (i Instance) MethodNames() []string {
+	t := reflect.TypeOf(reflect.Value(i).Interface())
 	names := []string{}
 	num := t.NumMethod()
 	for i:=0;i<num;i++{
@@ -96,6 +55,24 @@ func (c *Call) Names(module string) []string {
 	return names
 }
 
+func(i Instance) Method(s string) iface.Method {
+	return Method(reflect.Value(i).MethodByName(s))
+}
+
+type Method reflect.Value
+
+func (me Method) Call(ret_reciever interface{}, params ...interface{}) error {
+	subj_in := []reflect.Value{}
+	for _, v := range params {
+		subj_in = append(subj_in, reflect.ValueOf(v))
+	}
+	subj_out := reflect.Value(me).Call(subj_in)
+	if ret_reciever != nil {
+		reflect.ValueOf(ret_reciever).Call(subj_out)
+	}
+	return nil
+}
+
 func inputs(meth reflect.Value) []reflect.Type {
 	mtype := meth.Type()
 	in := mtype.NumIn()
@@ -106,10 +83,8 @@ func inputs(meth reflect.Value) []reflect.Type {
 	return ret
 }
 
-func (c *Call) Inputs(module, fname string) []reflect.Type {
-	e_inst := emptyInstance(module)
-	meth := method(e_inst, fname)
-	return inputs(meth)
+func (me Method) InputTypes() []reflect.Type {
+	return inputs(reflect.Value(me))
 }
 
 func outputs(meth reflect.Value) []reflect.Type {
@@ -122,14 +97,12 @@ func outputs(meth reflect.Value) []reflect.Type {
 	return ret
 }
 
-func (c *Call) Outputs(module, fname string) []reflect.Type {
-	e_inst := emptyInstance(module)
-	meth := method(e_inst, fname)
-	return inputs(meth)
+func (me Method) OutputTypes() []reflect.Type {
+	return outputs(reflect.Value(me))
 }
 
 // Mathes signature
-func (c *Call) Matches(module, fname string, i interface{}) bool  {
+func (me Method) Matches(i interface{}) bool  {
 	return true
 }
 

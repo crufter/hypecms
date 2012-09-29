@@ -9,12 +9,17 @@ type Basics struct{
 }
 
 func (b *Basics) Get(a iface.Filter) ([]interface{}, error) {
-	return nil, nil
+	return a.Find()
 }
 
-func (b *Basics) Post(a iface.Filter) ([]interface{}, error) {
-	return nil, nil
+func (b *Basics) Insert(a iface.Filter, data map[string]interface{}) (error) {
+	return a.Insert(data)
 }
 
-func (b *Basics) Put(a iface.Filter) {
+func (b *Basics) Update(a iface.Filter, data map[string]interface{}) error {
+	return a.Update(data)
+}
+
+func (b *Basics) Remove(a iface.Filter) error {
+	return a.Remove()
 }
