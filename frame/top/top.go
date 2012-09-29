@@ -155,40 +155,48 @@ func (t *Top) Route() {
 	}
 	filters := []*filter.Filter{}
 	var data map[string]interface{}
-	view := uni.Req.Method == "GET"
+	
+	nouns := map[string]interface{}{}
+	if val, has := uni.Opt["nouns"]; has {
+		nouns = val.(map[string]interface{})
+	}
+	speak := speaker.New(hasVerb, nouns)
+	s := lang.Translate(r, speak)
 	for i, v := range r.Words {
-		if len(r.Words) == i+1 && !view {	// Last one.
+		if len(r.Words) == i+1 && s.Verb != "Get" {	// Last one.
 			data = filter.ToData(r.Queries[i])
 		} else {
 			filters = append(filters, filter.New(uni.Db, v, filter.ToQuery(r.Queries[i])))
 		}
 	}
-	nouns := map[string]interface{}{}
-	if val, has := uni.Opt["nouns"]; has {
-		nouns = val.(map[string]interface{})
-	}
-	fmt.Println("opt:", uni.Opt)
-	speak := speaker.New(hasVerb, nouns)
-	s := lang.Translate(r, speak)
 	loc := speak.VerbLocation(s.Noun, s.Verb)
+	fmt.Println("---", loc, s.Noun, s.Verb)
+	fmt.Println("filters:", filters)
 	f, err := filter.Reduce(filters...)
 	if err != nil {
 		panic(err)
 	}
+	view := uni.Req.Method == "GET"
 	if view {
 		uni.Dat["_points"] = []string{loc+"/"+s.Verb}
 	}
+	fmt.Println("!!!!!!!!!!!", s.Verb, uni.Dat["_points"])
 	ins := mod.NewModule(loc).Instance()
 	ins.Method("Init").Call(nil, t.uni)
 	if view {
 		var res []interface{}
-		ret_rec := func(result []interface{}, e error) {
-			fmt.Println("rezz", result)
-			res = result
-			e = err
+		var ret_rec interface{}
+		if s.Verb == "Get" {
+			ret_rec = func(result []interface{}, e error) {
+				uni.Dat["main"] = res
+				e = err
+			}
+		} else {
+			ret_rec = func(e error) {
+				e = err
+			}
 		}
 		ins.Method(s.Verb).Call(ret_rec, f)
-		uni.Dat[s.Noun] = res
 		if err != nil {
 			display.DErr(uni, err)
 		}

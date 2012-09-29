@@ -1,8 +1,8 @@
 {{require header.t}}
 
 <h1>Get:</h1>
-{{range .cars}}
-	{{.name}}<br />
+{{range .main}}
+	{{.name}} {{.content}}<br />
 {{end}}
 
 

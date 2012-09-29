@@ -46,7 +46,7 @@ func Reduce(a ...*Filter) (*Filter, error) {
 		if err != nil {
 			return &Filter{}, err
 		}
-		a[i].SetParents("_"+prev.Coll(), ids)
+		a[i].SetParents("_"+prev.Subject(), ids)
 		prev = a[i]
 	}
 	return prev, nil
@@ -127,7 +127,7 @@ func (f *Filter) Update(upd_query map[string]interface{}) error {
 	return err
 }
 
-func (f *Filter) Coll() string {
+func (f *Filter) Subject() string {
 	return f.coll
 }
 

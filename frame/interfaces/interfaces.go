@@ -36,6 +36,7 @@ type Speaker interface {
 type Filter interface {
 	Ids() ([]bson.ObjectId, error)
 	Find() ([]interface{}, error)
+	Subject() string
 	Insert(map[string]interface{}) error
 	Update(map[string]interface{}) error
 	Remove() error
