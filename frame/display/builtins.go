@@ -4,6 +4,7 @@ package display
 
 import (
 	"github.com/opesun/hypecms/frame/context"
+	"github.com/opesun/hypecms/frame/lang"
 	"github.com/opesun/hypecms/frame/misc/scut"
 	"github.com/opesun/hypecms/modules/users"
 	"github.com/opesun/jsonp"
@@ -111,6 +112,34 @@ func sameKind(a, b interface{}) bool {
 	return reflect.ValueOf(a).Kind() == reflect.ValueOf(b).Kind()
 }
 
+type Form struct {
+	*lang.Form
+}
+
+func (f *Form) HiddenFields() [][2]string {
+	ret := [][2]string{}
+	for i, v := range f.FilterFields {
+		for _, x := range v {
+			ret = append(ret, [2]string{i, x})
+		}
+	}
+	return ret
+}
+
+func (f *Form) HiddenString() template.HTML {
+	d := f.HiddenFields()
+	ret := ""
+	for _, v := range d {
+		ret = ret+`<input type="hidden" name="`+v[0]+`" value="`+v[1]+`" />`
+	}
+	return template.HTML(ret)
+}
+
+func form(action_name string, r *lang.Route, s *lang.Sentence) *Form {
+	f := lang.NewURLEncoder(r, s).Form(action_name)
+	return &Form{f}
+}
+
 // We must recreate this map each time because map write is not threadsafe.
 // Write will happen when a hook modifies the map (hook call is not implemented yet).
 func builtins(uni *context.Uni) map[string]interface{} {
@@ -149,6 +178,9 @@ func builtins(uni *context.Uni) map[string]interface{} {
 		"fallback": fallback,
 		"type_of":	typeOf,
 		"same_kind": sameKind,
+		"form": func(action_name string) *Form {
+			return form(action_name, uni.R, uni.S)
+		},
 	}
 	return ret
 }

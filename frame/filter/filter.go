@@ -15,11 +15,12 @@ type filterMod struct {
 }
 
 type Filter struct {
-	db 			*mgo.Database
-	coll 		string
-	filterMod	filterMod
-	parents		map[string][]bson.ObjectId
-	query		map[string]interface{}
+	db 				*mgo.Database
+	coll 			string
+	filterMod		filterMod
+	parentField		string
+	parents			map[string][]bson.ObjectId
+	query			map[string]interface{}
 }
 
 func (f *Filter) Visualize() {
@@ -46,7 +47,7 @@ func Reduce(a ...*Filter) (*Filter, error) {
 		if err != nil {
 			return &Filter{}, err
 		}
-		a[i].SetParents("_"+prev.Subject(), ids)
+		a[i].SetParents(prev.Subject(), ids)
 		prev = a[i]
 	}
 	return prev, nil
@@ -59,7 +60,11 @@ func ToData(a url.Values) map[string]interface{} {
 		for _, x := range v {
 			vi = append(vi, x)
 		}
-		r[i] = vi
+		if len(vi) > 1 {
+			r[i] = vi
+		} else {
+			r[i] = vi[0]
+		}
 	}
 	return r
 }
@@ -72,6 +77,7 @@ func ToQuery(a url.Values) map[string]interface{} {
 			var val interface{}
 			switch i {
 			case "id":
+				i = "_id"
 				val = bson.ObjectIdHex(x)
 			default:
 				val = x
@@ -90,10 +96,15 @@ func ToQuery(a url.Values) map[string]interface{} {
 }
 
 func New(db *mgo.Database, coll string, query map[string]interface{}) *Filter {
-	return &Filter{db, coll, filterMod{}, map[string][]bson.ObjectId{}, query}
+	parent_field := "_"+coll
+	if val, has := query["parentf"]; has {
+		parent_field = val.(string)
+		delete(query, "parentf")
+	}
+	return &Filter{db, coll, filterMod{}, parent_field, map[string][]bson.ObjectId{}, query}
 }
 
-func merge(q map[string]interface{}, p map[string][]bson.ObjectId) map[string]interface{} {
+func mergeQuery(q map[string]interface{}, p map[string][]bson.ObjectId) map[string]interface{} {
 	r := map[string]interface{}{}
 	for i, v := range q {
 		r[i] = v
@@ -106,25 +117,39 @@ func merge(q map[string]interface{}, p map[string][]bson.ObjectId) map[string]in
 	return r
 }
 
+func mergeInsert(ins map[string]interface{}, p map[string][]bson.ObjectId) map[string]interface{} {
+	r := map[string]interface{}{}
+	for i, v := range ins {
+		r[i] = v
+	}
+	for i, v := range p {
+		r[i] = v
+	}
+	return r
+}
+
 func (f *Filter) Find() ([]interface{}, error) {
 	var res []interface{}
-	q := merge(f.query, f.parents)
-	f.Visualize()
+	q := mergeQuery(f.query, f.parents)
 	fmt.Println(q)
 	err := f.db.C(f.coll).Find(q).All(&res)
-	fmt.Println(res)
 	return res, err
 }
 
 func (f *Filter) Insert(d map[string]interface{}) error {
-	i := merge(d, f.parents)
+	i := mergeInsert(d, f.parents)
 	return f.db.C(f.coll).Insert(i)
 }
 
 func (f *Filter) Update(upd_query map[string]interface{}) error {
-	q := merge(f.query, f.parents)
-	_, err := f.db.C(f.coll).UpdateAll(q, upd_query)
-	return err
+	q := mergeQuery(f.query, f.parents)
+	return f.db.C(f.coll).Update(q, upd_query)
+}
+
+func (f *Filter) UpdateAll(upd_query map[string]interface{}) (int, error) {
+	q := mergeQuery(f.query, f.parents)
+	chi, err := f.db.C(f.coll).UpdateAll(q, upd_query)
+	return chi.Updated, err
 }
 
 func (f *Filter) Subject() string {
@@ -132,7 +157,7 @@ func (f *Filter) Subject() string {
 }
 
 func (f *Filter) SetParents(fieldname string, a []bson.ObjectId) {
-	f.parents[fieldname] = a
+	f.parents[f.parentField] = a
 }
 
 func (f *Filter) Ids() ([]bson.ObjectId, error) {
@@ -144,7 +169,7 @@ func (f *Filter) Ids() ([]bson.ObjectId, error) {
 		}
 		return ret, nil
 	}
-	q := merge(f.query, f.parents)
+	q := mergeQuery(f.query, f.parents)
 	var res []interface{}
 	err := f.db.C(f.coll).Find(q).All(&res)
 	if err != nil {
@@ -159,4 +184,9 @@ func (f *Filter) Ids() ([]bson.ObjectId, error) {
 
 func (f *Filter) Remove() error {
 	return f.db.C(f.coll).Remove(f.query)
+}
+
+func (f *Filter) RemoveAll() (int, error) {
+	chi, err := f.db.C(f.coll).RemoveAll(f.query)
+	return chi.Removed, err
 }

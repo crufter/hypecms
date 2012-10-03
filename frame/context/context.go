@@ -3,6 +3,7 @@ package context
 
 import (
 	"github.com/opesun/hypecms/frame/misc/basic"
+	"github.com/opesun/hypecms/frame/lang"
 	iface "github.com/opesun/hypecms/frame/interfaces"
 	"github.com/opesun/jsonp"
 	"labix.org/v2/mgo"
@@ -14,6 +15,7 @@ import (
 
 // General context for the application.
 type Uni struct {
+	Modifiers	map[string]interface{}
 	Session 	*mgo.Session
 	Db      	*mgo.Database
 	W       	http.ResponseWriter
@@ -28,6 +30,8 @@ type Uni struct {
 	Root    	string                 		// Absolute path of the application.
 	Ev      	*Ev
 	NewModule	func(string) iface.Module
+	R			*lang.Route
+	S			*lang.Sentence
 }
 
 // Set only once.
@@ -118,11 +122,11 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 		hook_outp := []reflect.Value{}
 		mo := e.uni.NewModule(modname)
 		if !mo.Exists() {
-			continue
+			panic(fmt.Sprintf("Module %v modname does not exist.", modname))
 		}
 		ins := mo.Instance()
 		if !ins.HasMethod(hookname) {
-			continue
+			panic(fmt.Sprintf("Module %v has no method named %v", modname, hookname))
 		}
 		var ret_rec interface{}
 		if stopfunc != nil {
@@ -137,7 +141,10 @@ func (e *Ev) trigger(eventname string, stopfunc interface{}, params ...interface
 			}
 		}
 		ins.Method("Init").Call(nil, e.uni)
-		ins.Method(hookname).Call(ret_rec, params...)
+		err := ins.Method(hookname).Call(ret_rec, params...)
+		if err != nil {
+			panic(err)
+		}
 		if stopfunc != nil {
 			if stopfunc_numin != len(hook_outp) {
 				panic(fmt.Sprintf("The number of return values of Hook %v of %v differs from the number of arguments of stopfunc.", hookname, modname))	// This sentence...

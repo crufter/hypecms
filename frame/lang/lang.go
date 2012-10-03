@@ -5,20 +5,104 @@ import(
 	"strconv"
 	"strings"
 	"fmt"
+	"regexp"
 	iface "github.com/opesun/hypecms/frame/interfaces"
 )
 
-func sanitize(a string) string {
+func ToCodeStyle(a string) string {
 	a = strings.Replace(a, "-", " ", -1)
 	a = strings.Replace(a, "_", " ", -1)
 	a = strings.Title(a)
 	return strings.Replace(a, " ", "", -1)
 }
 
+func ToURLStyle(a string) string {
+	return back(a, "-")
+}
+
+func back(a, sep string) string {
+	r := regexp.MustCompile("([A-Z])")
+	res := r.ReplaceAll([]byte(a), []byte(" $1"))
+	spl := strings.Split(string(res), " ")
+	for i := range spl {
+		spl[i] = strings.ToLower(spl[i])
+	}
+	return strings.Join(spl, sep)
+}
+
+func ToFileStyle(a string) string {
+	return back(a, "_")
+}
+
 type Route struct {
 	checked			int
 	Words			[]string
 	Queries			[]url.Values
+}
+
+type URLEncoder struct {
+	r *Route
+	s *Sentence
+}
+
+func NewURLEncoder(r *Route, s *Sentence) *URLEncoder {
+	return &URLEncoder{r, s}
+}
+
+func (u *URLEncoder) actionPath(action_name string) string {
+	var words []string
+	if u.s.Verb == "Get" {
+		words = append(words, u.r.Words...)
+	} else {
+		words = append(words, u.r.Words[:len(u.r.Words)-1]...)
+	}
+	words = append(words, action_name)
+	path := "/"+strings.Join(words, "/")
+	return path
+}
+
+func (u *URLEncoder) Url(action_name string) string {
+	path := u.actionPath(action_name)
+	qu := u.r.encodeQueries().Encode()
+	if len(qu) > 0 {
+		path = path+qu
+	}
+	return qu
+}
+
+type Form struct {
+	FilterFields	url.Values
+	ActionPath		string
+	KeyPrefix		string
+}
+
+func keyPrefix(action_path string) string {
+	return strconv.Itoa(len(strings.Split(action_path, "/"))-2)
+}
+
+func (u *URLEncoder) Form(action_name string) *Form {
+	f := &Form{}
+	f.ActionPath = u.actionPath(action_name)
+	f.KeyPrefix = keyPrefix(f.ActionPath)
+	f.FilterFields = u.r.encodeQueries()
+	return f
+}
+
+func (r *Route) encodeQueries() url.Values {
+	u := url.Values{}
+	for i, v := range r.Queries {
+		for j, x := range v {
+			var key string
+			if i != 0 {
+				key = key + strconv.Itoa(i)
+			}
+			key = key+j
+			for _, z := range x {
+				u.Add(key, z)
+			}
+		}
+	}
+	return u
 }
 
 func (r *Route) Get() string {
@@ -62,6 +146,16 @@ func sortParams(q url.Values) map[int]url.Values {
 	return sorted
 }
 
+func nextIsId(current, next string) bool {
+	//return next[1] == '-' && current[0] == next[0]
+	return len(next) == 24
+}
+
+func extractId(next string) string {
+	//return strings.Split(next, "-")[1]
+	return next
+}
+
 // New		Post
 // Edit		Put							
 func InterpretRoute(p string, q url.Values) (*Route, error) {
@@ -82,9 +176,9 @@ func InterpretRoute(p string, q url.Values) (*Route, error) {
 		qi := len(r.Words)-1
 		if len(ps) > i+1 {	// We are not at the end.
 			next := ps[i+1]
-			if next[1] == '-' && next[0] == v[0] {	// Id query in url., eg /users/u-fxARrttgFd34xdv7
+			if nextIsId(v, next) {	// Id query in url., eg /users/u-fxARrttgFd34xdv7
 				skipped++
-				r.Queries[qi].Add("id", strings.Split(next, "-")[1])
+				r.Queries[qi].Add("id", extractId(next))
 				i++
 				continue
 			}
@@ -110,8 +204,8 @@ func Translate(r *Route, a iface.Speaker) *Sentence {
 	if a.IsNoun(unstable) {
 		s.Verb = "Get"
 		s.Noun = unstable
-	} else if a.NounHasVerb(must_be_noun, sanitize(unstable)) {
-		s.Verb = sanitize(unstable)
+	} else if a.NounHasVerb(must_be_noun, ToCodeStyle(unstable)) {
+		s.Verb = ToCodeStyle(unstable)
 		s.Noun = must_be_noun
 	} else {
 		s.Redundant = unstable

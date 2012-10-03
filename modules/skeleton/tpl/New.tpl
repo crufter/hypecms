@@ -1,13 +1,21 @@
 {{require header.t}}
 
 <h1>New:</h1>
-<form action="{{action "insert"}}">
-{{range .scheme}}
-		{{.key}}<br />
-		<input name="{{key .key}}"/><br />
-		<br />
-{{end}}
-<input type="submit" />
+<!--
+	{{$f := form "insert"}}
+	{{$f.ActionPath}}<br />
+	{{$f.FilterFields}}<br />
+	{{$f.KeyPrefix}}<br />
+	<br />
+-->
+<form action="{{$f.ActionPath}}" method="POST">
+	{{$f.HiddenString}}
+	{{range .scheme}}
+			{{.key}}<br />
+			<input name="{{$f.KeyPrefix}}{{.key}}"/><br />
+			<br />
+	{{end}}
+	<input type="submit" />
 </form>
 
 {{require footer.t}}

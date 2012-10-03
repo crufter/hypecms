@@ -196,10 +196,10 @@ func runQueries(uni *context.Uni, queries map[string]interface{}) {
 // Prints all available data to http response as a JSON.
 func putJSON(uni *context.Uni) {
 	var v []byte
-	if _, format := uni.Req.Form["fmt"]; format {
-		v, _ = json.MarshalIndent(uni.Dat, "", "    ")
-	} else {
+	if _, nofmt := uni.Modifiers["nofmt"]; nofmt {
 		v, _ = json.Marshal(uni.Dat)
+	} else {
+		v, _ = json.MarshalIndent(uni.Dat, "", "    ")
 	}
 	uni.W.Header().Set("Content-Type", "application/json; charset=utf-8")
 	uni.Put(string(v))
@@ -255,7 +255,7 @@ func D(uni *context.Uni) {
 	if loc != nil {
 		uni.Dat["loc"] = loc
 	}
-	if _, isjson := uni.Req.Form["json"]; isjson {
+	if _, isjson := uni.Modifiers["json"]; isjson {
 		putJSON(uni)
 		return
 	} else {

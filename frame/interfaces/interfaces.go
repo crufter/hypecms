@@ -38,6 +38,9 @@ type Filter interface {
 	Find() ([]interface{}, error)
 	Subject() string
 	Insert(map[string]interface{}) error
+	// InsertAll([]map[string]interface{}) errors
 	Update(map[string]interface{}) error
+	UpdateAll(map[string]interface{}) (int, error)
 	Remove() error
+	RemoveAll() (int, error)
 }
